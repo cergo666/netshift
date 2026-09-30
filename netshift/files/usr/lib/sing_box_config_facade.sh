@@ -356,6 +356,13 @@ _add_outbound_security() {
                 fingerprint=""
         fi
 
+        # NETSHIFT_REALITY_MLKEM is set per section by set_section_reality_mlkem
+        # (bin/netshift), already gated on a core that knows the option.
+        local reality_mlkem=""
+        if [ "$security" = "reality" ] && [ "${NETSHIFT_REALITY_MLKEM:-0}" = "1" ]; then
+            reality_mlkem="true"
+        fi
+
         config=$(
             sing_box_cm_set_tls_for_outbound \
                 "$config" \
@@ -365,7 +372,8 @@ _add_outbound_security() {
                 "$([ "$alpn" = "[]" ] && echo null || echo "$alpn")" \
                 "$fingerprint" \
                 "$public_key" \
-                "$short_id"
+                "$short_id" \
+                "$reality_mlkem"
         )
         ;;
     none) ;;
@@ -620,12 +628,17 @@ sing_box_cf_prepare_subscription_batch() {
     local include_keywords_json="${3:-[]}"
     local exclude_keywords_json="${4:-[]}"
     local sing_box_extended="false"
+    local reality_mlkem="false"
 
     [ -n "$include_keywords_json" ] || include_keywords_json="[]"
     [ -n "$exclude_keywords_json" ] || exclude_keywords_json="[]"
 
     if is_sing_box_extended; then
         sing_box_extended="true"
+    fi
+    # Per-section option, set (and gated on the core) by set_section_reality_mlkem.
+    if [ "${NETSHIFT_REALITY_MLKEM:-0}" = "1" ]; then
+        reality_mlkem="true"
     fi
 
     # The working config is fed on stdin (POSIX-safe, no process substitution);
@@ -634,6 +647,7 @@ sing_box_cf_prepare_subscription_batch() {
         --slurpfile sub "$subscription_json_path" \
         --arg feed_key "$SUBSCRIPTION_FEED_MARKER_KEY" \
         --argjson extended "$sing_box_extended" \
+        --argjson reality_mlkem "$reality_mlkem" \
         --argjson include_keywords "$include_keywords_json" \
         --argjson exclude_keywords "$exclude_keywords_json" '
         # Codepoint-based case fold. OpenWrt jq has no Oniguruma and ascii_downcase
@@ -720,7 +734,13 @@ sing_box_cf_prepare_subscription_batch() {
                 # Feed index stamped by the multi-URL merge (null otherwise);
                 # the marker itself must never reach sing-box.
                 feed: ($ob[$feed_key] // null),
-                outbound: ($ob | del(.tag) | del(.remark) | del(.[$feed_key]) | . + {tag: $tag})
+                outbound: (
+                    $ob | del(.tag) | del(.remark) | del(.[$feed_key]) | . + {tag: $tag}
+                    # Keep the X25519MLKEM768 key share on Reality nodes when the
+                    # section asked for it (Xray-core >= 26.9.8 servers).
+                    | if $reality_mlkem and ((.tls.reality.enabled // false) == true)
+                      then .tls.reality.support_x25519mlkem768 = true else . end
+                )
               }]
           ) as $resolved
         | {
