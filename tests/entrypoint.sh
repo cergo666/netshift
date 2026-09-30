@@ -8223,7 +8223,10 @@ crontab() {
     esac
 }
 
-for fn in get_subscription_cron_line_for_interval \
+for fn in is_valid_subscription_update_time \
+          get_section_subscription_update_time \
+          warn_daily_subscription_time_collisions \
+          get_subscription_cron_line_for_interval \
           _collect_subscription_update_interval \
           sync_subscription_cron_jobs \
           remove_cron_job \
@@ -8248,7 +8251,10 @@ for spec in "30m|*/30 * * * *" "1h|17 * * * *" "3h|7 */3 * * *" "6h|24 */6 * * *
     iv="${spec%%|*}"
     want="${spec#*|}"
     got="$(get_subscription_cron_line_for_interval "$iv")"
-    if [ "$got" = "$want /usr/bin/netshift subscription_update $iv" ]; then
+    # The daily job also names its time ("1d HH:MM"), default 09:52.
+    sfx=""
+    [ "$iv" = "1d" ] && sfx=" 09:52"
+    if [ "$got" = "$want /usr/bin/netshift subscription_update $iv$sfx" ]; then
         echo "subcron:schedule-$iv:OK"
     else
         echo "subcron:schedule-$iv:FAIL [got '$got']"
@@ -8392,7 +8398,7 @@ if has_line "*/30 * * * * /usr/bin/netshift subscription_update 30m"; then
 else
     echo "subcron:fast-keeps-30m:FAIL [$(tr '\n' ';' < "$CRONTAB_FILE")]"
 fi
-if has_line "52 9 * * * /usr/bin/netshift subscription_update 1d"; then
+if has_line "52 9 * * * /usr/bin/netshift subscription_update 1d 09:52"; then
     echo 'subcron:slow-keeps-1d:OK'
 else
     echo "subcron:slow-keeps-1d:FAIL [$(tr '\n' ';' < "$CRONTAB_FILE")]"
@@ -8527,6 +8533,173 @@ else
     echo "subcron:no-subscription-no-job:FAIL [$(tr '\n' ';' < "$CRONTAB_FILE")]"
 fi
 
+# ── Configurable daily time (issue #54) ──────────────────────────
+# is_valid_subscription_update_time: HH:MM, 00:00-23:59, two digits each.
+time_ok=1
+for t in 00:00 00:59 09:52 12:00 19:30 20:00 23:59; do
+    is_valid_subscription_update_time "$t" || { time_ok=0; echo "# time-detail valid rejected: $t"; }
+done
+for t in "" 24:00 12:60 9:15 09:5 0930 09:15:30 09.15 ab:cd " 09:15" 09:15pm -1:00 "09:15 "; do
+    is_valid_subscription_update_time "$t" && { time_ok=0; echo "# time-detail invalid accepted: [$t]"; }
+done
+if [ "$time_ok" = "1" ]; then
+    echo 'subcron:time-validation:OK'
+else
+    echo 'subcron:time-validation:FAIL'
+fi
+
+# The cron fields are plain numbers: 04:05 -> "5 4", 00:00 -> "0 0", and 08:09 /
+# 09:08 must not hit the octal trap ($((08)) is an error in ash).
+time_ok=1
+for spec in "04:30|30 4" "00:00|0 0" "08:09|9 8" "09:08|8 9" "23:59|59 23" "10:10|10 10" "00:05|5 0"; do
+    t="${spec%%|*}"
+    want="${spec#*|} * * * /usr/bin/netshift subscription_update 1d $t"
+    got="$(get_subscription_cron_line_for_interval 1d "$t")"
+    [ "$got" = "$want" ] || { time_ok=0; echo "# time-detail $t: got [$got] want [$want]"; }
+done
+if [ "$time_ok" = "1" ]; then
+    echo 'subcron:daily-time-cron-fields:OK'
+else
+    echo 'subcron:daily-time-cron-fields:FAIL'
+fi
+# An invalid time never turns into a job, and a time on another interval is not
+# part of that interval's line.
+if get_subscription_cron_line_for_interval 1d 25:00 > /dev/null 2>&1; then
+    echo 'subcron:daily-time-invalid-rejected:FAIL [25:00 accepted]'
+else
+    echo 'subcron:daily-time-invalid-rejected:OK'
+fi
+if [ "$(get_subscription_cron_line_for_interval 1h 04:30)" = "17 * * * * /usr/bin/netshift subscription_update 1h" ]; then
+    echo 'subcron:time-ignored-for-other-intervals:OK'
+else
+    echo 'subcron:time-ignored-for-other-intervals:FAIL'
+fi
+
+cat > "$WORK/daily_times" <<'CFGEOF'
+config section 'night'
+        option connection_type 'proxy'
+        option proxy_config_type 'subscription'
+        option subscription_url 'https://example.com/night'
+        option subscription_update_interval '1d'
+        option subscription_update_time '04:30'
+
+config section 'night2'
+        option connection_type 'proxy'
+        option proxy_config_type 'subscription'
+        option subscription_url 'https://example.com/night2'
+        option subscription_update_interval '1d'
+        option subscription_update_time '04:30'
+
+config section 'legacy'
+        option connection_type 'proxy'
+        option proxy_config_type 'subscription'
+        option subscription_url 'https://example.com/legacy'
+        option subscription_update_interval '1d'
+CFGEOF
+: > "$LOG_FILE"
+sync "$WORK/daily_times"
+if has_line "30 4 * * * /usr/bin/netshift subscription_update 1d 04:30" &&
+    has_line "52 9 * * * /usr/bin/netshift subscription_update 1d 09:52"; then
+    echo 'subcron:daily-time-own-job:OK'
+else
+    echo "subcron:daily-time-own-job:FAIL [$(tr '\n' ';' < "$CRONTAB_FILE")]"
+fi
+# Two sections on 04:30 share ONE job, the section without the option keeps the
+# time the daily job always ran at (upgrade: existing configs do not change).
+if [ "$(job_count)" = "2" ]; then
+    echo 'subcron:daily-same-time-one-job:OK'
+else
+    echo "subcron:daily-same-time-one-job:FAIL [$(tr '\n' ';' < "$CRONTAB_FILE")]"
+fi
+# The time survives a service restart / package upgrade: the jobs are rebuilt
+# from UCI, so rebuilding again yields the identical crontab.
+first_crontab="$(sort "$CRONTAB_FILE")"
+sync "$WORK/daily_times" keep
+if [ "$(sort "$CRONTAB_FILE")" = "$first_crontab" ] && [ "$(job_count)" = "2" ]; then
+    echo 'subcron:daily-time-stable-across-rebuilds:OK'
+else
+    echo "subcron:daily-time-stable-across-rebuilds:FAIL [$(tr '\n' ';' < "$CRONTAB_FILE")]"
+fi
+
+cat > "$WORK/bad_time" <<'CFGEOF'
+config section 'oops'
+        option connection_type 'proxy'
+        option proxy_config_type 'subscription'
+        option subscription_url 'https://example.com/oops'
+        option subscription_update_interval '1d'
+        option subscription_update_time '25:99'
+CFGEOF
+: > "$LOG_FILE"
+sync "$WORK/bad_time"
+if has_line "52 9 * * * /usr/bin/netshift subscription_update 1d 09:52" && [ "$(job_count)" = "1" ]; then
+    echo 'subcron:bad-time-falls-back-to-default:OK'
+else
+    echo "subcron:bad-time-falls-back-to-default:FAIL [$(tr '\n' ';' < "$CRONTAB_FILE")]"
+fi
+if grep -q "^\[warn\] Invalid subscription_update_time '25:99' in section 'oops'" "$LOG_FILE"; then
+    echo 'subcron:bad-time-warned:OK'
+else
+    echo "subcron:bad-time-warned:FAIL [$(tr '\n' ';' < "$LOG_FILE")]"
+fi
+
+# A time on a non-daily interval is not used: the section keeps its interval job.
+cat > "$WORK/time_on_hourly" <<'CFGEOF'
+config section 'hourly'
+        option connection_type 'proxy'
+        option proxy_config_type 'subscription'
+        option subscription_url 'https://example.com/hourly'
+        option subscription_update_interval '1h'
+        option subscription_update_time '04:30'
+CFGEOF
+sync "$WORK/time_on_hourly"
+if has_line "17 * * * * /usr/bin/netshift subscription_update 1h" && [ "$(job_count)" = "1" ]; then
+    echo 'subcron:time-on-hourly-ignored:OK'
+else
+    echo "subcron:time-on-hourly-ignored:FAIL [$(tr '\n' ';' < "$CRONTAB_FILE")]"
+fi
+
+# The user picks the daily minute, so a minute another job fires at is only
+# warned about (the two would race). 04:30 clashes with the 30-minute job.
+cat > "$WORK/clash" <<'CFGEOF'
+config section 'fast'
+        option connection_type 'proxy'
+        option proxy_config_type 'subscription'
+        option subscription_url 'https://example.com/fast'
+        option subscription_update_interval '30m'
+
+config section 'daily'
+        option connection_type 'proxy'
+        option proxy_config_type 'subscription'
+        option subscription_url 'https://example.com/daily'
+        option subscription_update_interval '1d'
+        option subscription_update_time '04:30'
+CFGEOF
+: > "$LOG_FILE"
+sync "$WORK/clash"
+if grep -q "^\[warn\] The daily subscription update at 04:30 falls on a minute the 30m job also runs at" "$LOG_FILE" &&
+    has_line "30 4 * * * /usr/bin/netshift subscription_update 1d 04:30"; then
+    echo 'subcron:daily-minute-clash-warned:OK'
+else
+    echo "subcron:daily-minute-clash-warned:FAIL [$(tr '\n' ';' < "$LOG_FILE")]"
+fi
+sed -i "s/'04:30'/'04:31'/" "$WORK/clash"
+: > "$LOG_FILE"
+sync "$WORK/clash"
+if grep -q "falls on a minute" "$LOG_FILE"; then
+    echo 'subcron:daily-minute-no-clash-silent:FAIL [warned for 04:31]'
+else
+    echo 'subcron:daily-minute-no-clash-silent:OK'
+fi
+# The hint for a minute with a leading zero must not hit the octal trap either.
+sed -i "s/'04:31'/'04:00'/" "$WORK/clash"
+: > "$LOG_FILE"
+sync "$WORK/clash"
+if grep -q "for example :05" "$LOG_FILE"; then
+    echo 'subcron:clash-hint-leading-zero:OK'
+else
+    echo "subcron:clash-hint-leading-zero:FAIL [$(tr '\n' ';' < "$LOG_FILE")]"
+fi
+
 # ── remove_cron_job clears the legacy bare job and the interval jobs ──
 # stop_main calls it, and the interval jobs are matched by the same
 # `/usr/bin/netshift subscription_update` substring as the old interval-less one.
@@ -8585,7 +8758,7 @@ mkdir -p "$(dirname "$SUBSCRIPTION_PENDING_APPLY_FLAG")"
 rc=$?
 rm -f /etc/config/nsfixture
 if [ "$rc" -eq 0 ] && [ "$(job_count)" = "2" ] &&
-    has_line "52 9 * * * /usr/bin/netshift subscription_update 1d" &&
+    has_line "52 9 * * * /usr/bin/netshift subscription_update 1d 09:52" &&
     has_line "*/30 * * * * /usr/bin/netshift subscription_update 30m"; then
     echo 'subcron:start-main-builds-jobs:OK'
 else
@@ -8619,6 +8792,7 @@ config_get() {
     fast:proxy_config_type | slow:proxy_config_type | odd:proxy_config_type) eval "$1=subscription" ;;
     fast:subscription_update_interval) eval "$1=30m" ;;
     slow:subscription_update_interval) eval "$1=1d" ;;
+    slow:subscription_update_time) eval "$1=04:30" ;;
     odd:subscription_update_interval) eval "$1=2h" ;;
     *) eval "$1=\"\${4:-}\"" ;;
     esac
@@ -8643,7 +8817,7 @@ reload_sing_box_config_in_place() { return 0; }
 updated_sections() {
     : > "$WORK/updated.log"
     rm -f "$SUBSCRIPTION_PENDING_APPLY_FLAG"
-    subscription_update "$1" > /dev/null 2>&1
+    subscription_update "$1" "${2:-}" > /dev/null 2>&1
     printf '%s' "$(sort -u "$WORK/updated.log" | tr '\n' ' ')"
 }
 
@@ -8668,6 +8842,34 @@ if [ "$got" = "odd " ]; then
 else
     echo "subcron:filter-1h-picks-unknown-value:FAIL [$got]"
 fi
+# The daily job names its time: it updates only the sections at that time. A bare
+# "1d" (an older crontab line, a manual run) keeps meaning every daily section.
+got="$(updated_sections 1d 04:30)"
+if [ "$got" = "slow " ]; then
+    echo 'subcron:filter-1d-time-matches:OK'
+else
+    echo "subcron:filter-1d-time-matches:FAIL [$got]"
+fi
+got="$(updated_sections 1d 09:52)"
+if [ "$got" = "" ]; then
+    echo 'subcron:filter-1d-other-time-noop:OK'
+else
+    echo "subcron:filter-1d-other-time-noop:FAIL [$got]"
+fi
+: > "$LOG_FILE"
+got="$(updated_sections 1d 25:99)"
+if [ "$got" = "slow " ] && grep -q "Invalid subscription update time '25:99'" "$LOG_FILE"; then
+    echo 'subcron:filter-1d-invalid-time-updates-daily:OK'
+else
+    echo "subcron:filter-1d-invalid-time-updates-daily:FAIL [$got|$(tr '\n' ';' < "$LOG_FILE")]"
+fi
+got="$(updated_sections 1h 04:30)"
+if [ "$got" = "odd " ]; then
+    echo 'subcron:filter-time-ignored-for-other-intervals:OK'
+else
+    echo "subcron:filter-time-ignored-for-other-intervals:FAIL [$got]"
+fi
+
 got="$(updated_sections '')"
 if [ "$got" = "fast odd slow " ]; then
     echo 'subcron:no-filter-updates-all:OK'
