@@ -1600,3 +1600,15 @@ msgstr ""
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:238
 msgid "You can select Output Network Interface, by default autodetect"
 msgstr ""
+
+msgid "Update time"
+msgstr ""
+
+msgid "Time of the daily update, HH:MM (00:00-23:59) in the router's local time. Avoid minutes shared with other update intervals, such as :00 and :30 if a 30-minute section exists"
+msgstr ""
+
+msgid "Time cannot be empty"
+msgstr ""
+
+msgid "Invalid time format. Use HH:MM from 00:00 to 23:59"
+msgstr ""

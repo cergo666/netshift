@@ -1991,7 +1991,33 @@ remove_cron_job() {
 # would run two subscription_update processes side by side, and those race on the
 # pending-apply marker and on the sing-box rebuild + reload. The hourly job keeps
 # the :17 it always had.
+# True for a valid HH:MM (00:00-23:59), two digits each.
+is_valid_subscription_update_time() {
+    case "$1" in
+    [01][0-9]:[0-5][0-9] | 2[0-3]:[0-5][0-9]) return 0 ;;
+    esac
+    return 1
+}
+
+# The time a "1d" section refreshes at: its subscription_update_time, or
+# SUBSCRIPTION_UPDATE_TIME_DEFAULT when the option is absent or not a valid
+# HH:MM (a hand-edited value must not drop the section out of every cron job).
+get_section_subscription_update_time() {
+    local section="$1"
+    local subscription_update_time
+
+    config_get subscription_update_time "$section" "subscription_update_time" "$SUBSCRIPTION_UPDATE_TIME_DEFAULT"
+    if ! is_valid_subscription_update_time "$subscription_update_time"; then
+        log "Invalid subscription_update_time '$subscription_update_time' in section '$section', using $SUBSCRIPTION_UPDATE_TIME_DEFAULT" "warn"
+        subscription_update_time="$SUBSCRIPTION_UPDATE_TIME_DEFAULT"
+    fi
+
+    echo "$subscription_update_time"
+}
+
 get_subscription_cron_line_for_interval() {
+    local cron_hour cron_minute
+
     case "$1" in
     "30m")
         echo "*/30 * * * * /usr/bin/netshift subscription_update 30m"
@@ -2009,7 +2035,17 @@ get_subscription_cron_line_for_interval() {
         echo "40 */12 * * * /usr/bin/netshift subscription_update 12h"
         ;;
     "1d")
-        echo "52 9 * * * /usr/bin/netshift subscription_update 1d"
+        # Optional $2: HH:MM to run at (default SUBSCRIPTION_UPDATE_TIME_DEFAULT).
+        # The time is part of the job so it only refreshes the sections at that
+        # time. cron wants plain numbers, and $((08)) is an octal error in ash,
+        # so the leading zero is stripped textually instead.
+        local cron_time="${2:-$SUBSCRIPTION_UPDATE_TIME_DEFAULT}"
+        is_valid_subscription_update_time "$cron_time" || return 1
+        cron_hour="${cron_time%%:*}"
+        cron_hour="${cron_hour#0}"
+        cron_minute="${cron_time##*:}"
+        cron_minute="${cron_minute#0}"
+        echo "${cron_minute:-0} ${cron_hour:-0} * * * /usr/bin/netshift subscription_update 1d $cron_time"
         ;;
     *)
         return 1
@@ -2045,6 +2081,12 @@ _collect_subscription_update_interval() {
         subscription_update_interval="$SUBSCRIPTION_UPDATE_INTERVAL_DEFAULT"
     fi
 
+    # A daily job is per TIME as well ("1d@HH:MM"): sections asking for different
+    # times each get their own job. Every other interval has one job.
+    if [ "$subscription_update_interval" = "1d" ]; then
+        subscription_update_interval="1d@$(get_section_subscription_update_time "$section")"
+    fi
+
     SUBSCRIPTION_UPDATE_INTERVALS="$SUBSCRIPTION_UPDATE_INTERVALS $subscription_update_interval"
 }
 
@@ -2055,7 +2097,7 @@ _collect_subscription_update_interval() {
 # legacy single job (`/usr/bin/netshift subscription_update`, no interval) that
 # an upgrade leaves in crontab and that used to drive every section.
 sync_subscription_cron_jobs() {
-    local subscription_update_interval cron_job
+    local subscription_job cron_job
 
     SUBSCRIPTION_UPDATE_INTERVALS=""
     config_foreach _collect_subscription_update_interval "section"
@@ -2065,14 +2107,61 @@ sync_subscription_cron_jobs() {
     # Sorted and deduplicated: sections sharing an interval share one job, and
     # the resulting crontab does not depend on the order the sections happen to
     # be stored in.
-    for subscription_update_interval in $(printf '%s\n' $SUBSCRIPTION_UPDATE_INTERVALS | sort -u); do
-        cron_job="$(get_subscription_cron_line_for_interval "$subscription_update_interval")"
+    for subscription_job in $(printf '%s\n' $SUBSCRIPTION_UPDATE_INTERVALS | sort -u); do
+        # "<interval>" or, for a daily job, "1d@HH:MM".
+        case "$subscription_job" in
+        *@*) cron_job="$(get_subscription_cron_line_for_interval "${subscription_job%%@*}" "${subscription_job#*@}")" ;;
+        *) cron_job="$(get_subscription_cron_line_for_interval "$subscription_job")" ;;
+        esac
 
         crontab -l | {
             cat
             echo "$cron_job"
         } | crontab -
         log "The subscription cron job has been created: $cron_job"
+    done
+
+    warn_daily_subscription_time_collisions
+}
+
+# A daily job the user placed on the same minute another interval's job fires
+# would run two subscription_update processes side by side, and those race on
+# the pending-apply marker and on the sing-box rebuild + reload (the reason the
+# fixed jobs use different minutes). The user picks the daily time, so this only
+# warns, and conservatively: it compares minutes and ignores which hour the other
+# job fires in, so it can warn about a clash that only happens in some hours.
+warn_daily_subscription_time_collisions() {
+    local subscription_job daily_time daily_minute daily_minute_number other_interval other_minutes
+
+    for subscription_job in $(printf '%s\n' $SUBSCRIPTION_UPDATE_INTERVALS | sort -u); do
+        case "$subscription_job" in
+        1d@*) ;;
+        *) continue ;;
+        esac
+
+        daily_time="${subscription_job#*@}"
+        daily_minute="${daily_time##*:}"
+        # No leading zero: $((08)) is an octal error in ash.
+        daily_minute_number="${daily_minute#0}"
+        for other_interval in 30m 1h 3h 6h 12h; do
+            case " $SUBSCRIPTION_UPDATE_INTERVALS " in
+            *" $other_interval "*) ;;
+            *) continue ;;
+            esac
+
+            case "$other_interval" in
+            30m) other_minutes="00 30" ;;
+            1h) other_minutes="17" ;;
+            3h) other_minutes="07" ;;
+            6h) other_minutes="24" ;;
+            12h) other_minutes="40" ;;
+            esac
+            case " $other_minutes " in
+            *" $daily_minute "*)
+                log "The daily subscription update at $daily_time falls on a minute the $other_interval job also runs at, so the two can overlap. Pick another minute, for example :$(printf '%02d' $(((${daily_minute_number:-0} + 5) % 60)))." "warn"
+                ;;
+            esac
+        done
     done
 }
 ensure_nft_ready_for_list_update() {
@@ -2294,6 +2383,7 @@ subscription_update() {
     echolog "🔄 Starting subscription update..."
 
     local target_interval="${1:-}"
+    local target_time="${2:-}"
     local has_subscription=0
     local updated_sections=0
     local failed_sections=0
@@ -2303,6 +2393,19 @@ subscription_update() {
     if [ -n "$target_interval" ] && ! get_subscription_cron_line_for_interval "$target_interval" > /dev/null; then
         echolog "⚠️ Unknown subscription update interval '$target_interval', updating every subscription section" "warn"
         target_interval=""
+    fi
+
+    # The time only narrows the daily job ("subscription_update 1d HH:MM"): a
+    # bare "1d" (an older crontab line, a manual run) keeps meaning every daily
+    # section. A time that is not a valid HH:MM is not a filter that matches
+    # nothing, for the same reason as an unknown interval above.
+    if [ -n "$target_time" ]; then
+        if [ "$target_interval" != "1d" ]; then
+            target_time=""
+        elif ! is_valid_subscription_update_time "$target_time"; then
+            echolog "⚠️ Invalid subscription update time '$target_time', updating every daily subscription section" "warn"
+            target_time=""
+        fi
     fi
 
     # True when the section takes part in this run: a subscription section, and
@@ -2326,6 +2429,10 @@ subscription_update() {
                 subscription_update_interval="$SUBSCRIPTION_UPDATE_INTERVAL_DEFAULT"
             fi
             [ "$subscription_update_interval" = "$target_interval" ] || return 1
+
+            if [ -n "$target_time" ]; then
+                [ "$(get_section_subscription_update_time "$section")" = "$target_time" ] || return 1
+            fi
         fi
 
         return 0
@@ -5998,7 +6105,7 @@ list_update)
     list_update
     ;;
 subscription_update)
-    subscription_update "${2:-}"
+    subscription_update "${2:-}" "${3:-}"
     ;;
 check_proxy)
     check_proxy
