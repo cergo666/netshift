@@ -1611,4 +1611,8 @@ msgid "Time cannot be empty"
 msgstr ""
 
 msgid "Invalid time format. Use HH:MM from 00:00 to 23:59"
+msgid "Reality: post-quantum key share (X25519MLKEM768)"
+msgstr ""
+
+msgid "Required by REALITY servers on Xray-core 26.9.8 or newer, which reject clients without it. Older servers may fail the handshake, so keep it off for them. Needs sing-box-extended 2.7.2 or newer and the chrome fingerprint; ignored on other cores"
 msgstr ""

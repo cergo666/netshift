@@ -9185,6 +9185,166 @@ test_section_disabled() {
 }
 
 # ─────────────────────────────────────────────────────────────────
+# Test: Reality X25519MLKEM768 per-section option
+# ─────────────────────────────────────────────────────────────────
+# REALITY servers on Xray-core >= 26.9.8 reject a client that does not offer the
+# X25519MLKEM768 key share, and sing-box strips it by default. sing-box-extended
+# 2.7.2+ has `tls.reality.support_x25519mlkem768` to keep it. The per-section
+# `reality_mlkem` option must:
+#   - do nothing by default (no field: older Xray servers may fail with it);
+#   - add the field ONLY to Reality outbounds, for link sections and for
+#     subscription batches, when the option is on;
+#   - be ignored, with a warning, on a core that does not know the field
+#     (stock sing-box, extended < 2.7.2), because that field would fail
+#     `sing-box check` and take the whole section down.
+# The REAL set_section_reality_mlkem / facade / config manager run here.
+test_reality_mlkem() {
+    header "Reality X25519MLKEM768 option"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    local f
+    for f in constants.sh helpers.sh sing_box_config_manager.sh sing_box_config_facade.sh helpers.jq; do
+        if [ ! -r "$lib/$f" ]; then
+            skip "reality_mlkem - $f not found"
+            return
+        fi
+    done
+    if [ ! -r "$bin" ] || ! command -v jq > /dev/null 2>&1; then
+        skip "reality_mlkem - bin/netshift or jq not found"
+        return
+    fi
+
+    # The facade sources its siblings from the runtime path.
+    mkdir -p /usr/lib/netshift
+    for f in constants.sh helpers.sh sing_box_config_manager.sh sing_box_config_facade.sh helpers.jq; do
+        ln -sf "$lib/$f" "/usr/lib/netshift/$f"
+    done
+
+    local out
+    out="$(
+        RM_LOG="/tmp/netshift-realitymlkem-$$.log"
+        : > "$RM_LOG"
+        log() { printf '[%s] %s\n' "${2:-info}" "$1" >> "$RM_LOG"; }
+        echolog() { log "$1" "${2:-info}"; }
+        nolog() { :; }
+        . "$lib/constants.sh"
+        . "$lib/helpers.sh"
+        NETSHIFT_LIB="$lib"
+        . "$lib/sing_box_config_manager.sh"
+        . "$lib/sing_box_config_facade.sh"
+        eval "$(awk -v f="set_section_reality_mlkem" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$bin")"
+
+        # UCI stub for config_get_bool: RM_<section>_<option>
+        config_get_bool() {
+            local _v
+            eval "_v=\"\${RM_${2}_${3}:-}\""
+            [ -n "$_v" ] || _v="$4"
+            case "$_v" in 1 | on | true | yes | enabled) _v=1 ;; *) _v=0 ;; esac
+            eval "$1=\"\$_v\""
+        }
+
+        gate() { # $1=core version, $2=option value ("" = option absent)
+            NETSHIFT_SING_BOX_VERSION="$1"
+            export NETSHIFT_SING_BOX_VERSION
+            RM_s_reality_mlkem="$2"
+            : > "$RM_LOG"
+            set_section_reality_mlkem s
+            printf '%s' "$NETSHIFT_REALITY_MLKEM"
+        }
+        echo "gate-default-off:$(gate 1.14.1-extended-2.7.2-lite '')"
+        echo "gate-off-explicit:$(gate 1.14.1-extended-2.7.2-lite 0)"
+        echo "gate-lite-2.7.2:$(gate 1.14.1-extended-2.7.2-lite 1)"
+        echo "gate-extended-2.7.2:$(gate 1.14.1-extended-2.7.2 1)"
+        echo "gate-extended-newer:$(gate 1.14.2-extended-2.8.0 1)"
+        echo "gate-extended-2.7.1:$(gate 1.14.0-extended-2.7.1 1)"
+        warned="no"
+        grep -q "^\[warn\] Section 's': reality_mlkem needs sing-box-extended 2.7.2" "$RM_LOG" && warned="yes"
+        echo "gate-old-extended-warned:$warned"
+        echo "gate-stock:$(gate 1.13.14 1)"
+        warned="no"
+        grep -q "^\[warn\] Section 's': reality_mlkem needs sing-box-extended 2.7.2" "$RM_LOG" && warned="yes"
+        echo "gate-stock-warned:$warned"
+        gate 1.14.1-extended-2.7.2-lite '' > /dev/null
+        warned="no"
+        [ -s "$RM_LOG" ] && warned="yes"
+        echo "gate-off-silent:$([ "$warned" = no ] && echo yes || echo no)"
+
+        mlk() { printf '%s' "$1" | jq -r '.outbounds[0].tls.reality.support_x25519mlkem768 // "absent"'; }
+        LINK_R='vless://11111111-2222-3333-4444-555555555555@r.example.com:443?encryption=none&flow=xtls-rprx-vision&fp=chrome&pbk=jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0&security=reality&sid=0123abcd&sni=r.example.com&type=tcp'
+        LINK_T='vless://11111111-2222-3333-4444-555555555555@t.example.com:443?encryption=none&security=tls&sni=t.example.com&type=tcp'
+        base='{"outbounds":[]}'
+
+        unset NETSHIFT_REALITY_MLKEM
+        echo "link-default:$(mlk "$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)")"
+        NETSHIFT_REALITY_MLKEM=0
+        echo "link-off:$(mlk "$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)")"
+        NETSHIFT_REALITY_MLKEM=1
+        echo "link-on:$(mlk "$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)")"
+        echo "link-on-tls-untouched:$(mlk "$(sing_box_cf_add_proxy_outbound "$base" t "$LINK_T" 0)")"
+        # Everything else about the Reality block is unchanged by the flag.
+        on="$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)"
+        NETSHIFT_REALITY_MLKEM=0
+        off="$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)"
+        same="no"
+        [ "$(printf '%s' "$on" | jq -S 'del(.outbounds[0].tls.reality.support_x25519mlkem768)')" = "$(printf '%s' "$off" | jq -S .)" ] && same="yes"
+        echo "link-on-otherwise-identical:$same"
+
+        # Subscription batch: only Reality nodes get the field.
+        SUBJ="/tmp/netshift-realitymlkem-sub-$$.json"
+        cat > "$SUBJ" << 'SUBEOF'
+{"outbounds":[
+ {"type":"vless","tag":"reality-node","server":"r.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555","flow":"xtls-rprx-vision","tls":{"enabled":true,"server_name":"r.example.com","utls":{"enabled":true,"fingerprint":"chrome"},"reality":{"enabled":true,"public_key":"jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0","short_id":"0123abcd"}}},
+ {"type":"vless","tag":"tls-node","server":"t.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555","tls":{"enabled":true,"server_name":"t.example.com"}},
+ {"type":"trojan","tag":"plain-node","server":"p.example.com","server_port":443,"password":"x"}
+]}
+SUBEOF
+        batch_field() { # $1=tag
+            printf '%s' "$BATCH" | jq -r --arg t "$1" '.outbounds[] | select(.tag==$t) | .tls.reality.support_x25519mlkem768 // "absent"'
+        }
+        NETSHIFT_REALITY_MLKEM=0
+        BATCH="$(sing_box_cf_prepare_subscription_batch "$base" "$SUBJ" '[]' '[]')"
+        echo "batch-off:$(batch_field reality-node)"
+        NETSHIFT_REALITY_MLKEM=1
+        BATCH="$(sing_box_cf_prepare_subscription_batch "$base" "$SUBJ" '[]' '[]')"
+        echo "batch-on-reality:$(batch_field reality-node)"
+        echo "batch-on-tls-untouched:$(batch_field tls-node)"
+        echo "batch-on-plain-untouched:$(batch_field plain-node)"
+        echo "batch-on-count:$(printf '%s' "$BATCH" | jq -r '.count')"
+        rm -f "$SUBJ" "$RM_LOG"
+    )"
+
+    _rm_check() {
+        if echo "$out" | grep -qxF "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(echo "$out" | tr '\n' '|')"
+        fi
+    }
+
+    _rm_check "off by default: the option absent leaves the field out" "gate-default-off:0"
+    _rm_check "off explicitly stays off" "gate-off-explicit:0"
+    _rm_check "extended-lite 2.7.2 enables it" "gate-lite-2.7.2:1"
+    _rm_check "extended 2.7.2 enables it" "gate-extended-2.7.2:1"
+    _rm_check "a newer extended enables it" "gate-extended-newer:1"
+    _rm_check "extended 2.7.1 (no such field) ignores it" "gate-extended-2.7.1:0"
+    _rm_check "old extended: ignoring it is warned about" "gate-old-extended-warned:yes"
+    _rm_check "stock sing-box ignores it" "gate-stock:0"
+    _rm_check "stock sing-box: ignoring it is warned about" "gate-stock-warned:yes"
+    _rm_check "no warning when the option is off" "gate-off-silent:yes"
+    _rm_check "link: no field when the flag is unset" "link-default:absent"
+    _rm_check "link: no field when the flag is off" "link-off:absent"
+    _rm_check "link: Reality outbound gets support_x25519mlkem768" "link-on:true"
+    _rm_check "link: a plain TLS outbound is never touched" "link-on-tls-untouched:absent"
+    _rm_check "link: the flag changes nothing else in the outbound" "link-on-otherwise-identical:yes"
+    _rm_check "subscription: no field when the flag is off" "batch-off:absent"
+    _rm_check "subscription: Reality nodes get the field" "batch-on-reality:true"
+    _rm_check "subscription: TLS nodes are untouched" "batch-on-tls-untouched:absent"
+    _rm_check "subscription: non-TLS nodes are untouched" "batch-on-plain-untouched:absent"
+    _rm_check "subscription: every node is kept" "batch-on-count:3"
+}
+
+# ─────────────────────────────────────────────────────────────────
 # Test: BitTorrent exclusion (issue #56)
 # ─────────────────────────────────────────────────────────────────
 # Exercises the REAL sing_box_configure_route (extracted verbatim from the bin,
@@ -13073,6 +13233,7 @@ main() {
             test_sub_url_option
             test_sub_cron
             test_global_proxy
+            test_reality_mlkem
             test_section_disabled
             test_bittorrent_direct
             test_check_update_stable
@@ -13116,6 +13277,7 @@ main() {
         suburlopt)   test_sub_url_option ;;
         subcron)     test_sub_cron ;;
         globalproxy) test_global_proxy ;;
+        realitymlkem) test_reality_mlkem ;;
         sectiondisabled) test_section_disabled ;;
         bittorrent)  test_bittorrent_direct ;;
         stablecheck) test_check_update_stable ;;
@@ -13136,7 +13298,7 @@ main() {
         proxylink)   test_proxy_link_escaping ;;
         *)
             echo "Unknown test: $target"
-            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
+            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled realitymlkem bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
             exit 1
             ;;
     esac

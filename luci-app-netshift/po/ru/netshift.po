@@ -391,6 +391,11 @@ msgstr "Отключить секцию"
 
 msgid "The section is completely ignored (routing, lists, subscriptions), but its settings are kept. Clear the checkbox to enable it again"
 msgstr "Секция полностью игнорируется (маршрутизация, списки, подписки), но её настройки сохраняются. Снимите галочку, чтобы включить её снова"
+msgid "Reality: post-quantum key share (X25519MLKEM768)"
+msgstr "Reality: постквантовый key share (X25519MLKEM768)"
+
+msgid "Required by REALITY servers on Xray-core 26.9.8 or newer, which reject clients without it. Older servers may fail the handshake, so keep it off for them. Needs sing-box-extended 2.7.2 or newer and the chrome fingerprint; ignored on other cores"
+msgstr "Нужно REALITY-серверам на Xray-core 26.9.8 и новее: они отвергают клиентов без него. Старые серверы могут не пройти рукопожатие, для них оставьте выключенным. Требуется sing-box-extended 2.7.2 или новее и отпечаток chrome; на других ядрах игнорируется"
 
 msgid "Global Proxy"
 msgstr "Глобальный прокси"
