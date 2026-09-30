@@ -25,6 +25,10 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/
 	$(CP) $(PKG_BUILD_DIR)/root/* $(1)/
 	sed -i -e 's/__COMPILED_VERSION_VARIABLE__/$(PKG_VERSION)/g' $(1)$(HTDOCS)/luci-static/resources/view/netshift/main.js || true
+	# Content-hashed view directory + rewritten requires/menu path, so a browser
+	# cannot keep serving the previous version's JS after an update
+	# (see cache-bust.sh). Must run after the version stamp above.
+	sh $(CURDIR)/cache-bust.sh $(1)$(HTDOCS) $(1)
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
