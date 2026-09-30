@@ -5092,6 +5092,22 @@ show_system_info() {
     cat /tmp/sysinfo/model
 }
 
+# Version of the installed LuCI app, "not installed" when its views are absent.
+# Reads NETSHIFT_LUCI_APP_VERSION out of main.js in the hashed views directory
+# (view/netshift_<hash>/) or, for a hand-copied dev tree, view/netshift/.
+get_luci_app_version() {
+    local dir file
+
+    for dir in "$LUCI_VIEW_DIR"/netshift_* "$LUCI_VIEW_DIR"/netshift; do
+        file="$dir/main.js"
+        [ -f "$file" ] || continue
+        grep 'var NETSHIFT_LUCI_APP_VERSION' "$file" | cut -d'"' -f2
+        return 0
+    done
+
+    echo "not installed"
+}
+
 get_system_info() {
     local netshift_version netshift_latest_version luci_app_version sing_box_version openwrt_version device_model sing_box_extended
     local sing_box_variant sing_box_lite_upx sing_box_lite_supported ram_total_mb flash_free_mb
@@ -5106,11 +5122,7 @@ get_system_info() {
     # zero-network sentinel the UI already understands.
     netshift_latest_version="unknown"
 
-    if [ -f /www/luci-static/resources/view/netshift/main.js ]; then
-        luci_app_version=$(grep 'var NETSHIFT_LUCI_APP_VERSION' /www/luci-static/resources/view/netshift/main.js | cut -d'"' -f2)
-    else
-        luci_app_version="not installed"
-    fi
+    luci_app_version="$(get_luci_app_version)"
 
     if command -v sing-box > /dev/null 2>&1; then
         sing_box_version=$(sing-box version 2> /dev/null | head -n 1 | awk '{print $3}')

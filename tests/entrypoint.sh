@@ -8844,6 +8844,158 @@ test_global_proxy() {
 }
 
 # ─────────────────────────────────────────────────────────────────
+# Test: LuCI views cache busting
+# ─────────────────────────────────────────────────────────────────
+# LuCI requests view modules as .../view/<name>.js?v=<LuCI core version>, which
+# does not change when this app is updated, so a browser kept serving the
+# previous version's JS. luci-app-netshift/cache-bust.sh (run from the package
+# Makefile) installs the views in a content-hashed view/netshift_<hash>/ and
+# points the requires and the menu at it, so every new build has new URLs.
+# Runs the REAL script on a copy of the source tree and checks:
+#   - directory renamed, every `require view.netshift.<x>` and the menu path
+#     rewritten, nothing left pointing at the old directory;
+#   - the tag follows the content (and the stamped version), and is stable;
+#   - a broken tree fails instead of producing a package that cannot load;
+# plus the backend lookup of the installed LuCI app version (get_luci_app_version),
+# which has to find main.js in the hashed directory.
+test_luci_cache_bust() {
+    header "LuCI views cache busting"
+
+    local src="${NETSHIFT_LUCI_SRC:-/luci-app-netshift}"
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    if [ ! -r "$src/cache-bust.sh" ] || [ ! -d "$src/htdocs" ]; then
+        skip "cachebust - luci-app-netshift source not mounted at $src"
+        return
+    fi
+    if [ ! -r "$bin" ] || ! command -v jq > /dev/null 2>&1; then
+        skip "cachebust - bin/netshift or jq not found"
+        return
+    fi
+
+    local work="/tmp/netshift-cachebust-$$"
+    rm -rf "$work"
+    mkdir -p "$work"
+
+    local out
+    out="$(
+        W="$work"
+        view_rel="htdocs/luci-static/resources/view"
+
+        fresh() { # $1=name: copy of the source tree, version stamped like the Makefile does
+            rm -rf "$W/$1"
+            mkdir -p "$W/$1"
+            cp -R "$src/htdocs" "$src/root" "$W/$1/"
+            sed -i -e "s/__COMPILED_VERSION_VARIABLE__/${2:-0.9.9}/g" "$W/$1/$view_rel/netshift/main.js"
+        }
+        run() { sh "$src/cache-bust.sh" "$W/$1/htdocs" "$W/$1/root" > "$W/$1.out" 2>&1; }
+        tag_of() { ls "$W/$1/$view_rel" | grep '^netshift_' | head -1; }
+
+        fresh a
+        run a && echo "script-ok:yes" || echo "script-ok:no"
+        tag="$(tag_of a)"
+        echo "tag-shape:$(printf '%s' "$tag" | grep -Eq '^netshift_[0-9a-f]{8}$' && echo yes || echo no)"
+        echo "old-dir-gone:$([ -d "$W/a/$view_rel/netshift" ] && echo no || echo yes)"
+
+        # Same files as in the source tree, just moved.
+        moved=yes
+        for f in "$src/htdocs/luci-static/resources/view/netshift"/*.js; do
+            [ -f "$W/a/$view_rel/$tag/$(basename "$f")" ] || moved=no
+        done
+        echo "all-views-moved:$moved"
+
+        echo "no-old-requires:$(grep -l 'view\.netshift\.' "$W/a/$view_rel/$tag"/*.js > /dev/null 2>&1 && echo no || echo yes)"
+        echo "requires-new-dir:$(grep -h 'require view\.' "$W/a/$view_rel/$tag"/*.js | grep -vc "require view\.$tag\." | grep -qx 0 && echo yes || echo no)"
+        deps=yes
+        for ref in $(grep -ho "require view\.$tag\.[A-Za-z0-9_]*" "$W/a/$view_rel/$tag"/*.js | sort -u | sed "s/.*\.//"); do
+            [ -f "$W/a/$view_rel/$tag/$ref.js" ] || deps=no
+        done
+        echo "every-require-resolves:$deps"
+        echo "has-requires:$(grep -hc "require view\.$tag\." "$W/a/$view_rel/$tag"/*.js | awk '{n+=$1} END{print (n>0)?"yes":"no"}')"
+
+        menu="$W/a/root/usr/share/luci/menu.d/luci-app-netshift.json"
+        echo "menu-path:$(jq -r '."admin/services/netshift".action.path' "$menu")"
+        echo "menu-only-path-changed:$([ "$(jq -S 'del(."admin/services/netshift".action.path)' "$menu")" = "$(jq -S 'del(."admin/services/netshift".action.path)' "$src/root/usr/share/luci/menu.d/luci-app-netshift.json")" ] && echo yes || echo no)"
+        echo "menu-target-exists:$([ -f "$W/a/$view_rel/$(jq -r '."admin/services/netshift".action.path' "$menu" | cut -d/ -f1)/netshift.js" ] && echo yes || echo no)"
+
+        # Deterministic: the same build gives the same directory.
+        fresh b
+        run b
+        echo "deterministic:$([ "$(tag_of b)" = "$tag" ] && echo yes || echo no)"
+        # The tag follows the stamped version (a new release => new URLs) ...
+        fresh c 0.9.10
+        run c
+        echo "changes-with-version:$([ "$(tag_of c)" != "$tag" ] && echo yes || echo no)"
+        # ... and the content.
+        fresh d
+        printf '\n// edit\n' >> "$W/d/$view_rel/netshift/section.js"
+        run d
+        echo "changes-with-content:$([ "$(tag_of d)" != "$tag" ] && echo yes || echo no)"
+
+        # A broken tree must fail the build.
+        fresh e
+        rm -rf "$W/e/$view_rel/netshift"
+        run e && echo "missing-views-fails:no" || echo "missing-views-fails:yes"
+        fresh f
+        rm -f "$W/f/root/usr/share/luci/menu.d/luci-app-netshift.json"
+        run f && echo "missing-menu-fails:no" || echo "missing-menu-fails:yes"
+        # A require that points at a view that does not exist is caught.
+        fresh g
+        sed -i 's/require view\.netshift\.main as main/require view.netshift.nosuchview as main/' "$W/g/$view_rel/netshift/diagnostic.js"
+        run g && echo "dangling-require-fails:no" || echo "dangling-require-fails:yes"
+
+        # ── backend: version of the installed LuCI app ──────────────────
+        log() { :; }
+        . "${NETSHIFT_LIB_DIR}/constants.sh"
+        eval "$(awk -v f="get_luci_app_version" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$bin")"
+        mkver() { mkdir -p "$LUCI_VIEW_DIR/$1"; printf 'var NETSHIFT_LUCI_APP_VERSION = "%s";\n' "$2" > "$LUCI_VIEW_DIR/$1/main.js"; }
+        LUCI_VIEW_DIR="$W/luciview"
+        rm -rf "$LUCI_VIEW_DIR"; mkdir -p "$LUCI_VIEW_DIR"
+        echo "version-none:$(get_luci_app_version)"
+        mkver netshift 0.8.0
+        echo "version-legacy-dir:$(get_luci_app_version)"
+        mkver netshift_1a2b3c4d 0.9.9.5
+        echo "version-hashed-dir-wins:$(get_luci_app_version)"
+        rm -rf "$LUCI_VIEW_DIR/netshift"
+        echo "version-hashed-dir:$(get_luci_app_version)"
+    )"
+    rm -rf "$work"
+
+    _cb_check() {
+        if echo "$out" | grep -qxF "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(echo "$out" | tr '\n' '|')"
+        fi
+    }
+
+    _cb_check "the script succeeds on the source tree" "script-ok:yes"
+    _cb_check "the views directory is named netshift_<8 hex>" "tag-shape:yes"
+    _cb_check "the old view/netshift directory is gone" "old-dir-gone:yes"
+    _cb_check "every view file is kept, only moved" "all-views-moved:yes"
+    _cb_check "no require points at the old directory" "no-old-requires:yes"
+    _cb_check "every require uses the new directory" "requires-new-dir:yes"
+    _cb_check "the views do require each other (rewrite is exercised)" "has-requires:yes"
+    _cb_check "every required view exists in the new directory" "every-require-resolves:yes"
+    _cb_check "the menu opens the hashed directory" "menu-target-exists:yes"
+    _cb_check "only the menu path changed in the menu file" "menu-only-path-changed:yes"
+    _cb_check "the same build gives the same directory" "deterministic:yes"
+    _cb_check "a new version gets a new directory" "changes-with-version:yes"
+    _cb_check "changed content gets a new directory" "changes-with-content:yes"
+    _cb_check "a missing views directory fails the build" "missing-views-fails:yes"
+    _cb_check "a missing menu file fails the build" "missing-menu-fails:yes"
+    _cb_check "a require of a missing view fails the build" "dangling-require-fails:yes"
+    _cb_check "no LuCI app: not installed" "version-none:not installed"
+    _cb_check "version is read from a legacy view/netshift directory" "version-legacy-dir:0.8.0"
+    _cb_check "the hashed directory wins over a legacy one" "version-hashed-dir-wins:0.9.9.5"
+    _cb_check "version is read from the hashed directory" "version-hashed-dir:0.9.9.5"
+    if echo "$out" | grep -q '^menu-path:netshift_[0-9a-f]\{8\}/netshift$'; then
+        pass "the menu path is netshift_<hash>/netshift"
+    else
+        fail "the menu path is netshift_<hash>/netshift" "$(echo "$out" | grep '^menu-path' )"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────
 # Test: BitTorrent exclusion (issue #56)
 # ─────────────────────────────────────────────────────────────────
 # Exercises the REAL sing_box_configure_route (extracted verbatim from the bin,
@@ -12729,6 +12881,7 @@ main() {
             test_sub_url_option
             test_sub_cron
             test_global_proxy
+            test_luci_cache_bust
             test_bittorrent_direct
             test_check_update_stable
             test_check_update_extended
@@ -12771,6 +12924,7 @@ main() {
         suburlopt)   test_sub_url_option ;;
         subcron)     test_sub_cron ;;
         globalproxy) test_global_proxy ;;
+        cachebust) test_luci_cache_bust ;;
         bittorrent)  test_bittorrent_direct ;;
         stablecheck) test_check_update_stable ;;
         extcheck)    test_check_update_extended ;;
@@ -12790,7 +12944,7 @@ main() {
         proxylink)   test_proxy_link_escaping ;;
         *)
             echo "Unknown test: $target"
-            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
+            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy cachebust bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
             exit 1
             ;;
     esac
