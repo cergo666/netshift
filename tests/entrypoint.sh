@@ -3014,7 +3014,7 @@ test_sing_box_config() {
     fi
 
     # Test with IPv6 fakeip
-    jq '.dns.servers[0].inet6_range = "fd00:ec3a::/32"' "${test_config}.2" > "${test_config}.5"
+    jq '.dns.servers[0].inet6_range = "2001:2::/48"' "${test_config}.2" > "${test_config}.5"
 
     if sing-box -c "${test_config}.5" check > /dev/null 2>&1; then
         pass "sing-box validates config with IPv6 FakeIP"
@@ -8922,7 +8922,7 @@ get_outbound_tag_by_section() { echo "$1-out"; }
 subscription_outbound_is_unavailable() { return 1; }
 
 # Pull the real route builder + its two helpers VERBATIM out of the bin.
-for fn in sing_box_configure_route configure_common_reject_route_rule configure_common_direct_route_rule; do
+for fn in tproxy_route_inbounds sing_box_configure_route configure_common_reject_route_rule configure_common_direct_route_rule; do
     eval "$(awk -v name="$fn" '$0 == name "() {"{p=1} p{print} p&&/^\}/{exit}' "$BIN")"
 done
 if command -v sing_box_configure_route > /dev/null 2>&1 &&
@@ -9067,6 +9067,194 @@ BTEOF
         fail "bittorrent-driver-completed:FAIL (driver aborted early)"
     fi
     rm -f "$drv" "$bt_out"
+}
+
+# ─────────────────────────────────────────────────────────────────
+# Test: IPv6 compatibility (issue #38)
+# ─────────────────────────────────────────────────────────────────
+# With IPv6 enabled the v6 TProxy inbound (tproxy-in-v6) must be matched by the
+# SAME route rules as the v4 one (before this it matched none and v6 flows fell
+# through to the default), and the FakeIP v6 range must be a routable global
+# prefix (2001:2::/48), not the ULA fd00::/8 that dnsmasq rebind protection drops.
+#   - constant: SB_FAKEIP_INET6_RANGE is not in fc00::/7
+#   - IPv6 off: every rule keeps the plain string inbound (byte-identical config)
+#   - IPv6 on: the same rules match ["tproxy-in","tproxy-in-v6"]
+#   - the generated config passes `sing-box check`
+test_ipv6_routing() {
+    header "IPv6 Compatibility (issue #38)"
+
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not available"
+        return
+    fi
+
+    local cm_lib="${NETSHIFT_LIB_DIR}/sing_box_config_manager.sh"
+    local facade_lib="${NETSHIFT_LIB_DIR}/sing_box_config_facade.sh"
+    local constants_lib="${NETSHIFT_LIB_DIR}/constants.sh"
+    local jq_helpers="${NETSHIFT_LIB_DIR}/helpers.jq"
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    if [ ! -r "$cm_lib" ] || [ ! -r "$facade_lib" ] || [ ! -r "$constants_lib" ] || [ ! -r "$jq_helpers" ] \
+        || [ ! -r "$bin" ]; then
+        skip "config manager / facade / constants / helpers.jq / netshift bin not found"
+        return
+    fi
+
+    mkdir -p /usr/lib/netshift
+    ln -sf "$jq_helpers" /usr/lib/netshift/helpers.jq
+    ln -sf "${NETSHIFT_LIB_DIR}/helpers.sh" /usr/lib/netshift/helpers.sh
+    ln -sf "$cm_lib" /usr/lib/netshift/sing_box_config_manager.sh
+
+    local drv="/tmp/netshift-ipv6routing-$$.sh"
+    cat > "$drv" << 'V6EOF'
+LIB="NETSHIFT_LIB"
+BIN="BIN_PATH"
+FACADE="FACADE_PATH"
+
+. "$LIB/constants.sh"
+. "$LIB/helpers.sh"
+. "$LIB/logging.sh" 2>/dev/null || log() { :; }
+. "$FACADE"
+
+config_get_bool() {
+    eval "$1=\"\$4\""
+    return 0
+}
+config_get() {
+    eval "$1=\"\""
+    return 0
+}
+config_foreach() { :; }
+config_list_foreach() { :; }
+get_global_proxy_section() { echo ""; }
+netshift_ipv6_enabled() { [ "$V6" = "1" ]; }
+get_sections_by_connection_type() { echo ""; }
+get_first_outbound_section() { echo "main"; }
+get_outbound_tag_by_section() { echo "$1-out"; }
+subscription_outbound_is_unavailable() { return 1; }
+
+for fn in tproxy_route_inbounds sing_box_configure_route configure_common_reject_route_rule configure_common_direct_route_rule; do
+    eval "$(awk -v name="$fn" '$0 == name "() {"{p=1} p{print} p&&/^\}/{exit}' "$BIN")"
+done
+if command -v tproxy_route_inbounds > /dev/null 2>&1 &&
+    command -v sing_box_configure_route > /dev/null 2>&1; then
+    echo 'ipv6-real-functions-loaded:OK'
+else
+    echo 'ipv6-real-functions-loaded:FAIL'
+fi
+
+# FakeIP v6 range must not be a ULA (fc00::/7), whose AAAA answers dnsmasq
+# rebind protection drops and for which clients have no route.
+case "$SB_FAKEIP_INET6_RANGE" in
+fc* | fd* | FC* | FD*) echo 'ipv6-fakeip-range-not-ula:FAIL' ;;
+*) echo 'ipv6-fakeip-range-not-ula:OK' ;;
+esac
+
+base=$(jq -n \
+    --arg direct "$SB_DIRECT_OUTBOUND_TAG" \
+    --arg tproxy "$SB_TPROXY_INBOUND_TAG" \
+    --arg listen "$SB_TPROXY_INBOUND_ADDRESS" \
+    --argjson port "$SB_TPROXY_INBOUND_PORT" \
+    --arg dns "$SB_DNS_SERVER_TAG" \
+    --arg fakeip "$SB_FAKEIP_DNS_SERVER_TAG" \
+    --arg v4 "$SB_FAKEIP_INET4_RANGE" \
+    --arg v6 "$SB_FAKEIP_INET6_RANGE" \
+    '{
+    log: { disabled: false, level: "warn", timestamp: true },
+    dns: {
+        servers: [
+            { type: "udp", tag: $dns, server: "77.88.8.8" },
+            { type: "fakeip", tag: $fakeip, inet4_range: $v4, inet6_range: $v6 }
+        ],
+        rules: [], final: $dns, strategy: "prefer_ipv4", independent_cache: true
+    },
+    inbounds: [
+        { type: "tproxy", tag: $tproxy, listen: $listen, listen_port: $port },
+        { type: "tproxy", tag: ($tproxy + "-v6"), listen: "::1", listen_port: 1603 }
+    ],
+    outbounds: [
+        { type: "direct", tag: $direct },
+        { type: "direct", tag: "main-out" }
+    ],
+    route: { rules: [], rule_set: [], final: $direct, auto_detect_interface: true }
+}')
+
+gen() {
+    V6="$1"
+    config="$base"
+    sing_box_configure_route
+    printf '%s' "$config"
+}
+
+cfg_off=$(gen 0)
+cfg_on=$(gen 1)
+TPROXY="$SB_TPROXY_INBOUND_TAG"
+
+# IPv6 off: only plain string inbounds, no v6 tag anywhere in the rules.
+echo "$cfg_off" | jq -e --arg t "$TPROXY" \
+    '[.route.rules[] | select(.action == "route" or .action == "reject") | .inbound]
+     | length > 0 and all(. == $t)' > /dev/null 2>&1 &&
+    echo 'ipv6-off-plain-inbound:OK' || echo 'ipv6-off-plain-inbound:FAIL'
+
+# IPv6 on: the check-domain rule (always generated) matches both inbounds.
+echo "$cfg_on" | jq -e --arg t "$TPROXY" --arg d "$CHECK_PROXY_IP_DOMAIN" \
+    '[.route.rules[] | select(.domain == $d and .action == "route")]
+     | length == 1 and .[0].inbound == [$t, ($t + "-v6")]' > /dev/null 2>&1 &&
+    echo 'ipv6-on-check-domain-both-inbounds:OK' || echo 'ipv6-on-check-domain-both-inbounds:FAIL'
+
+# IPv6 on: every route/reject rule that had the v4 inbound now has both.
+echo "$cfg_on" | jq -e --arg t "$TPROXY" \
+    '[.route.rules[] | select(.action == "route" or .action == "reject") | .inbound]
+     | length > 0 and all(. == [$t, ($t + "-v6")])' > /dev/null 2>&1 &&
+    echo 'ipv6-on-all-rules-both-inbounds:OK' || echo 'ipv6-on-all-rules-both-inbounds:FAIL'
+
+# The helpers accept a bare tag and a JSON array alike.
+bare='{"route":{"rules":[]}}'
+one=$(sing_box_cm_add_route_rule "$bare" "t1" "tproxy-in" "direct-out")
+two=$(sing_box_cm_add_route_rule "$bare" "t2" '["tproxy-in","tproxy-in-v6"]' "direct-out")
+rej=$(sing_box_cm_add_reject_route_rule "$bare" "t3" '["tproxy-in","tproxy-in-v6"]')
+echo "$one" | jq -e '.route.rules[0].inbound == "tproxy-in"' > /dev/null 2>&1 &&
+    echo 'ipv6-helper-route-string:OK' || echo 'ipv6-helper-route-string:FAIL'
+echo "$two" | jq -e '.route.rules[0].inbound == ["tproxy-in","tproxy-in-v6"]' > /dev/null 2>&1 &&
+    echo 'ipv6-helper-route-array:OK' || echo 'ipv6-helper-route-array:FAIL'
+echo "$rej" | jq -e '.route.rules[0].inbound == ["tproxy-in","tproxy-in-v6"]' > /dev/null 2>&1 &&
+    echo 'ipv6-helper-reject-array:OK' || echo 'ipv6-helper-reject-array:FAIL'
+
+# sing-box validation of the SAVED artifacts.
+if command -v sing-box > /dev/null 2>&1; then
+    sing_box_cm_save_config_to_file "$cfg_off" /tmp/v6-off.json
+    sing_box_cm_save_config_to_file "$cfg_on" /tmp/v6-on.json
+    sing-box -c /tmp/v6-off.json check > /dev/null 2>&1 &&
+        echo 'ipv6-off-singbox-check:OK' || echo 'ipv6-off-singbox-check:FAIL'
+    sing-box -c /tmp/v6-on.json check > /dev/null 2>&1 &&
+        echo 'ipv6-on-singbox-check:OK' || echo 'ipv6-on-singbox-check:FAIL'
+    rm -f /tmp/v6-off.json /tmp/v6-on.json
+else
+    echo 'ipv6-off-singbox-check:SKIP'
+    echo 'ipv6-on-singbox-check:SKIP'
+fi
+
+echo 'DONE'
+V6EOF
+    sed -i "s|NETSHIFT_LIB|$NETSHIFT_LIB_DIR|g; s|BIN_PATH|$bin|; s|FACADE_PATH|$facade_lib|" "$drv"
+
+    local v6_out="/tmp/netshift-ipv6routing-out-$$.log"
+    ash "$drv" > "$v6_out" 2>&1 || true
+    local saw_done=0 line
+    while IFS= read -r line; do
+        case "$line" in
+            *:OK) pass "$line" ;;
+            *:FAIL*) fail "$line" ;;
+            *:SKIP) skip "$line" ;;
+            DONE) saw_done=1 ;;
+            *) ;;
+        esac
+    done < "$v6_out"
+    if [ "$saw_done" = "1" ]; then
+        pass "ipv6-driver-completed:OK"
+    else
+        fail "ipv6-driver-completed:FAIL (driver aborted early)" "$(tail -20 "$v6_out")"
+    fi
+    rm -f "$drv" "$v6_out"
 }
 
 # ─────────────────────────────────────────────────────────────────
@@ -12730,6 +12918,7 @@ main() {
             test_sub_cron
             test_global_proxy
             test_bittorrent_direct
+            test_ipv6_routing
             test_check_update_stable
             test_check_update_extended
             test_sing_box_extended_arm_arch
@@ -12772,6 +12961,7 @@ main() {
         subcron)     test_sub_cron ;;
         globalproxy) test_global_proxy ;;
         bittorrent)  test_bittorrent_direct ;;
+        ipv6routing) test_ipv6_routing ;;
         stablecheck) test_check_update_stable ;;
         extcheck)    test_check_update_extended ;;
         sbextarch)   test_sing_box_extended_arm_arch ;;
@@ -12790,7 +12980,7 @@ main() {
         proxylink)   test_proxy_link_escaping ;;
         *)
             echo "Unknown test: $target"
-            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
+            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy bittorrent ipv6routing stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
             exit 1
             ;;
     esac
