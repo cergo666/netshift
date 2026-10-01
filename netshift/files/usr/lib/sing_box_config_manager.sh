@@ -1276,7 +1276,7 @@ sing_box_cm_configure_route() {
 # Arguments:
 #   config: string (JSON), sing-box configuration to modify
 #   tag: string, identifier for the route rule
-#   inbound: string, inbound tag to match
+#   inbound: string, inbound tag to match (or a JSON array of tags)
 #   outbound: string, outbound tag to route matched traffic to
 # Outputs:
 #   Writes updated JSON configuration to stdout
@@ -1292,7 +1292,7 @@ sing_box_cm_add_route_rule() {
     echo "$config" | jq \
         --arg service_tag "$SERVICE_TAG" \
         --arg tag "$tag" \
-        --arg inbound "$inbound" \
+        --argjson inbound "$(_normalize_arg "$inbound")" \
         --arg outbound "$outbound" \
         '.route.rules += [{
             action: "route",
@@ -1311,7 +1311,7 @@ sing_box_cm_add_route_rule() {
 # Arguments:
 #   config: string (JSON), sing-box configuration to modify
 #   tag: string, identifier for the route rule
-#   inbound: string, inbound tag to match
+#   inbound: string, inbound tag to match (or a JSON array of tags)
 #   outbound: string, outbound tag the BitTorrent traffic is routed to
 # Outputs:
 #   Writes updated JSON configuration to stdout
@@ -1424,7 +1424,7 @@ sing_box_cm_add_reject_route_rule() {
     echo "$config" | jq \
         --arg service_tag "$SERVICE_TAG" \
         --arg tag "$tag" \
-        --arg inbound "$inbound" \
+        --argjson inbound "$(_normalize_arg "$inbound")" \
         '.route.rules += [{
             action: "reject",
             inbound: $inbound,
@@ -1438,7 +1438,7 @@ sing_box_cm_add_reject_route_rule() {
 # Arguments:
 #   config: string (JSON), sing-box configuration to modify
 #   tag: string, identifier for the route rule and ruleset
-#   inbound: string, inbound tag to match
+#   inbound: string, inbound tag to match (or a JSON array of tags)
 #   doh_ipv4_cidrs: string, space-separated IPv4 CIDRs to block
 #   doh_ipv6_cidrs: string, space-separated IPv6 CIDRs to block
 # Outputs:
@@ -1467,7 +1467,7 @@ sing_box_cm_add_doh_block_route_rule() {
     echo "$config" | jq \
         --arg service_tag "$SERVICE_TAG" \
         --arg tag "$tag" \
-        --arg inbound "$inbound" \
+        --argjson inbound "$(_normalize_arg "$inbound")" \
         --arg ruleset_tag "$ruleset_tag" \
         '.route.rules += [{
             action: "reject",
