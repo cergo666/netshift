@@ -9219,6 +9219,31 @@ echo "$two" | jq -e '.route.rules[0].inbound == ["tproxy-in","tproxy-in-v6"]' > 
 echo "$rej" | jq -e '.route.rules[0].inbound == ["tproxy-in","tproxy-in-v6"]' > /dev/null 2>&1 &&
     echo 'ipv6-helper-reject-array:OK' || echo 'ipv6-helper-reject-array:FAIL'
 
+# Per-inbound address family preference: IPv6 on -> one resolve rule per
+# inbound (prefer_ipv4 / prefer_ipv6), placed before every route rule.
+echo "$cfg_on" | jq -e --arg t "$TPROXY" \
+    '[.route.rules[] | select(.action == "resolve")] as $r
+     | ($r | length) == 2
+       and ($r | map(select(.inbound == $t and .strategy == "prefer_ipv4")) | length) == 1
+       and ($r | map(select(.inbound == ($t + "-v6") and .strategy == "prefer_ipv6")) | length) == 1' > /dev/null 2>&1 &&
+    echo 'ipv6-on-resolve-rules-per-inbound:OK' || echo 'ipv6-on-resolve-rules-per-inbound:FAIL'
+echo "$cfg_on" | jq -e \
+    '([.route.rules[] | .action] | index("hijack-dns")) as $h
+     | ([.route.rules[] | .action] | index("resolve")) as $r
+     | ([.route.rules[] | .action] | index("route")) as $route
+     | $r == ($h + 1) and $r < $route' > /dev/null 2>&1 &&
+    echo 'ipv6-on-resolve-before-route-rules:OK' || echo 'ipv6-on-resolve-before-route-rules:FAIL'
+echo "$cfg_off" | jq -e '[.route.rules[] | select(.action == "resolve")] | length == 0' > /dev/null 2>&1 &&
+    echo 'ipv6-off-no-resolve-rules:OK' || echo 'ipv6-off-no-resolve-rules:FAIL'
+
+# Global DNS strategy: absent when empty (IPv6 on), kept otherwise (IPv6 off).
+d_empty=$(sing_box_cm_configure_dns "$base" "$SB_DNS_SERVER_TAG" "" true)
+d_set=$(sing_box_cm_configure_dns "$base" "$SB_DNS_SERVER_TAG" "ipv4_only" true)
+echo "$d_empty" | jq -e '(.dns | has("strategy") | not) and .dns.independent_cache == true' > /dev/null 2>&1 &&
+    echo 'ipv6-dns-empty-strategy-omitted:OK' || echo 'ipv6-dns-empty-strategy-omitted:FAIL'
+echo "$d_set" | jq -e '.dns.strategy == "ipv4_only"' > /dev/null 2>&1 &&
+    echo 'ipv6-dns-strategy-kept:OK' || echo 'ipv6-dns-strategy-kept:FAIL'
+
 # sing-box validation of the SAVED artifacts.
 if command -v sing-box > /dev/null 2>&1; then
     sing_box_cm_save_config_to_file "$cfg_off" /tmp/v6-off.json

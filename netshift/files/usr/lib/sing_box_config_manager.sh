@@ -54,6 +54,7 @@ sing_box_cm_configure_log() {
 #   config: string (JSON), sing-box configuration to modify
 #   final: string, default dns server tag
 #   strategy: string, default domain strategy for resolving the domain names
+#     (empty: no global strategy is set)
 #   independent_cache: boolean, whether to use an independent DNS cache
 # Outputs:
 #   Writes updated JSON configuration to stdout
@@ -74,9 +75,8 @@ sing_box_cm_configure_dns() {
 			servers: (.dns.servers // []),
 			rules: (.dns.rules // []),
 			final: $final,
-			strategy: $strategy,
 			independent_cache: $independent_cache
-		}'
+		} + (if $strategy == "" then {} else {strategy: $strategy} end)'
 
 }
 
@@ -1359,6 +1359,32 @@ sing_box_cm_add_resolve_rule() {
             else .
             end
         ]'
+}
+
+#######################################
+# Add a resolve rule that sets the domain strategy for one inbound.
+# Arguments:
+#   config: string (JSON), sing-box configuration to modify
+#   inbound: string, inbound tag to match
+#   strategy: string, prefer_ipv4 | prefer_ipv6 | ipv4_only | ipv6_only
+# Outputs:
+#   Writes updated JSON configuration to stdout
+# Example:
+#   CONFIG=$(sing_box_cm_add_inbound_resolve_rule "$CONFIG" "tproxy-in-v6" "prefer_ipv6")
+#######################################
+sing_box_cm_add_inbound_resolve_rule() {
+    local config="$1"
+    local inbound="$2"
+    local strategy="$3"
+
+    echo "$config" | jq \
+        --arg inbound "$inbound" \
+        --arg strategy "$strategy" \
+        '.route.rules += [{
+            action: "resolve",
+            inbound: $inbound,
+            strategy: $strategy
+        }]'
 }
 
 #######################################
