@@ -357,7 +357,9 @@ sing_box_cm_set_dns_final() {
     local final="$2"
 
     echo "$config" | jq --arg final "$final" '.dns.final = $final'
+}
 
+#######################################
 # Chain a section through another one: set `detour` on every real proxy outbound
 # of the section (the leaves of its selector/urltest groups, or the outbound
 # itself) so its connections to the servers go through the target outbound.
