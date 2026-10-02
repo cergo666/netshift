@@ -317,6 +317,11 @@ uci commit netshift
 uci add_list netshift.<секция>.subscription_filter_include_countries='NL'
 uci add_list netshift.<секция>.subscription_filter_exclude_countries='RU'
 uci set netshift.settings.latency_test_url='https://cp.cloudflare.com/generate_204'
+**Приоритетный выбор сервера.** Опция секции `priority_mode='1'` (selector, urltest и подписки; веб-интерфейс - вкладка «Подписка», «Предпочитать серверы по порядку списка») выбирает **первый работающий** сервер в порядке списка и возвращается к более приоритетному, как только он снова отвечает. URLTest, наоборот, выбирает самый быстрый и порядок не учитывает. Проверку делает монитор каждые 30 секунд (`settings.priority_check_interval`, не меньше 10): через Clash API по очереди измеряет задержку серверов до первого ответившего (не больше 10 проб) и переключает селектор секции. Группы (urltest, группы по странам) пропускаются, поэтому для сгруппированных подписок режим ничего не делает. Если не отвечает ни один из первых серверов, выбор не меняется и пишется предупреждение.
+
+```sh
+uci set netshift.<секция>.priority_mode='1'
+uci set netshift.settings.priority_check_interval='30'
 uci commit netshift
 ```
 

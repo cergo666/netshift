@@ -1373,10 +1373,102 @@ stop() {
     uci commit "netshift" && config_load "$NETSHIFT_CONFIG"
 }
 
+# --- Priority node selection ---------------------------------------------------
+# Section option `priority_mode '1'` (selector / urltest / subscription sections):
+# the servers are tried in the order they are listed and the FIRST one that works
+# is selected, so traffic returns to a higher-priority server as soon as it is back
+# (urltest picks the fastest instead, which ignores the order). The monitor runs the
+# check every priority_check_interval seconds through the Clash API: it probes the
+# section's servers in order until one answers and switches the section's selector
+# to it. Members that are groups themselves (urltest, country groups) are skipped,
+# only real servers are probed.
+priority_check_interval() {
+    local interval
+
+    config_get interval "settings" "priority_check_interval" "$PRIORITY_CHECK_INTERVAL_DEFAULT"
+    case "$interval" in
+    "" | *[!0-9]* | 0) interval="$PRIORITY_CHECK_INTERVAL_DEFAULT" ;;
+    esac
+    # a multiple of the monitor tick is what it can honour
+    [ "$interval" -ge "$MONITOR_CHECK_INTERVAL" ] || interval="$MONITOR_CHECK_INTERVAL"
+
+    echo "$interval"
+}
+
+# $1 - section. Echoes nothing; switches the section's selector when needed.
+priority_select_for_section() {
+    local section="$1"
+    local tag proxies_json current members chosen probed member latency
+
+    tag="$(get_outbound_tag_by_section "$section")"
+    proxies_json="$(clash_api get_proxies 2> /dev/null)"
+    [ -n "$proxies_json" ] || return 0
+
+    current="$(printf '%s' "$proxies_json" | jq -r --arg tag "$tag" '.proxies[$tag].now // empty' 2> /dev/null)"
+    members="$(printf '%s' "$proxies_json" | jq -r --arg tag "$tag" '
+        .proxies as $p
+        | ($p[$tag].all // [])[]
+        | select((($p[.].type // "") as $type
+            | ["Selector", "URLTest", "Fallback", "LoadBalance"] | index($type)) == null)' 2> /dev/null)"
+    if [ -z "$members" ]; then
+        log "Priority selection for section '$section': no individual servers to choose from (grouped subscriptions are not supported)" "debug"
+        return 0
+    fi
+
+    chosen=""
+    probed=0
+    # Probe in priority order up to the first server that answers.
+    while IFS= read -r member; do
+        [ -n "$member" ] || continue
+        [ "$probed" -lt "$PRIORITY_MAX_PROBES" ] || break
+        probed=$((probed + 1))
+        latency="$(clash_api get_proxy_latency "$member" "$PRIORITY_PROBE_TIMEOUT_MS" 2> /dev/null |
+            jq -r '.delay // 0' 2> /dev/null)"
+        case "$latency" in
+        "" | *[!0-9]*) latency=0 ;;
+        esac
+        if [ "$latency" -gt 0 ]; then
+            chosen="$member"
+            break
+        fi
+    done << EOF
+$members
+EOF
+
+    if [ -z "$chosen" ]; then
+        log "Priority selection for section '$section': none of the first $probed servers answered; keeping '$current'" "warn"
+        return 0
+    fi
+
+    if [ "$chosen" != "$current" ]; then
+        if clash_api set_group_proxy "$tag" "$chosen" > /dev/null 2>&1; then
+            log "Priority selection for section '$section': switched from '$current' to '$chosen'" "info"
+        else
+            log "Priority selection for section '$section': could not switch to '$chosen'" "warn"
+        fi
+    fi
+}
+
+_priority_check_section_handler() {
+    local section="$1"
+    local priority_mode
+
+    config_get_bool priority_mode "$section" "priority_mode" 0
+    [ "$priority_mode" -eq 1 ] || return 0
+    subscription_outbound_is_unavailable "$section" && return 0
+
+    priority_select_for_section "$section"
+}
+
+priority_check_sections() {
+    config_foreach _priority_check_section_handler "section"
+}
+
 monitor_sing_box() {
     local crash_count=0
     local backoff=0
     local snapshot_wait=0
+    local priority_wait=0
     local dont_touch_dhcp
 
     # Record our OWN pid (task-035): the monitor runs detached via setsid, so
@@ -1395,6 +1487,11 @@ monitor_sing_box() {
             if [ "$snapshot_wait" -ge "$MONITOR_CACHE_SNAPSHOT_INTERVAL" ]; then
                 snapshot_wait=0
                 snapshot_sing_box_cache
+            fi
+            priority_wait=$((priority_wait + MONITOR_CHECK_INTERVAL))
+            if [ "$priority_wait" -ge "$(priority_check_interval)" ]; then
+                priority_wait=0
+                priority_check_sections
             fi
             continue
         fi
