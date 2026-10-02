@@ -118,9 +118,12 @@ function createSettingsContent(section) {
     "dns_pool_server",
     _("Additional DNS servers"),
     _(
-      "One per line: scheme://host[:port][/path], where scheme is udp, tcp, dot, doh, doh3 or doq. Example: doh://dns.google/dns-query. In priority mode the order is the priority after the main server.",
+      "Pick a ready-made server or type your own: scheme://host[:port][/path], where scheme is udp, tcp, dot, doh, doh3 or doq. In priority mode the order is the priority after the main server.",
     ),
   );
+  Object.entries(main.DNS_POOL_PRESETS).forEach(([key, label]) => {
+    o.value(key, label);
+  });
   o.depends("dns_pool_mode", "fallback");
   o.depends("dns_pool_mode", "race");
   o.rmempty = true;

@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: NETSHIFT\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-02 16:26+0300\n"
-"PO-Revision-Date: 2026-10-02 16:26+0300\n"
+"POT-Creation-Date: 2026-10-02 18:00+0300\n"
+"PO-Revision-Date: 2026-10-02 18:00+0300\n"
 "Last-Translator: yandexru45\n"
 "Language-Team: none\n"
 "Language: ru\n"
@@ -704,9 +704,6 @@ msgstr "Количество начальных символов имени ка
 msgid "Off"
 msgstr "Выключено"
 
-msgid "One per line: scheme://host[:port][/path], where scheme is udp, tcp, dot, doh, doh3 or doq. Example: doh://dns.google/dns-query. In priority mode the order is the priority after the main server."
-msgstr "По одному в строке: схема://хост[:порт][/путь], где схема - udp, tcp, dot, doh, doh3 или doq. Пример: doh://dns.google/dns-query. В режиме приоритета порядок в списке - это приоритет после основного сервера."
-
 msgid "Only one section can be global at a time."
 msgstr "Только одна секция может быть глобальной одновременно."
 
@@ -742,6 +739,9 @@ msgstr "Путь должен заканчиваться на cache.db"
 
 msgid "Pending"
 msgstr "Ожидает запуска"
+
+msgid "Pick a ready-made server or type your own: scheme://host[:port][/path], where scheme is udp, tcp, dot, doh, doh3 or doq. In priority mode the order is the priority after the main server."
+msgstr "Выберите готовый сервер или введите свой: схема://хост[:порт][/путь], где схема - udp, tcp, dot, doh, doh3 или doq. В режиме приоритета порядок в списке - это приоритет после основного сервера."
 
 msgid "Prefix length"
 msgstr "Длина префикса"
