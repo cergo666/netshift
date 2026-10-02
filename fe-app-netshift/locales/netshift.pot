@@ -175,6 +175,10 @@ msgstr ""
 msgid "Checks passed"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:176
+msgid "Choose how traffic of a device in your network is handled. A device can be sent completely through one section (all its traffic) or directly, ignoring the lists. Changes are applied with Save & Apply."
+msgstr ""
+
 #: src/validators/validateSubnet.ts:25
 msgid "CIDR must be between 0 and 32"
 msgstr ""
@@ -269,6 +273,10 @@ msgstr ""
 msgid "Dashboard currently unavailable"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:107
+msgid "Default (by the lists)"
+msgstr ""
+
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:399
 msgid "Delay in milliseconds before reloading NetShift after interface UP"
 msgstr ""
@@ -281,12 +289,20 @@ msgstr ""
 msgid "Dev"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:185
+msgid "Device"
+msgstr ""
+
 #: src/netshift/tabs/diagnostic/checks/runDnsCheck.ts:93
 msgid "DHCP has DNS server"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:98
 msgid "Diagnostics"
+msgstr ""
+
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:111
+msgid "Direct (excluded from routing)"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:618
@@ -543,6 +559,10 @@ msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:255
 msgid "Every hour"
+msgstr ""
+
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:114
+msgid "Everything through: %s"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:582
@@ -880,6 +900,10 @@ msgstr ""
 msgid "Invalid VMess URL: must start with vmess://"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:186
+msgid "IP address"
+msgstr ""
+
 #: src/validators/validateSubnet.ts:11
 msgid "IP address 0.0.0.0 is not allowed"
 msgstr ""
@@ -937,6 +961,10 @@ msgstr ""
 msgid "Log Level"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:187
+msgid "MAC address"
+msgstr ""
+
 #: src/netshift/tabs/diagnostic/checks/runDnsCheck.ts:72
 msgid "Main DNS"
 msgstr ""
@@ -989,6 +1017,10 @@ msgstr ""
 msgid "NetShift will not modify your DHCP configuration"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:174
+msgid "NetShift: local devices"
+msgstr ""
+
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:21
 msgid "Network"
 msgstr ""
@@ -1015,6 +1047,10 @@ msgstr ""
 #: src/netshift/tabs/manager/cards.ts:353
 #: src/netshift/tabs/manager/initController.ts:109
 msgid "Not installed"
+msgstr ""
+
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:161
+msgid "Not on the network"
 msgstr ""
 
 #: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:75
@@ -1175,6 +1211,7 @@ msgstr ""
 msgid "Router DNS is routed through sing-box"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:188
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:26
 msgid "Routing"
 msgstr ""

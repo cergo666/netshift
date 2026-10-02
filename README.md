@@ -310,6 +310,7 @@ uci set netshift.corp.dns_server='dns.corp.example'
 uci add_list netshift.corp.local_domain_lists='/etc/netshift/corp-domains.lst'
 uci commit netshift
 ```
+**Устройства сети.** Страница **Services → NetShift: local devices** показывает устройства LAN (по данным DHCP/ARP) и для каждого позволяет выбрать: «по умолчанию (по спискам)», «напрямую» (адрес попадает в `settings.routing_excluded_ips`) или «всё через секцию» (адрес попадает в `fully_routed_ips` этой секции). Устройство всегда лежит ровно в одном месте; адреса из списков, которых сейчас нет в сети, остаются в таблице, чтобы их можно было вернуть к умолчанию. Изменения сохраняются кнопками Save / Save & Apply.
 
 > По умолчанию NetShift гонит в sing-box **только** проксируемые подсети/домены, остальное - напрямую (выборочная маркировка). Режим «весь трафик в туннель» включается **только** опцией `global_proxy`.
 
