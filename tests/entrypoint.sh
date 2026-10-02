@@ -9070,6 +9070,131 @@ BTEOF
 }
 
 # ─────────────────────────────────────────────────────────────────
+# Test: downloading components via the service proxy
+# ─────────────────────────────────────────────────────────────────
+# `download_components_via_proxy` sends the updater's downloads (sing-box core,
+# NetShift packages, release lookups) through the local service proxy, with a
+# fall back to a direct connection. Runs the REAL updates_* helpers (extracted
+# from updater.sh) and service_proxy_needed/get_service_proxy_address (from the
+# bin) against stubbed curl / UCI. Asserts:
+#   - flag off (default, every existing config): nothing goes through the proxy;
+#   - flag on: the proxy is tried first, a failure falls back to direct;
+#   - the service proxy exists for lists OR components.
+test_components_via_proxy() {
+    header "Components via the service proxy"
+
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    local updater="${NETSHIFT_LIB_DIR}/updater.sh"
+    if [ ! -r "$bin" ] || [ ! -r "$updater" ] || [ ! -r "${NETSHIFT_LIB_DIR}/constants.sh" ]; then
+        skip "netshift bin / updater.sh / constants.sh not found"
+        return
+    fi
+
+    local out
+    out="$(
+        . "${NETSHIFT_LIB_DIR}/constants.sh"
+        for fn in service_proxy_needed get_service_proxy_address; do
+            eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$bin")"
+        done
+        for fn in updates_components_proxy_address updates_http_get updates_download_to_file updates_github_resolve_redirect; do
+            eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$updater")"
+        done
+        updates_log() { :; }
+
+        CP_LISTS=0; CP_COMP=0
+        config_get_bool() {
+            case "$3" in
+            download_lists_via_proxy) eval "$1=\"$CP_LISTS\"" ;;
+            download_components_via_proxy) eval "$1=\"$CP_COMP\"" ;;
+            *) eval "$1=\"$4\"" ;;
+            esac
+        }
+        # curl stub: records whether -x was used; CP_PROXY_OK=0 makes proxied calls fail
+        CPLOGF="/tmp/netshift-compproxy-log-$$"
+        : > "$CPLOGF"
+        curl() {
+            local proxied=direct a out=""
+            for a in "$@"; do
+                [ "$a" = "-x" ] && proxied=proxy
+            done
+            while [ $# -gt 0 ]; do
+                [ "$1" = "-o" ] && out="$2"
+                shift
+            done
+            printf "%s " "$proxied" >> "$CPLOGF"
+            if [ "$proxied" = proxy ] && [ "${CP_PROXY_OK:-1}" = 0 ]; then
+                return 22
+            fi
+            [ -n "$out" ] && echo data > "$out"
+            echo "body-$proxied"
+            return 0
+        }
+        wget() { return 1; }
+        updates_http_get_once() {
+            if [ -n "$2" ]; then printf "get-proxy " >> "$CPLOGF"; else printf "get-direct " >> "$CPLOGF"; fi
+            if [ -n "$2" ] && [ "${CP_PROXY_OK:-1}" = 0 ]; then return 22; fi
+            echo "body"
+        }
+        D="/tmp/netshift-compproxy-$$"
+        LOGRESET() { : > "$CPLOGF"; }
+
+        for flags in "0 0:no" "1 0:yes" "0 1:yes" "1 1:yes"; do
+            CP_LISTS="${flags%% *}"; CP_COMP="${flags#* }"; CP_COMP="${CP_COMP%%:*}"
+            if service_proxy_needed; then got=yes; else got=no; fi
+            echo "needed-$CP_LISTS$CP_COMP:$got"
+        done
+
+        # flag off: direct only, and no proxy address for components
+        CP_LISTS=0; CP_COMP=0
+        echo "off-address:[$(updates_components_proxy_address)]"
+        LOGRESET; updates_download_to_file https://x/y "$D" > /dev/null; echo "off-download:$(cat "$CPLOGF" | sed "s/ *$//")"
+        LOGRESET; updates_http_get https://x/api > /dev/null; echo "off-get:$(cat "$CPLOGF" | sed "s/ *$//")"
+        # lists-only proxy does not carry components
+        CP_LISTS=1; CP_COMP=0
+        echo "lists-only-address:[$(updates_components_proxy_address)]"
+        LOGRESET; updates_download_to_file https://x/y "$D" > /dev/null; echo "lists-only-download:$(cat "$CPLOGF" | sed "s/ *$//")"
+
+        # flag on: proxy first
+        CP_LISTS=0; CP_COMP=1; CP_PROXY_OK=1
+        [ "$(updates_components_proxy_address)" = "$SB_SERVICE_MIXED_INBOUND_ADDRESS:$SB_SERVICE_MIXED_INBOUND_PORT" ] && echo "on-address:service-proxy" || echo "on-address:wrong"
+        LOGRESET; updates_download_to_file https://x/y "$D" > /dev/null; echo "on-download:$(cat "$CPLOGF" | sed "s/ *$//")"
+        LOGRESET; updates_http_get https://x/api > /dev/null; echo "on-get:$(cat "$CPLOGF" | sed "s/ *$//")"
+        LOGRESET; updates_github_resolve_redirect https://x/latest > /dev/null; echo "on-redirect:$(cat "$CPLOGF" | sed "s/ *$//")"
+        # flag on, proxy down: falls back to direct
+        CP_PROXY_OK=0
+        LOGRESET; updates_download_to_file https://x/y "$D" > /dev/null; echo "down-download:$(cat "$CPLOGF" | sed "s/ *$//")"
+        LOGRESET; updates_http_get https://x/api > /dev/null; echo "down-get:$(cat "$CPLOGF" | sed "s/ *$//")"
+        LOGRESET; updates_github_resolve_redirect https://x/latest > /dev/null; echo "down-redirect:$(cat "$CPLOGF" | sed "s/ *$//")"
+        rm -f "$D" "$CPLOGF"
+    )"
+
+    _cp_check() {
+        if echo "$out" | grep -qxF "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(echo "$out" | tr '\n' '|')"
+        fi
+    }
+
+    _cp_check "neither flag: no service proxy" "needed-00:no"
+    _cp_check "lists flag creates the service proxy" "needed-10:yes"
+    _cp_check "components flag creates the service proxy" "needed-01:yes"
+    _cp_check "both flags create it" "needed-11:yes"
+    _cp_check "flag off: components have no proxy address" "off-address:[]"
+    _cp_check "flag off: downloads are direct" "off-download:direct"
+    _cp_check "flag off: release lookups are direct" "off-get:get-direct"
+    _cp_check "lists-only proxy does not carry components" "lists-only-address:[]"
+    _cp_check "lists-only: component download stays direct" "lists-only-download:direct"
+    _cp_check "flag on: the service proxy address is used" "on-address:service-proxy"
+    _cp_check "flag on: download goes through the proxy" "on-download:proxy"
+    _cp_check "flag on: release lookup goes through the proxy first" "on-get:get-proxy"
+    _cp_check "flag on: redirect lookup goes through the proxy" "on-redirect:proxy"
+    _cp_check "proxy down: download falls back to direct" "down-download:proxy direct"
+    _cp_check "proxy down: release lookup falls back to direct" "down-get:get-proxy get-direct"
+    _cp_check "proxy down: redirect lookup falls back to direct" "down-redirect:proxy direct"
+}
+
+# ─────────────────────────────────────────────────────────────────
 # Test: Stock sing-box update check (task-017)
 # ─────────────────────────────────────────────────────────────────
 # Exercises updates_check_sing_box_stable through the real sourced updater.sh
@@ -12730,6 +12855,7 @@ main() {
             test_sub_cron
             test_global_proxy
             test_bittorrent_direct
+            test_components_via_proxy
             test_check_update_stable
             test_check_update_extended
             test_sing_box_extended_arm_arch
@@ -12772,6 +12898,7 @@ main() {
         subcron)     test_sub_cron ;;
         globalproxy) test_global_proxy ;;
         bittorrent)  test_bittorrent_direct ;;
+        compproxy)   test_components_via_proxy ;;
         stablecheck) test_check_update_stable ;;
         extcheck)    test_check_update_extended ;;
         sbextarch)   test_sing_box_extended_arm_arch ;;
@@ -12790,7 +12917,7 @@ main() {
         proxylink)   test_proxy_link_escaping ;;
         *)
             echo "Unknown test: $target"
-            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
+            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy bittorrent compproxy stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
             exit 1
             ;;
     esac
