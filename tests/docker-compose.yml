@@ -11,17 +11,11 @@
 # Test names: all, deps, syntax, config, helpers, jq, cm, sb, proxylink, nft,
 #             nftv6, selmark, isolation, monfd, unsupported, extgate, vlessenc, textlist,
 #             chunkcheck, diagnostics, subscription, fastest, insecure, rejected,
-#             jobstate, selfheal, dnsdetour, ecssubnet, suburlopt, subcron, globalproxy, sectiondisabled, realitymlkem, cachebust,
-#             bittorrent, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
-#             bittorrent, ipv6routing, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
-#             bittorrent, dnspool, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
-#             bittorrent, compproxy, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
-#             bittorrent, cascade, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
-#             bittorrent, dnssection, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
-#             bittorrent, utfilters, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
-#             bittorrent, priority, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
-#             bittorrent, bypass, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
-#             ghredirect, selfupdate, backupguard, hotreload, cachepersist,
+#             jobstate, selfheal, dnsdetour, ecssubnet, suburlopt, subcron, globalproxy,
+#             sectiondisabled, realitymlkem, cachebust, bittorrent, stablecheck, extcheck,
+#             sbextarch, sbextlite, netshiftcheck, latesttag, ipv6routing, dnspool, compproxy,
+#             cascade, dnssection, utfilters, priority, bypass, ghredirect, selfupdate,
+#             backupguard, hotreload, cachepersist,
 #             domsep, domcase
 # ──────────────────────────────────────────────────────────────────
 
