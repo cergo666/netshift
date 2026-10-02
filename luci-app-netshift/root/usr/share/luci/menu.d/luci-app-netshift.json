@@ -7,28 +7,8 @@
       "path": "netshift/netshift"
     },
     "depends": {
-      "acl": [
-        "luci-app-netshift"
-      ],
-      "uci": {
-        "netshift": true
-      }
-    }
-  },
-  "admin/services/netshift-devices": {
-    "title": "NetShift: local devices",
-    "order": 43,
-    "action": {
-      "type": "view",
-      "path": "netshift/devices"
-    },
-    "depends": {
-      "acl": [
-        "luci-app-netshift"
-      ],
-      "uci": {
-        "netshift": true
-      }
-    }
+			"acl": [ "luci-app-netshift" ],
+			"uci": { "netshift": true }
+		}
   }
 }

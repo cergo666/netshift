@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: NETSHIFT\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-02 17:26+0300\n"
-"PO-Revision-Date: 2026-10-02 17:26+0300\n"
+"POT-Creation-Date: 2026-10-02 18:05+0300\n"
+"PO-Revision-Date: 2026-10-02 18:05+0300\n"
 "Last-Translator: yandexru45\n"
 "Language-Team: none\n"
 "Language: ru\n"
@@ -134,8 +134,8 @@ msgstr "Проверки не выполнены"
 msgid "Checks passed"
 msgstr "Проверки пройдены"
 
-msgid "Choose how traffic of a device in your network is handled. A device can be sent completely through one section (all its traffic) or directly, ignoring the lists. Changes are applied with Save & Apply."
-msgstr "Выберите, как обрабатывается трафик устройства в вашей сети. Устройство можно целиком направить через одну секцию (весь его трафик) или напрямую, игнорируя списки. Изменения применяются кнопкой «Сохранить и применить»."
+msgid "Choose how traffic of a device in your network is handled. A device can be sent completely through one section (all its traffic) or directly, ignoring the lists. The change is stored with the page's Save & Apply, like the other settings."
+msgstr "Выберите, как обрабатывается трафик устройства в вашей сети. Устройство можно целиком направить через одну секцию (весь его трафик) или напрямую, игнорируя списки. Изменение сохраняется кнопкой «Сохранить и применить» страницы, как и остальные настройки."
 
 msgid "CIDR must be between 0 and 32"
 msgstr "CIDR должен быть между 0 и 32"
@@ -220,6 +220,9 @@ msgstr "Dev"
 
 msgid "Device"
 msgstr "Устройство"
+
+msgid "Devices"
+msgstr "Устройства"
 
 msgid "DHCP has DNS server"
 msgstr "DHCP содержит DNS сервер"
@@ -748,9 +751,6 @@ msgstr "NetShift обновлён, версия:"
 
 msgid "NetShift will not modify your DHCP configuration"
 msgstr "NetShift не будет изменять вашу конфигурацию DHCP"
-
-msgid "NetShift: local devices"
-msgstr "NetShift: устройства сети"
 
 msgid "Network"
 msgstr "Сеть"

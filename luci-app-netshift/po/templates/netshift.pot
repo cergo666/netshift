@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: NETSHIFT\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-02 14:26+0300\n"
-"PO-Revision-Date: 2026-10-02 14:26+0300\n"
+"POT-Creation-Date: 2026-10-02 15:05+0300\n"
+"PO-Revision-Date: 2026-10-02 15:05+0300\n"
 "Last-Translator: cergo666 <cergo666@ya.ru>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -183,8 +183,8 @@ msgstr ""
 msgid "Checks passed"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:176
-msgid "Choose how traffic of a device in your network is handled. A device can be sent completely through one section (all its traffic) or directly, ignoring the lists. Changes are applied with Save & Apply."
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:198
+msgid "Choose how traffic of a device in your network is handled. A device can be sent completely through one section (all its traffic) or directly, ignoring the lists. The change is stored with the page's Save & Apply, like the other settings."
 msgstr ""
 
 #: src/validators/validateSubnet.ts:25
@@ -207,7 +207,7 @@ msgstr ""
 msgid "Community Lists"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:83
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:104
 msgid "Component Manager"
 msgstr ""
 
@@ -219,7 +219,7 @@ msgstr ""
 msgid "Config File Path"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:30
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:33
 msgid "Configuration for NetShift service"
 msgstr ""
 
@@ -272,7 +272,7 @@ msgstr ""
 msgid "Custom subnets"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:39
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:42
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:31
 msgid "Dashboard"
 msgstr ""
@@ -281,7 +281,7 @@ msgstr ""
 msgid "Dashboard currently unavailable"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:107
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:126
 msgid "Default (by the lists)"
 msgstr ""
 
@@ -297,19 +297,23 @@ msgstr ""
 msgid "Dev"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:185
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:206
 msgid "Device"
+msgstr ""
+
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:86
+msgid "Devices"
 msgstr ""
 
 #: src/netshift/tabs/diagnostic/checks/runDnsCheck.ts:93
 msgid "DHCP has DNS server"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:98
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:119
 msgid "Diagnostics"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:111
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:130
 msgid "Direct (excluded from routing)"
 msgstr ""
 
@@ -573,7 +577,7 @@ msgstr ""
 msgid "Every hour"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:114
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:133
 msgid "Everything through: %s"
 msgstr ""
 
@@ -920,7 +924,7 @@ msgstr ""
 msgid "Invalid VMess URL: must start with vmess://"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:186
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:207
 msgid "IP address"
 msgstr ""
 
@@ -989,7 +993,7 @@ msgstr ""
 msgid "Log Level"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:187
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:208
 msgid "MAC address"
 msgstr ""
 
@@ -1033,7 +1037,7 @@ msgstr ""
 msgid "NetShift"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:29
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:32
 msgid "NetShift Settings"
 msgstr ""
 
@@ -1043,10 +1047,6 @@ msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:573
 msgid "NetShift will not modify your DHCP configuration"
-msgstr ""
-
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:174
-msgid "NetShift: local devices"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:21
@@ -1077,7 +1077,7 @@ msgstr ""
 msgid "Not installed"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:161
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:174
 msgid "Not on the network"
 msgstr ""
 
@@ -1243,7 +1243,7 @@ msgstr ""
 msgid "Router DNS is routed through sing-box"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:188
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:209
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:26
 msgid "Routing"
 msgstr ""
@@ -1284,7 +1284,7 @@ msgstr ""
 msgid "Secret key for authenticating remote access to YACD when WAN access is enabled."
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:54
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:57
 msgid "Sections"
 msgstr ""
 
@@ -1381,7 +1381,7 @@ msgstr ""
 msgid "Services info"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:67
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:70
 msgid "Settings"
 msgstr ""
 
