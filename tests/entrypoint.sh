@@ -8216,6 +8216,7 @@ crontab() {
 
 for fn in is_valid_subscription_update_time \
           get_section_subscription_update_time \
+          cron_field_matches \
           warn_daily_subscription_time_collisions \
           get_subscription_cron_line_for_interval \
           _collect_subscription_update_interval \
@@ -8641,11 +8642,18 @@ config section 'hourly'
         option subscription_update_interval '1h'
         option subscription_update_time '04:30'
 CFGEOF
+: > "$LOG_FILE"
 sync "$WORK/time_on_hourly"
 if has_line "17 * * * * /usr/bin/netshift subscription_update 1h" && [ "$(job_count)" = "1" ]; then
     echo 'subcron:time-on-hourly-ignored:OK'
 else
     echo "subcron:time-on-hourly-ignored:FAIL [$(tr '\n' ';' < "$CRONTAB_FILE")]"
+fi
+# ... and says so: a value that silently does nothing is a trap.
+if grep -q "^\[warn\] subscription_update_time '04:30' in section 'hourly' is ignored" "$LOG_FILE"; then
+    echo 'subcron:time-on-hourly-warned:OK'
+else
+    echo "subcron:time-on-hourly-warned:FAIL [$(tr '\n' ';' < "$LOG_FILE")]"
 fi
 
 # The user picks the daily minute, so a minute another job fires at is only
@@ -8666,7 +8674,7 @@ config section 'daily'
 CFGEOF
 : > "$LOG_FILE"
 sync "$WORK/clash"
-if grep -q "^\[warn\] The daily subscription update at 04:30 falls on a minute the 30m job also runs at" "$LOG_FILE" &&
+if grep -q "^\[warn\] The daily subscription update at 04:30 runs at the same time as the subscription update 30m cron job" "$LOG_FILE" &&
     has_line "30 4 * * * /usr/bin/netshift subscription_update 1d 04:30"; then
     echo 'subcron:daily-minute-clash-warned:OK'
 else
@@ -8675,7 +8683,7 @@ fi
 sed -i "s/'04:30'/'04:31'/" "$WORK/clash"
 : > "$LOG_FILE"
 sync "$WORK/clash"
-if grep -q "falls on a minute" "$LOG_FILE"; then
+if grep -q "runs at the same time as" "$LOG_FILE"; then
     echo 'subcron:daily-minute-no-clash-silent:FAIL [warned for 04:31]'
 else
     echo 'subcron:daily-minute-no-clash-silent:OK'
@@ -8688,6 +8696,74 @@ if grep -q "for example :05" "$LOG_FILE"; then
     echo 'subcron:clash-hint-leading-zero:OK'
 else
     echo "subcron:clash-hint-leading-zero:FAIL [$(tr '\n' ';' < "$LOG_FILE")]"
+fi
+
+# The collision check compares the HOUR as well: the 3h job fires at 7 */3 only
+# in hours divisible by 3, so a daily 04:07 never meets it, 03:07 does.
+cat > "$WORK/clash3h" <<'CFGEOF'
+config section 'threeh'
+        option connection_type 'proxy'
+        option proxy_config_type 'subscription'
+        option subscription_url 'https://example.com/threeh'
+        option subscription_update_interval '3h'
+
+config section 'daily'
+        option connection_type 'proxy'
+        option proxy_config_type 'subscription'
+        option subscription_url 'https://example.com/daily'
+        option subscription_update_interval '1d'
+        option subscription_update_time '04:07'
+CFGEOF
+: > "$LOG_FILE"
+sync "$WORK/clash3h"
+if grep -q "runs at the same time as" "$LOG_FILE"; then
+    echo 'subcron:clash-3h-other-hour-silent:FAIL [warned for 04:07]'
+else
+    echo 'subcron:clash-3h-other-hour-silent:OK'
+fi
+sed -i "s/'04:07'/'03:07'/" "$WORK/clash3h"
+: > "$LOG_FILE"
+sync "$WORK/clash3h"
+if grep -q "^\[warn\] The daily subscription update at 03:07 runs at the same time as the subscription update 3h cron job" "$LOG_FILE"; then
+    echo 'subcron:clash-3h-same-hour-warned:OK'
+else
+    echo "subcron:clash-3h-same-hour-warned:FAIL [$(tr '\n' ';' < "$LOG_FILE")]"
+fi
+
+# The list_update job (minute 13) is covered too: it is in the crontab by the
+# time the subscription jobs are synced, whatever update_interval is set.
+cat > "$WORK/clash_lists" <<'CFGEOF'
+config section 'daily'
+        option connection_type 'proxy'
+        option proxy_config_type 'subscription'
+        option subscription_url 'https://example.com/daily'
+        option subscription_update_interval '1d'
+        option subscription_update_time '09:13'
+CFGEOF
+printf '%s\n' '13 */3 * * * /usr/bin/netshift list_update' > "$CRONTAB_FILE"
+: > "$LOG_FILE"
+sync "$WORK/clash_lists" keep
+if grep -q "^\[warn\] The daily subscription update at 09:13 runs at the same time as the lists update cron job" "$LOG_FILE"; then
+    echo 'subcron:clash-list-update-warned:OK'
+else
+    echo "subcron:clash-list-update-warned:FAIL [$(tr '\n' ';' < "$LOG_FILE")]"
+fi
+sed -i "s/'09:13'/'10:13'/" "$WORK/clash_lists"
+printf '%s\n' '13 */3 * * * /usr/bin/netshift list_update' > "$CRONTAB_FILE"
+: > "$LOG_FILE"
+sync "$WORK/clash_lists" keep
+if grep -q "runs at the same time as" "$LOG_FILE"; then
+    echo 'subcron:clash-list-update-other-hour-silent:FAIL [warned for 10:13 vs 13 */3]'
+else
+    echo 'subcron:clash-list-update-other-hour-silent:OK'
+fi
+printf '%s\n' '13 * * * * /usr/bin/netshift list_update' > "$CRONTAB_FILE"
+: > "$LOG_FILE"
+sync "$WORK/clash_lists" keep
+if grep -q "^\[warn\] The daily subscription update at 10:13 runs at the same time as the lists update cron job" "$LOG_FILE"; then
+    echo 'subcron:clash-list-update-hourly-warned:OK'
+else
+    echo "subcron:clash-list-update-hourly-warned:FAIL [$(tr '\n' ';' < "$LOG_FILE")]"
 fi
 
 # ── remove_cron_job clears the legacy bare job and the interval jobs ──

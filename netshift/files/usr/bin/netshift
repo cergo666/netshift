@@ -2067,7 +2067,7 @@ get_subscription_cron_line_for_interval() {
 # previous hourly refresh.
 _collect_subscription_update_interval() {
     local section="$1"
-    local connection_type proxy_config_type subscription_update_interval
+    local connection_type proxy_config_type subscription_update_interval ignored_update_time
 
     config_get connection_type "$section" "connection_type"
     [ "$connection_type" = "proxy" ] || return 0
@@ -2079,6 +2079,15 @@ _collect_subscription_update_interval() {
     if ! get_subscription_cron_line_for_interval "$subscription_update_interval" > /dev/null; then
         log "Unknown subscription_update_interval '$subscription_update_interval' in section '$section', using $SUBSCRIPTION_UPDATE_INTERVAL_DEFAULT" "warn"
         subscription_update_interval="$SUBSCRIPTION_UPDATE_INTERVAL_DEFAULT"
+    fi
+
+    # The time only applies to the daily interval; say so instead of ignoring it
+    # silently (the option stays in UCI when the interval is switched).
+    if [ "$subscription_update_interval" != "1d" ]; then
+        config_get ignored_update_time "$section" "subscription_update_time"
+        if [ -n "$ignored_update_time" ]; then
+            log "subscription_update_time '$ignored_update_time' in section '$section' is ignored: it only applies to the 1d interval, this section uses $subscription_update_interval" "warn"
+        fi
     fi
 
     # A daily job is per TIME as well ("1d@HH:MM"): sections asking for different
@@ -2124,14 +2133,38 @@ sync_subscription_cron_jobs() {
     warn_daily_subscription_time_collisions
 }
 
-# A daily job the user placed on the same minute another interval's job fires
-# would run two subscription_update processes side by side, and those race on
-# the pending-apply marker and on the sing-box rebuild + reload (the reason the
-# fixed jobs use different minutes). The user picks the daily time, so this only
-# warns, and conservatively: it compares minutes and ignores which hour the other
-# job fires in, so it can warn about a clash that only happens in some hours.
+# True when a cron field (minute or hour) fires at the given number: "*", "*/N",
+# or that exact number. Anything else (lists, ranges) counts as a match, so the
+# collision warning errs on the side of speaking up. $2 has no leading zero.
+cron_field_matches() {
+    local field="$1"
+    local value="$2"
+    local step
+
+    case "$field" in
+    "*") return 0 ;;
+    "*/"*)
+        step="${field#*/}"
+        case "$step" in
+        "" | *[!0-9]* | 0) return 0 ;;
+        esac
+        [ $((value % step)) -eq 0 ]
+        ;;
+    *[!0-9]*) return 0 ;;
+    *) [ "$field" = "$value" ] ;;
+    esac
+}
+
+# A daily job the user placed on the same minute AND hour another NetShift job
+# fires at would run two processes side by side, and those race on the
+# pending-apply marker, on the sing-box rebuild + reload and on the rule-set
+# files in $TMP_RULESET_FOLDER (the reason the fixed jobs use different minutes).
+# The user picks the daily time, so this only warns. It reads the real crontab,
+# so every other subscription_update interval and the list_update job (whatever
+# update_interval is configured) are covered; the day-of-month field is ignored,
+# so the 3d list_update job can warn on a day it does not run.
 warn_daily_subscription_time_collisions() {
-    local subscription_job daily_time daily_minute daily_minute_number other_interval other_minutes
+    local subscription_job daily_time daily_hour daily_minute job_minute job_hour job_command job_name
 
     for subscription_job in $(printf '%s\n' $SUBSCRIPTION_UPDATE_INTERVALS | sort -u); do
         case "$subscription_job" in
@@ -2140,30 +2173,34 @@ warn_daily_subscription_time_collisions() {
         esac
 
         daily_time="${subscription_job#*@}"
+        # No leading zeros: $((08)) is an octal error in ash.
+        daily_hour="${daily_time%%:*}"
+        daily_hour="${daily_hour#0}"
+        daily_hour="${daily_hour:-0}"
         daily_minute="${daily_time##*:}"
-        # No leading zero: $((08)) is an octal error in ash.
-        daily_minute_number="${daily_minute#0}"
-        for other_interval in 30m 1h 3h 6h 12h; do
-            case " $SUBSCRIPTION_UPDATE_INTERVALS " in
-            *" $other_interval "*) ;;
-            *) continue ;;
-            esac
+        daily_minute="${daily_minute#0}"
+        daily_minute="${daily_minute:-0}"
 
-            case "$other_interval" in
-            30m) other_minutes="00 30" ;;
-            1h) other_minutes="17" ;;
-            3h) other_minutes="07" ;;
-            6h) other_minutes="24" ;;
-            12h) other_minutes="40" ;;
-            esac
-            case " $other_minutes " in
-            *" $daily_minute "*)
-                log "The daily subscription update at $daily_time falls on a minute the $other_interval job also runs at, so the two can overlap. Pick another minute, for example :$(printf '%02d' $(((${daily_minute_number:-0} + 5) % 60)))." "warn"
-                ;;
-            esac
-        done
+        crontab -l | grep -E "/usr/bin/netshift (list_update|subscription_update)" | {
+            while read -r job_minute job_hour _ _ _ job_command; do
+                # The daily job itself.
+                case "$job_command" in
+                *"subscription_update 1d $daily_time") continue ;;
+                esac
+
+                cron_field_matches "$job_minute" "$daily_minute" || continue
+                cron_field_matches "$job_hour" "$daily_hour" || continue
+
+                case "$job_command" in
+                *list_update*) job_name="lists update" ;;
+                *) job_name="subscription update ${job_command##* }" ;;
+                esac
+                log "The daily subscription update at $daily_time runs at the same time as the $job_name cron job ($job_minute $job_hour), so the two can overlap. Pick another minute, for example :$(printf '%02d' $(((daily_minute + 5) % 60)))." "warn"
+            done
+        }
     done
 }
+
 ensure_nft_ready_for_list_update() {
     if nft list table inet "$NFT_TABLE_NAME" > /dev/null 2>&1; then
         return 0
