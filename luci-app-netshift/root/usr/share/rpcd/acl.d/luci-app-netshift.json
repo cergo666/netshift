@@ -13,6 +13,10 @@
       "ubus": {
         "service": [
           "list"
+        ],
+        "luci-rpc": [
+          "getHostHints",
+          "getDHCPLeases"
         ]
       },
       "uci": [

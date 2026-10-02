@@ -1,38 +1,38 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the NETSHIFT package.
-# yandexru45 <>, 2026.
+# cergo666 <cergo666@ya.ru>, 2026.
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: NETSHIFT\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-28 07:55+0300\n"
-"PO-Revision-Date: 2026-09-28 07:55+0300\n"
-"Last-Translator: yandexru45 <>\n"
+"POT-Creation-Date: 2026-10-02 14:14+0300\n"
+"PO-Revision-Date: 2026-10-02 14:14+0300\n"
+"Last-Translator: cergo666 <cergo666@ya.ru>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/netshift/tabs/dashboard/initController.ts:345
+#: src/netshift/tabs/dashboard/initController.ts:372
 msgid "✔ Enabled"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:356
+#: src/netshift/tabs/dashboard/initController.ts:383
 msgid "✔ Running"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:346
+#: src/netshift/tabs/dashboard/initController.ts:373
 msgid "✘ Disabled"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:357
+#: src/netshift/tabs/dashboard/initController.ts:384
 msgid "✘ Stopped"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:307
+#: src/netshift/tabs/dashboard/initController.ts:334
 msgid "Active Connections"
 msgstr ""
 
@@ -131,7 +131,7 @@ msgstr ""
 
 #: src/netshift/tabs/diagnostic/checks/runDnsCheck.ts:27
 #: src/netshift/tabs/diagnostic/checks/runNftCheck.ts:28
-#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:28
+#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:40
 #: src/netshift/tabs/diagnostic/checks/runSingBoxCheck.ts:25
 msgid "Cannot receive checks result"
 msgstr ""
@@ -146,7 +146,7 @@ msgstr ""
 #: src/netshift/tabs/diagnostic/checks/runDnsCheck.ts:15
 #: src/netshift/tabs/diagnostic/checks/runFakeIPCheck.ts:15
 #: src/netshift/tabs/diagnostic/checks/runNftCheck.ts:13
-#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:16
+#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:28
 #: src/netshift/tabs/diagnostic/checks/runSingBoxCheck.ts:13
 msgid "Checking, please wait"
 msgstr ""
@@ -161,6 +161,10 @@ msgstr ""
 
 #: src/netshift/tabs/diagnostic/helpers/getMeta.ts:13
 msgid "Checks passed"
+msgstr ""
+
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:176
+msgid "Choose how traffic of a device in your network is handled. A device can be sent completely through one section (all its traffic) or directly, ignoring the lists. Changes are applied with Save & Apply."
 msgstr ""
 
 #: src/validators/validateSubnet.ts:25
@@ -223,7 +227,7 @@ msgstr ""
 msgid "Copy"
 msgstr ""
 
-#: src/netshift/methods/shell/index.ts:163
+#: src/netshift/methods/shell/index.ts:162
 #: src/netshift/methods/shell/pollSingBoxComponentAction.ts:83
 msgid "Core switch failed"
 msgstr ""
@@ -249,8 +253,12 @@ msgstr ""
 msgid "Dashboard"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/partials/renderSections.ts:20
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:23
 msgid "Dashboard currently unavailable"
+msgstr ""
+
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:107
+msgid "Default (by the lists)"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:335
@@ -265,12 +273,20 @@ msgstr ""
 msgid "Dev"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:185
+msgid "Device"
+msgstr ""
+
 #: src/netshift/tabs/diagnostic/checks/runDnsCheck.ts:93
 msgid "DHCP has DNS server"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:98
 msgid "Diagnostics"
+msgstr ""
+
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:111
+msgid "Direct (excluded from routing)"
 msgstr ""
 
 #: src/netshift/tabs/diagnostic/partials/renderAvailableActions.ts:81
@@ -350,8 +366,8 @@ msgstr ""
 msgid "Dont Touch My DHCP!"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:241
-#: src/netshift/tabs/dashboard/initController.ts:275
+#: src/netshift/tabs/dashboard/initController.ts:268
+#: src/netshift/tabs/dashboard/initController.ts:302
 msgid "Downlink"
 msgstr ""
 
@@ -481,6 +497,10 @@ msgstr ""
 msgid "Every hour"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:114
+msgid "Everything through: %s"
+msgstr ""
+
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:504
 msgid "Exclude BitTorrent"
 msgstr ""
@@ -501,7 +521,7 @@ msgstr ""
 msgid "Extended core with all features (~105 MB)"
 msgstr ""
 
-#: src/netshift/methods/shell/index.ts:259
+#: src/netshift/methods/shell/index.ts:258
 #: src/netshift/tabs/diagnostic/initController.ts:351
 #: src/netshift/tabs/diagnostic/initController.ts:355
 msgid "Failed to clear subscription cache"
@@ -511,12 +531,6 @@ msgstr ""
 msgid "Failed to copy!"
 msgstr ""
 
-#: src/netshift/tabs/diagnostic/initController.ts:236
-#: src/netshift/tabs/diagnostic/initController.ts:240
-#: src/netshift/tabs/diagnostic/initController.ts:270
-#: src/netshift/tabs/diagnostic/initController.ts:274
-#: src/netshift/tabs/diagnostic/initController.ts:311
-#: src/netshift/tabs/diagnostic/initController.ts:315
 #: src/netshift/tabs/manager/initController.ts:135
 #: src/netshift/tabs/manager/initController.ts:145
 #: src/netshift/tabs/manager/initController.ts:163
@@ -525,6 +539,12 @@ msgstr ""
 #: src/netshift/tabs/manager/initController.ts:223
 #: src/netshift/tabs/manager/initController.ts:256
 #: src/netshift/tabs/manager/initController.ts:260
+#: src/netshift/tabs/diagnostic/initController.ts:236
+#: src/netshift/tabs/diagnostic/initController.ts:240
+#: src/netshift/tabs/diagnostic/initController.ts:270
+#: src/netshift/tabs/diagnostic/initController.ts:274
+#: src/netshift/tabs/diagnostic/initController.ts:311
+#: src/netshift/tabs/diagnostic/initController.ts:315
 msgid "Failed to execute!"
 msgstr ""
 
@@ -532,7 +552,7 @@ msgstr ""
 #: src/netshift/methods/custom/buildSubscriptionOutboundGroup.ts:101
 #: src/netshift/methods/custom/buildSubscriptionOutboundGroup.ts:109
 #: src/netshift/methods/custom/getDashboardSections.ts:151
-#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:57
+#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:56
 msgid "Fastest"
 msgstr ""
 
@@ -800,6 +820,10 @@ msgstr ""
 msgid "Invalid VMess URL: must start with vmess://"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:186
+msgid "IP address"
+msgstr ""
+
 #: src/validators/validateSubnet.ts:11
 msgid "IP address 0.0.0.0 is not allowed"
 msgstr ""
@@ -857,6 +881,10 @@ msgstr ""
 msgid "Log Level"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:187
+msgid "MAC address"
+msgstr ""
+
 #: src/netshift/tabs/diagnostic/checks/runDnsCheck.ts:72
 msgid "Main DNS"
 msgstr ""
@@ -865,7 +893,7 @@ msgstr ""
 msgid "Main DNS via outbound"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:311
+#: src/netshift/tabs/dashboard/initController.ts:338
 msgid "Memory Usage"
 msgstr ""
 
@@ -885,7 +913,7 @@ msgstr ""
 msgid "Must be a number in the range of 50 - 1000"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:343
+#: src/netshift/tabs/dashboard/initController.ts:370
 msgid "NetShift"
 msgstr ""
 
@@ -899,6 +927,10 @@ msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:483
 msgid "NetShift will not modify your DHCP configuration"
+msgstr ""
+
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:174
+msgid "NetShift: local devices"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:21
@@ -929,9 +961,12 @@ msgstr ""
 msgid "Not installed"
 msgstr ""
 
-#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:73
-#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:79
-#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:98
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:161
+msgid "Not on the network"
+msgstr ""
+
+#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:75
+#: src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:90
 msgid "Not responding"
 msgstr ""
 
@@ -1060,6 +1095,7 @@ msgstr ""
 msgid "Router DNS is routed through sing-box"
 msgstr ""
 
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:188
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:26
 msgid "Routing"
 msgstr ""
@@ -1177,7 +1213,7 @@ msgstr ""
 msgid "Selector Proxy Links (one per line)"
 msgstr ""
 
-#: src/netshift/methods/shell/index.ts:308
+#: src/netshift/methods/shell/index.ts:307
 msgid "Self-update failed"
 msgstr ""
 
@@ -1189,7 +1225,7 @@ msgstr ""
 msgid "Send upstream DNS queries through a proxy/VPN outbound instead of directly. Bootstrap DNS always stays direct."
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:340
+#: src/netshift/tabs/dashboard/initController.ts:367
 msgid "Services info"
 msgstr ""
 
@@ -1203,7 +1239,7 @@ msgid "Show sing-box config"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:157
-#: src/netshift/tabs/dashboard/initController.ts:354
+#: src/netshift/tabs/dashboard/initController.ts:381
 msgid "Sing-box"
 msgstr ""
 
@@ -1321,7 +1357,7 @@ msgstr ""
 msgid "Switching sing-box core, this may take a few minutes…"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:304
+#: src/netshift/tabs/dashboard/initController.ts:331
 msgid "System info"
 msgstr ""
 
@@ -1333,7 +1369,7 @@ msgstr ""
 msgid "Table exist"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/partials/renderSections.ts:104
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:112
 msgid "Test latency"
 msgstr ""
 
@@ -1366,11 +1402,11 @@ msgstr ""
 msgid "Time in seconds for DNS record caching (default: 60)"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:238
+#: src/netshift/tabs/dashboard/initController.ts:265
 msgid "Traffic"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:268
+#: src/netshift/tabs/dashboard/initController.ts:295
 msgid "Traffic Total"
 msgstr ""
 
@@ -1395,18 +1431,18 @@ msgstr ""
 msgid "UDP over TCP"
 msgstr ""
 
-#: src/netshift/tabs/diagnostic/initController.ts:43
-#: src/netshift/tabs/diagnostic/initController.ts:44
-#: src/netshift/tabs/diagnostic/initController.ts:45
-#: src/netshift/tabs/diagnostic/initController.ts:46
-#: src/netshift/tabs/diagnostic/initController.ts:47
-#: src/netshift/tabs/diagnostic/initController.ts:48
 #: src/netshift/tabs/manager/initController.ts:43
 #: src/netshift/tabs/manager/initController.ts:44
 #: src/netshift/tabs/manager/initController.ts:45
 #: src/netshift/tabs/manager/initController.ts:46
 #: src/netshift/tabs/manager/initController.ts:47
 #: src/netshift/tabs/manager/initController.ts:48
+#: src/netshift/tabs/diagnostic/initController.ts:43
+#: src/netshift/tabs/diagnostic/initController.ts:44
+#: src/netshift/tabs/diagnostic/initController.ts:45
+#: src/netshift/tabs/diagnostic/initController.ts:46
+#: src/netshift/tabs/diagnostic/initController.ts:47
+#: src/netshift/tabs/diagnostic/initController.ts:48
 #: src/netshift/tabs/diagnostic/helpers/getNetshiftVersionRow.ts:7
 msgid "unknown"
 msgstr ""
@@ -1433,8 +1469,8 @@ msgstr ""
 msgid "Updating NetShift, this may take a few minutes; the page will reload…"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:240
-#: src/netshift/tabs/dashboard/initController.ts:271
+#: src/netshift/tabs/dashboard/initController.ts:267
+#: src/netshift/tabs/dashboard/initController.ts:298
 msgid "Uplink"
 msgstr ""
 

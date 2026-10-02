@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: NETSHIFT\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-28 10:56+0300\n"
-"PO-Revision-Date: 2026-09-28 10:56+0300\n"
+"POT-Creation-Date: 2026-10-02 17:14+0300\n"
+"PO-Revision-Date: 2026-10-02 17:14+0300\n"
 "Last-Translator: yandexru45\n"
 "Language-Team: none\n"
 "Language: ru\n"
@@ -119,6 +119,9 @@ msgstr "Проверки не выполнены"
 msgid "Checks passed"
 msgstr "Проверки пройдены"
 
+msgid "Choose how traffic of a device in your network is handled. A device can be sent completely through one section (all its traffic) or directly, ignoring the lists. Changes are applied with Save & Apply."
+msgstr "Выберите, как обрабатывается трафик устройства в вашей сети. Устройство можно целиком направить через одну секцию (весь его трафик) или напрямую, игнорируя списки. Изменения применяются кнопкой «Сохранить и применить»."
+
 msgid "CIDR must be between 0 and 32"
 msgstr "CIDR должен быть между 0 и 32"
 
@@ -185,6 +188,9 @@ msgstr "Дашборд"
 msgid "Dashboard currently unavailable"
 msgstr "Дашборд сейчас недоступен"
 
+msgid "Default (by the lists)"
+msgstr "По умолчанию (по спискам)"
+
 msgid "Delay in milliseconds before reloading NetShift after interface UP"
 msgstr "Задержка в миллисекундах перед перезагрузкой NetShift после поднятия интерфейса"
 
@@ -194,11 +200,17 @@ msgstr "Значение задержки не может быть пустым"
 msgid "Dev"
 msgstr "Dev"
 
+msgid "Device"
+msgstr "Устройство"
+
 msgid "DHCP has DNS server"
 msgstr "DHCP содержит DNS сервер"
 
 msgid "Diagnostics"
 msgstr "Диагностика"
+
+msgid "Direct (excluded from routing)"
+msgstr "Напрямую (исключено из маршрутизации)"
 
 msgid "Disable autostart"
 msgstr "Отключить автостарт"
@@ -349,6 +361,9 @@ msgstr "Каждый день"
 
 msgid "Every hour"
 msgstr "Каждый час"
+
+msgid "Everything through: %s"
+msgstr "Всё через: %s"
 
 msgid "Exclude BitTorrent"
 msgstr "Исключить BitTorrent"
@@ -569,6 +584,9 @@ msgstr "Неверный URL VMess: не должен содержать про�
 msgid "Invalid VMess URL: must start with vmess://"
 msgstr "Неверный URL VMess: должен начинаться с vmess://"
 
+msgid "IP address"
+msgstr "IP-адрес"
+
 msgid "IP address 0.0.0.0 is not allowed"
 msgstr "IP-адрес 0.0.0.0 не допускается"
 
@@ -611,6 +629,9 @@ msgstr "Локальные списки подсетей"
 msgid "Log Level"
 msgstr "Уровень логов"
 
+msgid "MAC address"
+msgstr "MAC-адрес"
+
 msgid "Main DNS"
 msgstr "Основной DNS"
 
@@ -644,6 +665,9 @@ msgstr "NetShift обновлён, версия:"
 msgid "NetShift will not modify your DHCP configuration"
 msgstr "NetShift не будет изменять вашу конфигурацию DHCP"
 
+msgid "NetShift: local devices"
+msgstr "NetShift: устройства сети"
+
 msgid "Network"
 msgstr "Сеть"
 
@@ -661,6 +685,9 @@ msgstr "Ещё не реализовано"
 
 msgid "Not installed"
 msgstr "Не установлено"
+
+msgid "Not on the network"
+msgstr "Нет в сети"
 
 msgid "Not responding"
 msgstr "Не отвечает"
