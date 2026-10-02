@@ -43,6 +43,77 @@ function createSectionContent(section) {
   o.value("vpn", "VPN");
   o.value("block", "Block");
   o.value("exclusion", "Exclusion");
+  o.value("dns", _("DNS (own DNS server for the domains)"));
+
+  o = section.taboption(
+    "connection",
+    form.ListValue,
+    "dns_type",
+    _("DNS Protocol Type"),
+    _("Protocol of this section's own DNS server"),
+  );
+  o.value("udp", _("UDP (Unprotected DNS)"));
+  o.value("tcp", _("TCP"));
+  o.value("dot", _("DNS over TLS (DoT)"));
+  o.value("doh", _("DNS over HTTPS (DoH)"));
+  o.value("doh3", _("DNS over HTTP/3 (DoH3)"));
+  o.value("doq", _("DNS over QUIC (DoQ)"));
+  o.default = "udp";
+  o.depends("connection_type", "dns");
+  o.rmempty = false;
+
+  o = section.taboption(
+    "connection",
+    form.Value,
+    "dns_server",
+    _("DNS Server"),
+    _(
+      "The domains of this section's lists are resolved by this server instead of the main one and are not sent through any tunnel (split DNS). Address, address:port or host/path for DoH",
+    ),
+  );
+  o.depends("connection_type", "dns");
+  o.rmempty = false;
+  o.validate = function (section_id, value) {
+    const validation = main.validateDNS(value);
+
+    if (validation.valid) {
+      return true;
+    }
+
+    return validation.message;
+  };
+
+  o = section.taboption(
+    "connection",
+    form.ListValue,
+    "dns_detour_section",
+    _("Send DNS queries through section"),
+    _(
+      "Optional: query this DNS server through the outbound of another section. If that outbound is not usable the queries go out directly.",
+    ),
+  );
+  o.depends("connection_type", "dns");
+  o.rmempty = true;
+  o.load = function (section_id) {
+    const sections = this.map?.data?.state?.values?.netshift ?? {};
+
+    this.keylist = [""];
+    this.vallist = [_("Directly")];
+
+    for (const secName in sections) {
+      const sec = sections[secName];
+      if (
+        secName !== section_id &&
+        sec[".type"] === "section" &&
+        (sec["connection_type"] === "proxy" || sec["connection_type"] === "vpn")
+      ) {
+        this.keylist.push(secName);
+        this.vallist.push(secName);
+      }
+    }
+
+    return form.ListValue.prototype.load.apply(this, arguments);
+  };
 
   o = section.taboption(
     "connection",
