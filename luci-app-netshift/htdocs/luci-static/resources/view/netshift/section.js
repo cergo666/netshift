@@ -377,19 +377,6 @@ function createSectionContent(section) {
 
   o = section.taboption(
     "subscription",
-    form.Flag,
-    "subscription_geoip",
-    _("Detect country by IP (GeoIP)"),
-    _(
-      "For servers whose name has no flag, look the country up once by the server address and put the flag in front of the name, so grouping and the country filters work for them too. The server addresses are sent to api.country.is over HTTPS; results are cached on the router.",
-    ),
-  );
-  o.default = "0";
-  o.rmempty = false;
-  o.depends({ connection_type: "proxy", proxy_config_type: "subscription" });
-
-  o = section.taboption(
-    "subscription",
     form.DynamicList,
     "subscription_filter_include_countries",
     _("Include servers by country"),
@@ -625,6 +612,19 @@ function createSectionContent(section) {
 
     return validation.message;
   };
+
+  o = section.taboption(
+    "connection",
+    form.Flag,
+    "geoip_flags",
+    _("Detect country by IP (GeoIP)"),
+    _(
+      "For servers whose name has no flag, look the country up once by the server address and show its flag: in front of the name in a subscription (so grouping and the country filters work for it too), on the dashboard for your own links. The server addresses are sent to api.country.is over HTTPS; results are cached on the router.",
+    ),
+  );
+  o.default = "0";
+  o.rmempty = false;
+  o.depends("connection_type", "proxy");
 
   o = section.taboption(
     "connection",

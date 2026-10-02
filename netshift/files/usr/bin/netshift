@@ -3067,7 +3067,8 @@ sing_box_configure_outbounds() {
     SUBSCRIPTION_UNAVAILABLE_SECTIONS=""
     config=$(sing_box_cm_add_direct_outbound "$config" "$SB_DIRECT_OUTBOUND_TAG")
 
-    foreach_active_section configure_outbound_handler "section"
+    rm -f "$GEOIP_LINKS_FILE"
+    foreach_active_section configure_outbound_geoip_handler "section"
 
     foreach_active_section configure_outbound_detour_handler "section"
 }
@@ -3446,6 +3447,7 @@ _build_proxy_member_outbounds() {
             && [ -n "$_new_config" ]; then
             config="$_new_config"
             outbound_tag="$(get_outbound_tag_by_section "$section-$i")"
+            geoip_collect_link "$outbound_tag" "$link"
             if [ -z "$_member_outbound_tags" ]; then
                 _member_outbound_tags="$outbound_tag"
                 _member_default_outbound="$outbound_tag"
@@ -3516,6 +3518,7 @@ configure_outbound_handler() {
             if _new_config="$(sing_box_cf_add_proxy_outbound "$config" "$section" "$proxy_string" "$udp_over_tcp")" \
                 && [ -n "$_new_config" ]; then
                 config="$_new_config"
+                geoip_collect_link "$(get_outbound_tag_by_section "$section")" "$proxy_string"
             else
                 echolog "Proxy link for section '$section' uses an unsupported scheme or a feature the installed sing-box lacks and was skipped; this section has no usable outbound and its traffic will be rejected until a supported link is configured" "error"
                 mark_section_outbound_unavailable "$section"
@@ -3526,6 +3529,7 @@ configure_outbound_handler() {
             local json_outbound
             config_get json_outbound "$section" "outbound_json"
             config=$(sing_box_cf_add_json_outbound "$config" "$section" "$json_outbound")
+            geoip_collect_json "$(get_outbound_tag_by_section "$section")" "$json_outbound"
             ;;
         selector)
             log "Detected proxy configuration type: selector" "debug"
@@ -3640,7 +3644,7 @@ configure_outbound_handler() {
                 urltest_testing_url group_mode group_mode_raw prefix_len prefix_len_raw legacy_group_raw \
                 subscription_outbound_tags_json service_proxy_address subscription_ready \
                 subscription_filter_include_keywords_json subscription_filter_exclude_keywords_json \
-                subscription_keyword_filter_active subscription_geoip urlhash subscription_json_path subscription_url_cache_path \
+                subscription_keyword_filter_active urlhash subscription_json_path subscription_url_cache_path \
                 should_download had_usable_cache merged_json_path merged_node_count \
                 usable_feed_count subscription_feed_names_json \
                 subscription_outbound_feeds_json
@@ -3803,8 +3807,7 @@ configure_outbound_handler() {
             # A merged file with >=1 proxy outbound is a real subscription set.
             if [ "$usable_feed_count" -gt 0 ] && [ "$merged_node_count" -gt 0 ]; then
                 chmod 600 "$merged_json_path" 2>/dev/null
-                config_get_bool subscription_geoip "$section" "subscription_geoip" 0
-                [ "$subscription_geoip" -eq 1 ] && subscription_geoip_annotate "$merged_json_path"
+                geoip_section_enabled "$section" && subscription_geoip_annotate "$merged_json_path"
                 if sing_box_cf_add_subscription_outbounds "$config" "$section" "$merged_json_path" \
                     "$subscription_filter_include_keywords_json" "$subscription_filter_exclude_keywords_json" > /dev/null; then
                     if [ -n "$SUBSCRIPTION_OUTBOUND_TAGS" ]; then
@@ -4664,7 +4667,7 @@ append_subscription_filter_country_handler() {
 # $1 section, $2 keyword list option, $3 country list option
 # --- GeoIP country flags for subscription servers -------------------------------
 # Servers whose name carries no flag emoji cannot be grouped or filtered by country.
-# With `subscription_geoip '1'` the country of such a server is looked up ONCE
+# With `geoip_flags '1'` the country of such a server is looked up ONCE
 # (host -> IP via the bootstrap DNS, IPs -> country in batches over HTTPS) and the
 # flag is put in front of its name, so grouping, the country filters and the
 # dashboard treat it like a server that came with a flag. Results are kept in
@@ -4706,17 +4709,18 @@ geoip_resolve_host() {
     printf '%s %s\n' "$host" "$ip"
 }
 
-# $1 merged subscription file: writes the flag-annotated file back in place.
-subscription_geoip_annotate() {
-    local merged="$1"
-    local now cache hosts missing host pair ips_json response resolved_tmp failures changed chunk part chunks_tmp parts_tmp answered aborted
+# $1 hosts (one per line). Looks up the ones the cache does not know (or knows past
+# its TTL) and leaves the whole cache, as JSON {host: {cc, ts}}, in GEOIP_CACHE.
+geoip_lookup_hosts() {
+    local hosts="$1"
+    local now cache missing host pair ips_json response resolved_tmp failures changed chunk part chunks_tmp parts_tmp answered aborted
 
     now="$(date +%s)"
     cache="{}"
     [ -s "$GEOIP_CACHE_FILE" ] && cache="$(jq -c . "$GEOIP_CACHE_FILE" 2> /dev/null || echo '{}')"
     [ -n "$cache" ] || cache="{}"
 
-    hosts="$(geoip_hosts_without_flag "$merged")"
+    GEOIP_CACHE="$cache"
     [ -n "$hosts" ] || return 0
 
     # Hosts that still need a lookup: no cache entry, or one past its TTL.
@@ -4808,6 +4812,18 @@ subscription_geoip_annotate() {
             fi
         fi
     fi
+    GEOIP_CACHE="$cache"
+}
+
+# $1 merged subscription file: writes the flag-annotated file back in place.
+subscription_geoip_annotate() {
+    local merged="$1"
+    local hosts
+
+    hosts="$(geoip_hosts_without_flag "$merged")"
+    [ -n "$hosts" ] || return 0
+    geoip_lookup_hosts "$hosts"
+    local cache="$GEOIP_CACHE"
 
     # Put the flags in front of the names that have none.
     jq -c --argjson cache "$cache" '
@@ -4823,6 +4839,138 @@ subscription_geoip_annotate() {
               then (if has("tag") then .tag = (flag($cc) + " " + $name) else .remark = (flag($cc) + " " + $name) end)
               else . end)' "$merged" > "$merged.geoip" 2> /dev/null && mv "$merged.geoip" "$merged"
     rm -f "$merged.geoip"
+}
+
+# --- GeoIP flags for links added by hand ----------------------------------------
+# The same option covers sections with their own links (single link, selector,
+# urltest, their text variants, outbound JSON). Their sing-box tags are fixed
+# (<section>-out, <section>-<n>-out), so the flag cannot go into a name there:
+# the lookup result is kept per outbound tag in GEOIP_LINKS_FILE and the dashboard
+# puts it in front of the name it shows. A link whose name (the part after '#')
+# already carries a flag is never looked up.
+
+# 0 when the section asks for GeoIP flags. `geoip_flags` is the option;
+# `subscription_geoip` (the name it had in 0.9.9.11) still counts.
+geoip_section_enabled() {
+    local section="$1"
+    local value
+
+    config_get value "$section" "geoip_flags" ""
+    [ -n "$value" ] || config_get value "$section" "subscription_geoip" "0"
+    [ "$value" = "1" ]
+}
+
+# 0 when $1 contains a flag emoji (a pair of regional-indicator letters).
+geoip_name_has_flag() {
+    printf '%s' "$1" | jq -R -e '
+        explode as $c
+        | [range(0; ($c | length) - 1) | select(($c[.] | . >= 127462 and . <= 127487)
+            and ($c[. + 1] | . >= 127462 and . <= 127487))] | length > 0' > /dev/null 2>&1
+}
+
+# Prints the host of a proxy link that has no flag in its name (nothing otherwise).
+geoip_link_host() {
+    local link="$1"
+    local name host json
+
+    case "$link" in
+    vmess://*)
+        json="$(vmess_link_to_json "$link")"
+        [ -n "$json" ] || return 0
+        name="$(printf '%s' "$json" | jq -r '.ps // ""' 2> /dev/null)"
+        host="$(printf '%s' "$json" | jq -r '.add // ""' 2> /dev/null)"
+        ;;
+    *)
+        name=""
+        case "$link" in
+        *'#'*) name="$(url_decode "${link#*#}")" ;;
+        esac
+        host="$(url_decode_component "$(url_get_host "$(url_strip_fragment "$link")")")"
+        ;;
+    esac
+
+    [ -n "$host" ] || return 0
+    geoip_name_has_flag "$name" && return 0
+    printf '%s\n' "$host"
+}
+
+# Remembers that outbound $1 connects to host $2 (when the section wants flags).
+geoip_collect_host() {
+    [ "$GEOIP_COLLECT" = "1" ] && [ -n "$2" ] || return 0
+    GEOIP_PENDING="$GEOIP_PENDING$1 $2
+"
+}
+
+# $1 outbound tag, $2 link
+geoip_collect_link() {
+    local host
+
+    [ "$GEOIP_COLLECT" = "1" ] || return 0
+    host="$(geoip_link_host "$2")"
+    geoip_collect_host "$1" "$host"
+}
+
+# $1 outbound tag, $2 outbound JSON (its `server`, named by its `tag`)
+geoip_collect_json() {
+    local host name
+
+    [ "$GEOIP_COLLECT" = "1" ] || return 0
+    host="$(printf '%s' "$2" | jq -r '.server // ""' 2> /dev/null)"
+    name="$(printf '%s' "$2" | jq -r '.tag // ""' 2> /dev/null)"
+    geoip_name_has_flag "$name" && return 0
+    geoip_collect_host "$1" "$host"
+}
+
+# Looks the collected hosts up and records {outbound tag: country} in
+# GEOIP_LINKS_FILE for the dashboard. Known countries come from the cache without
+# a request; nothing is recorded for a host whose country is not known (yet).
+geoip_flush_links() {
+    local pending="$GEOIP_PENDING"
+    local hosts
+
+    GEOIP_PENDING=""
+    [ -n "$pending" ] || return 0
+
+    hosts="$(printf '%s' "$pending" | awk 'NF {print $2}' | sort -u)"
+    geoip_lookup_hosts "$hosts"
+
+    mkdir -p "$(dirname "$GEOIP_LINKS_FILE")"
+    {
+        [ -s "$GEOIP_LINKS_FILE" ] && cat "$GEOIP_LINKS_FILE" || echo '{}'
+        printf '%s' "$pending" | jq -R -s -c --argjson cache "$GEOIP_CACHE" '
+            split("\n") | map(select(. != "") | split(" ")
+                | {tag: .[0], cc: (($cache[.[1]].cc) // "")}
+                | select((.cc | length) == 2
+                    and (.cc | explode | all((. >= 65 and . <= 90) or (. >= 97 and . <= 122))))
+                | {key: .tag, value: (.cc | ascii_upcase)}) | from_entries'
+    } | jq -c -s '.[0] + .[1]' > "$GEOIP_LINKS_FILE.tmp" 2> /dev/null &&
+        mv "$GEOIP_LINKS_FILE.tmp" "$GEOIP_LINKS_FILE"
+    rm -f "$GEOIP_LINKS_FILE.tmp"
+}
+
+# The handler configure_outbound_handler runs under: collects the links of the
+# section while it is built and looks them up afterwards. Keeps its exit status.
+configure_outbound_geoip_handler() {
+    local section="$1"
+    local rc
+
+    GEOIP_PENDING=""
+    GEOIP_COLLECT=0
+    geoip_section_enabled "$section" && GEOIP_COLLECT=1
+    configure_outbound_handler "$section"
+    rc=$?
+    geoip_flush_links
+    GEOIP_COLLECT=0
+    return $rc
+}
+
+# Prints {outbound tag: country code} for the dashboard.
+get_geoip_flags() {
+    if [ -s "$GEOIP_LINKS_FILE" ]; then
+        jq -c . "$GEOIP_LINKS_FILE" 2> /dev/null || echo '{}'
+    else
+        echo '{}'
+    fi
 }
 
 build_subscription_filter_json() {
@@ -6983,6 +7131,7 @@ Available commands:
     check_nft_rules         Check NFT rules status
     check_sing_box          Check sing-box installation and status
     check_logs              Show NetShift logs from system journal
+    get_geoip_flags         Print the GeoIP country of manually added links as JSON
     check_sing_box_logs     Show sing-box logs
     check_fakeip            Test FakeIP on router
     clash_api               Clash API interface for managing proxies and groups
@@ -7079,6 +7228,9 @@ get_status)
     ;;
 get_sing_box_status)
     get_sing_box_status
+    ;;
+get_geoip_flags)
+    get_geoip_flags
     ;;
 get_system_info)
     get_system_info

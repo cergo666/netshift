@@ -15023,10 +15023,19 @@ test_subscription_geoip() {
         W="/tmp/netshift-geoip-$$"; rm -rf "$W"; mkdir -p "$W"
         GEOIP_CACHE_FILE="$W/geoip.json"
         log() { printf '[%s] %s\n' "${2:-info}" "$1" >> "$W/log"; }
-        for fn in country_code_to_flag_emoji geoip_hosts_without_flag geoip_resolve_host subscription_geoip_annotate; do
+        for fn in country_code_to_flag_emoji geoip_hosts_without_flag geoip_resolve_host geoip_lookup_hosts subscription_geoip_annotate \
+            geoip_section_enabled geoip_name_has_flag geoip_link_host geoip_collect_host geoip_collect_link geoip_collect_json \
+            geoip_flush_links configure_outbound_geoip_handler get_geoip_flags; do
             eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$bin")"
         done
-        config_get() { eval "$1=\"$4\""; }
+        # geoip_flags / subscription_geoip come from GEO_FLAGS / GEO_LEGACY, bootstrap from the default
+        config_get() {
+            case "$3" in
+            geoip_flags) eval "$1=\"\$GEO_FLAGS\"" ;;
+            subscription_geoip) eval "$1=\"\${GEO_LEGACY:-$4}\"" ;;
+            *) eval "$1=\"$4\"" ;;
+            esac
+        }
 
         # dig stub: GEO_DIG="host=ip ..." ; counts calls
         dig() {
@@ -15106,6 +15115,43 @@ test_subscription_geoip() {
         GEO_API="not json"; : > "$W/log"
         mkfile "$W/f.json"; subscription_geoip_annotate "$W/f.json"
         echo "garbage-warned:$(grep -c 'lookup service did not answer' "$W/log")"
+
+        # --- links added by hand: the country goes to GEOIP_LINKS_FILE per outbound tag
+        GEOIP_LINKS_FILE="$W/links.json"
+        rm -f "$GEOIP_CACHE_FILE" "$W/dig.calls" "$W/curl.calls" "$W/curl.bodies"
+        GEO_DIG="de.example=9.9.9.1 nl.example=5.5.5.5 jp.example=1.2.3.4 vm.example=5.5.5.5"
+        GEO_API='[{"ip":"5.5.5.5","country":"NL"},{"ip":"1.2.3.4","country":"JP"},{"ip":"9.9.9.1","country":"DE"}]'
+        VM="vmess://$(printf '%s' '{"v":"2","ps":"VM node","add":"vm.example","port":"443","id":"u"}' | base64 | tr -d '\n')"
+        VMF="vmess://$(printf '%s' "{\"v\":\"2\",\"ps\":\"$NL VM flagged\",\"add\":\"de.example\",\"port\":\"443\",\"id\":\"u\"}" | base64 | tr -d '\n')"
+        FLAGGED_FRAG="%F0%9F%87%A9%F0%9F%87%AA"   # the German flag, percent-encoded as links carry it
+        configure_outbound_handler() {
+            geoip_collect_link "$1-out" "vless://u@nl.example:443?security=tls#Amsterdam%20node"
+            geoip_collect_link "$1-1-out" "trojan://p@jp.example:443#"
+            geoip_collect_link "$1-2-out" "vless://u@de.example:443#${FLAGGED_FRAG}%20Berlin"
+            geoip_collect_link "$1-3-out" "$VM"
+            geoip_collect_link "$1-4-out" "$VMF"
+            geoip_collect_json "$1-5-out" '{"type":"vless","tag":"Json node","server":"nl.example"}'
+            geoip_collect_json "$1-6-out" "{\"type\":\"vless\",\"tag\":\"$DE json\",\"server\":\"de.example\"}"
+            return 7
+        }
+        GEO_FLAGS=0; GEO_LEGACY=0
+        configure_outbound_geoip_handler off; rc=$?
+        echo "links-off-no-lookup:$(calls dig)/$(calls curl):$([ -e "$GEOIP_LINKS_FILE" ] && echo file || echo none)"
+        GEO_FLAGS=1
+        configure_outbound_geoip_handler main; rc=$?
+        echo "links-keep-exit-status:$rc"
+        echo "links-flags:$(get_geoip_flags | jq -c --sort-keys '. == {"main-1-out":"JP","main-3-out":"NL","main-5-out":"NL","main-out":"NL"}')"
+        echo "links-flagged-names-skipped:$(jq -c '[has("main-2-out"), has("main-4-out"), has("main-6-out")]' "$GEOIP_LINKS_FILE")"
+        echo "links-one-request:$(calls curl)"
+        echo "links-not-sent-flagged:$(grep -c '9.9.9.1' "$W/curl.bodies")"
+        : > "$W/dig.calls"; : > "$W/curl.calls"
+        configure_outbound_geoip_handler second > /dev/null
+        echo "links-merge-and-cache:$(jq -c '[has("main-out"), has("second-out")]' "$GEOIP_LINKS_FILE"):$(calls dig)/$(calls curl)"
+        GEO_FLAGS=""; GEO_LEGACY=1; rm -f "$GEOIP_LINKS_FILE"
+        configure_outbound_geoip_handler legacy > /dev/null
+        echo "links-legacy-option:$(get_geoip_flags | jq -c 'has("legacy-out")')"
+        rm -f "$GEOIP_LINKS_FILE"
+        echo "links-no-file-is-empty-object:$(get_geoip_flags)"
         rm -rf "$W"
     )"
 
@@ -15122,6 +15168,15 @@ test_subscription_geoip() {
     _gp_check "only public addresses are sent (no private / FakeIP / flagged servers)" "only-public-ips-sent:true"
     _gp_check "servers that already have a flag are never looked up" "flagged-names-not-looked-up:0"
     _gp_check "the results (and the failures) are cached per host" 'cache-written:["1.2.3.4","fake.example","nl.example","priv.example","xx.example"]'
+    _gp_check "a manual link is looked up and its country kept per outbound tag" "links-flags:true"
+    _gp_check "a link or JSON name that already has a flag is never looked up" "links-flagged-names-skipped:[false,false,false]"
+    _gp_check "the handler keeps the exit status of the section build" "links-keep-exit-status:7"
+    _gp_check "a section without the option does no lookup" "links-off-no-lookup:0/0:none"
+    _gp_check "all manual hosts go out in one request" "links-one-request:1"
+    _gp_check "a host with a flag in the name is not sent" "links-not-sent-flagged:0"
+    _gp_check "the next section reuses the cache and keeps earlier results" "links-merge-and-cache:[true,true]:0/0"
+    _gp_check "the 0.9.9.11 option name subscription_geoip still works" "links-legacy-option:true"
+    _gp_check "no lookup file reads as an empty object" "links-no-file-is-empty-object:{}"
     _gp_check "an unknown address is cached as a failure" "cache-failure-entry:|"
     _gp_check "a second build gives the same names" "second-run-same:yes"
     _gp_check "a second build makes no DNS and no HTTP request" "second-run-no-network:0/0"

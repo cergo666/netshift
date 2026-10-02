@@ -236,10 +236,11 @@ DNS_POOL_MAX_SERVERS=8
 # URL of the dashboard latency test (settings.latency_test_url overrides it)
 LATENCY_TEST_URL_DEFAULT="https://www.gstatic.com/generate_204"
 # GeoIP country flags for subscription servers whose name has none
-# (subscription_geoip). Looked up once and kept in GEOIP_CACHE_FILE; a failed lookup
+# (geoip_flags). Looked up once and kept in GEOIP_CACHE_FILE; a failed lookup
 # is retried after GEOIP_NEGATIVE_TTL seconds, a found country after GEOIP_POSITIVE_TTL.
 GEOIP_API_URL="https://api.country.is"
 GEOIP_CACHE_FILE="$NETSHIFT_STATE_DIR/geoip.json"
+GEOIP_LINKS_FILE="$TMP_SING_BOX_FOLDER/geoip-links.json"
 GEOIP_POSITIVE_TTL=2592000
 GEOIP_NEGATIVE_TTL=86400
 GEOIP_BATCH_SIZE=100
