@@ -2661,6 +2661,75 @@ sing_box_configure_outbounds() {
     config=$(sing_box_cm_add_direct_outbound "$config" "$SB_DIRECT_OUTBOUND_TAG")
 
     config_foreach configure_outbound_handler "section"
+
+    config_foreach configure_outbound_detour_handler "section"
+}
+
+# --- Chained connections ("connect through another section") -----------------
+# `option outbound_detour_section '<section>'` makes the section's connections to
+# its servers go through the outbound of the other section (double hop). A chain
+# that cannot be built (unknown/unusable target, a loop) must NOT silently fall
+# back to a direct connection, which would bypass the first hop: the section is
+# marked unavailable instead, so its traffic is rejected until the config is fixed.
+
+# Returns 0 when the whole chain starting at section $1 is usable. Checks every
+# hop (a long chain breaks at its weakest link), so the answer does not depend on
+# the order the sections are processed in.
+_outbound_detour_chain_is_usable() {
+    local start="$1"
+    local current next connection_type seen
+
+    current="$start"
+    seen=" $start "
+    while :; do
+        config_get next "$current" "outbound_detour_section"
+        [ -n "$next" ] || return 0
+
+        case "$seen" in
+        *" $next "*)
+            log "Section '$start': the chain through '$next' loops back on itself" "error"
+            return 1
+            ;;
+        esac
+        seen="$seen$next "
+
+        config_get connection_type "$next" "connection_type"
+        case "$connection_type" in
+        proxy | vpn) ;;
+        *)
+            log "Section '$start': chain target '$next' is not a proxy or VPN section" "error"
+            return 1
+            ;;
+        esac
+
+        if subscription_outbound_is_unavailable "$next" ||
+            ! echo "$config" | jq -e --arg tag "$(get_outbound_tag_by_section "$next")" \
+                'any(.outbounds[]; .tag == $tag)' > /dev/null 2>&1; then
+            log "Section '$start': chain target '$next' has no usable outbound" "error"
+            return 1
+        fi
+
+        current="$next"
+    done
+}
+
+configure_outbound_detour_handler() {
+    local section="$1"
+    local target
+
+    config_get target "$section" "outbound_detour_section"
+    [ -n "$target" ] || return 0
+    subscription_outbound_is_unavailable "$section" && return 0
+
+    if [ "$target" = "$section" ] || ! _outbound_detour_chain_is_usable "$section"; then
+        echolog "Section '$section' cannot be chained through '$target'; its traffic will be rejected until the chain is fixed" "error"
+        mark_section_outbound_unavailable "$section"
+        return 0
+    fi
+
+    log "Section '$section' connects through the '$target' section" "info"
+    config=$(sing_box_cm_set_outbounds_detour "$config" "$(get_outbound_tag_by_section "$section")" \
+        "$(get_outbound_tag_by_section "$target")")
 }
 
 sing_box_get_unique_outbound_tag() {

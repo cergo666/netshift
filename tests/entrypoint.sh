@@ -9070,6 +9070,180 @@ BTEOF
 }
 
 # ─────────────────────────────────────────────────────────────────
+# Test: Chained connections (outbound_detour_section)
+# ─────────────────────────────────────────────────────────────────
+# Runs the REAL configure_outbound_detour_handler / _outbound_detour_chain_is_usable
+# (extracted verbatim from the bin) and sing_box_cm_set_outbounds_detour against a
+# stubbed UCI layer. Asserts:
+#   - the section's real proxy outbounds (leaves of selector/urltest, or the
+#     single outbound) get `detour` = the target's tag, the target's own members
+#     and outbounds with their own detour are left alone;
+#   - sections without the option (every existing config) are untouched;
+#   - a chain that cannot be built (unknown/blocked target, itself, a loop, an
+#     unavailable target) never falls back to a direct connection: the section is
+#     marked unavailable and gets no detour.
+test_cascade() {
+    header "Chained connections (outbound_detour_section)"
+
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not available"
+        return
+    fi
+
+    local cm_lib="${NETSHIFT_LIB_DIR}/sing_box_config_manager.sh"
+    local constants_lib="${NETSHIFT_LIB_DIR}/constants.sh"
+    local jq_helpers="${NETSHIFT_LIB_DIR}/helpers.jq"
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    if [ ! -r "$cm_lib" ] || [ ! -r "$constants_lib" ] || [ ! -r "$jq_helpers" ] || [ ! -r "$bin" ]; then
+        skip "config manager / constants / helpers.jq / netshift bin not found"
+        return
+    fi
+
+    mkdir -p /usr/lib/netshift
+    ln -sf "$jq_helpers" /usr/lib/netshift/helpers.jq
+    ln -sf "${NETSHIFT_LIB_DIR}/helpers.sh" /usr/lib/netshift/helpers.sh
+    ln -sf "$cm_lib" /usr/lib/netshift/sing_box_config_manager.sh
+
+    local drv="/tmp/netshift-cascade-$$.sh"
+    cat > "$drv" << 'CCEOF'
+LIB="NETSHIFT_LIB"
+BIN="BIN_PATH"
+
+. "$LIB/constants.sh"
+. "$LIB/helpers.sh"
+. "$LIB/sing_box_config_manager.sh"
+log() { :; }
+echolog() { :; }
+
+# UCI stub: CC_<section>_<option>
+config_get() {
+    local _v
+    eval "_v=\"\${CC_${2}_${3}:-}\""
+    [ -n "$_v" ] || _v="$4"
+    eval "$1=\"\$_v\""
+}
+for fn in subscription_outbound_is_unavailable mark_section_outbound_unavailable _outbound_detour_chain_is_usable configure_outbound_detour_handler; do
+    eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$BIN")"
+done
+if command -v configure_outbound_detour_handler > /dev/null 2>&1; then
+    echo 'cascade-real-functions-loaded:OK'
+else
+    echo 'cascade-real-functions-loaded:FAIL'
+fi
+
+base='{"outbounds":[
+ {"type":"direct","tag":"direct-out"},
+ {"type":"vless","tag":"a-out","server":"a.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555"},
+ {"type":"vless","tag":"m1","server":"m1.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555"},
+ {"type":"vless","tag":"m2","server":"m2.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555","detour":"custom"},
+ {"type":"urltest","tag":"b-urltest-out","outbounds":["m1","m2"]},
+ {"type":"selector","tag":"b-out","outbounds":["m1","m2","b-urltest-out"],"default":"b-urltest-out"},
+ {"type":"vless","tag":"c-out","server":"c.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555"},
+ {"type":"vless","tag":"d-out","server":"d.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555"}]}'
+
+for s in a b c d e; do eval "CC_${s}_connection_type=proxy"; done
+CC_e_connection_type=block
+SUBSCRIPTION_UNAVAILABLE_SECTIONS=""
+
+detour_of() { printf '%s' "$config" | jq -r --arg t "$1" '.outbounds[] | select(.tag == $t) | .detour // "none"'; }
+unavailable() { case " $SUBSCRIPTION_UNAVAILABLE_SECTIONS " in *" $1 "*) echo yes ;; *) echo no ;; esac; }
+run() { # $1 = section
+    config="$base"; SUBSCRIPTION_UNAVAILABLE_SECTIONS=""
+    configure_outbound_detour_handler "$1"
+}
+ok() { [ "$1" = "$2" ] && echo "$3:OK" || echo "$3:FAIL [got '$1' want '$2']"; }
+
+# ── no option: untouched ───────────────────────────────────────────
+run a
+ok "$(printf '%s' "$config" | jq -cS .)" "$(printf '%s' "$base" | jq -cS .)" "cascade-no-option-untouched"
+ok "$(unavailable a)" no "cascade-no-option-available"
+
+# ── single outbound through a selector target ──────────────────────
+CC_a_outbound_detour_section=b
+run a
+ok "$(detour_of a-out)" "b-out" "cascade-single-outbound-detour"
+ok "$(detour_of m1)$(detour_of m2)" "nonecustom" "cascade-target-members-untouched"
+ok "$(unavailable a)" no "cascade-valid-chain-available"
+
+# ── selector section through a single outbound: leaves get it, own detour kept ──
+CC_a_outbound_detour_section=""
+CC_b_outbound_detour_section=c
+run b
+ok "$(detour_of m1)" "c-out" "cascade-selector-leaf-detour"
+ok "$(detour_of m2)" "custom" "cascade-own-detour-kept"
+ok "$(detour_of b-out)$(detour_of b-urltest-out)$(detour_of c-out)" "nonenonenone" "cascade-groups-and-target-untouched"
+CC_b_outbound_detour_section=""
+
+# ── three-hop chain: every section chained to the next ─────────────
+CC_a_outbound_detour_section=c
+CC_c_outbound_detour_section=d
+config="$base"; SUBSCRIPTION_UNAVAILABLE_SECTIONS=""
+configure_outbound_detour_handler a; configure_outbound_detour_handler c
+ok "$(detour_of a-out)$(detour_of c-out)$(detour_of d-out)" "c-outd-outnone" "cascade-three-hops"
+CC_a_outbound_detour_section=""; CC_c_outbound_detour_section=""
+
+# ── chains that cannot be built never go direct ────────────────────
+bad() { # $1=section $2=target $3=label
+    eval "CC_${1}_outbound_detour_section=$2"
+    run "$1"
+    ok "$(unavailable "$1")$(detour_of "${1}-out")" "yesnone" "$3"
+    eval "CC_${1}_outbound_detour_section="
+}
+bad a nosuch cascade-unknown-target-rejected
+bad a e cascade-block-target-rejected
+bad a a cascade-self-target-rejected
+bad a b-missing cascade-missing-outbound-rejected
+CC_c_outbound_detour_section=a
+bad a c cascade-loop-rejected
+CC_c_outbound_detour_section=""
+# a target marked unavailable (failed subscription) takes the chain down with it
+CC_a_outbound_detour_section=d
+config="$base"; SUBSCRIPTION_UNAVAILABLE_SECTIONS=" d"
+configure_outbound_detour_handler a
+ok "$(unavailable a)$(detour_of a-out)" "yesnone" "cascade-unavailable-target-rejected"
+# ... also further down the chain
+CC_a_outbound_detour_section=c; CC_c_outbound_detour_section=d
+config="$base"; SUBSCRIPTION_UNAVAILABLE_SECTIONS=" d"
+configure_outbound_detour_handler a
+ok "$(unavailable a)$(detour_of a-out)" "yesnone" "cascade-unavailable-further-down-rejected"
+CC_a_outbound_detour_section=""; CC_c_outbound_detour_section=""
+
+# ── the chained config validates ───────────────────────────────────
+if command -v sing-box > /dev/null 2>&1; then
+    CC_a_outbound_detour_section=b
+    run a
+    printf '%s' "$config" | jq '. + {dns:{servers:[{type:"udp",tag:"d",server:"1.1.1.1"}]},route:{default_domain_resolver:"d",final:"direct-out"}} | .outbounds += [{type:"direct",tag:"custom"}]' > /tmp/cascade-chk.json
+    sing-box -c /tmp/cascade-chk.json check > /dev/null 2>&1 &&
+        echo 'cascade-singbox-check:OK' || echo 'cascade-singbox-check:FAIL'
+    rm -f /tmp/cascade-chk.json
+else
+    echo 'cascade-singbox-check:SKIP'
+fi
+echo 'DONE'
+CCEOF
+    sed -i "s|NETSHIFT_LIB|$NETSHIFT_LIB_DIR|g; s|BIN_PATH|$bin|" "$drv"
+
+    local cc_out="/tmp/netshift-cascade-out-$$.log"
+    ash "$drv" > "$cc_out" 2>&1 || true
+    local saw_done=0 line
+    while IFS= read -r line; do
+        case "$line" in
+            *:OK) pass "$line" ;;
+            *:FAIL*) fail "$line" ;;
+            *:SKIP) skip "$line" ;;
+            DONE) saw_done=1 ;;
+            *) ;;
+        esac
+    done < "$cc_out"
+    if [ "$saw_done" = "1" ]; then
+        pass "cascade-driver-completed:OK"
+    else
+        fail "cascade-driver-completed:FAIL (driver aborted early)" "$(tail -20 "$cc_out")"
+    fi
+    rm -f "$drv" "$cc_out"
+}
+
+# ─────────────────────────────────────────────────────────────────
 # Test: Stock sing-box update check (task-017)
 # ─────────────────────────────────────────────────────────────────
 # Exercises updates_check_sing_box_stable through the real sourced updater.sh
@@ -12730,6 +12904,7 @@ main() {
             test_sub_cron
             test_global_proxy
             test_bittorrent_direct
+            test_cascade
             test_check_update_stable
             test_check_update_extended
             test_sing_box_extended_arm_arch
@@ -12772,6 +12947,7 @@ main() {
         subcron)     test_sub_cron ;;
         globalproxy) test_global_proxy ;;
         bittorrent)  test_bittorrent_direct ;;
+        cascade)     test_cascade ;;
         stablecheck) test_check_update_stable ;;
         extcheck)    test_check_update_extended ;;
         sbextarch)   test_sing_box_extended_arm_arch ;;
@@ -12790,7 +12966,7 @@ main() {
         proxylink)   test_proxy_link_escaping ;;
         *)
             echo "Unknown test: $target"
-            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
+            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy bittorrent cascade stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
             exit 1
             ;;
     esac
