@@ -598,6 +598,11 @@ done
 # This harness has no `disabled` option: sections are never disabled.
 section_is_disabled() { return 1; }
 
+# No bypass sets in this harness (the bypass test covers them): the default
+# marking rules are exactly what is checked here.
+nft_bypass_requested() { return 1; }
+nft_bypass_source_ips() { :; }
+
 # The fully_routed handler reads connection_type via config_get; make that
 # section a proxy section so its IPs get a source mark rule.
 config_get() {
