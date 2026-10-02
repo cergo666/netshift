@@ -322,6 +322,16 @@ uci set netshift.settings.latency_test_url='https://cp.cloudflare.com/generate_2
 ```sh
 uci set netshift.<секция>.priority_mode='1'
 uci set netshift.settings.priority_check_interval='30'
+**Обход sing-box (bypass).** Сейчас исключение работает внутри sing-box: трафик помечается, попадает в tproxy и только там уходит напрямую. Для исключённых адресов это лишняя нагрузка, особенно при глобальном прокси (когда в sing-box идёт вообще всё). Два переключателя убирают такой трафик из sing-box на уровне nftables:
+
+- `bypass_singbox='1'` на секции типа «Исключение» (веб-интерфейс - «Обходить sing-box»): подсети этой секции (community-списки подсетей, удалённые, пользовательские и локальные списки) попадают в набор `netshift_bypass`, который возвращается раньше любых меток, и трафик на эти адреса не заходит в sing-box. Домены обойти так нельзя (у домена нет фиксированного адреса), они по-прежнему проходят через sing-box.
+- `settings.bypass_excluded_ips='1'` (вкладка с «Routing Excluded IPs»): устройства из `routing_excluded_ips` отправляются напрямую раньше любых меток, в том числе раньше `fully_routed_ips` и глобального прокси.
+
+Правила bypass ставятся первыми в цепочках prerouting и output, так что исключение выигрывает у любых меток, как и раньше внутри sing-box. Без этих опций (по умолчанию и у всех существующих конфигов) правила nft не меняются.
+
+```sh
+uci set netshift.<секция-исключение>.bypass_singbox='1'
+uci set netshift.settings.bypass_excluded_ips='1'
 uci commit netshift
 ```
 

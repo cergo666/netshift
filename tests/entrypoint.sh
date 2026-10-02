@@ -13137,6 +13137,9 @@ SNAPSHOTS=0
 sleep() { :; }
 sing_box_process_exists() { TICKS=$((TICKS + 1)); [ "$TICKS" -le 7 ]; }
 snapshot_sing_box_cache() { SNAPSHOTS=$((SNAPSHOTS + 1)); }
+# the monitor also runs the priority-selection check (covered by the priority test)
+priority_check_interval() { echo 30; }
+priority_check_sections() { :; }
 monitor_sing_box
 check cp-monitor-snapshots-once-per-minute '[ "$SNAPSHOTS" = "1" ]'
 
@@ -14836,6 +14839,156 @@ test_priority_selection() {
     _pr_check "interval: invalid value falls back" "interval-invalid:30"
     _pr_check "interval: zero falls back" "interval-zero:30"
 }
+
+# ─────────────────────────────────────────────────────────────────
+# Test: Bypass sing-box for excluded destinations / devices
+# ─────────────────────────────────────────────────────────────────
+# Runs the REAL nft_select_subnet_target / populate_netshift_subnets_from_file /
+# nft_bypass_requested / nft_bypass_source_ips (bin) and
+# nft_add_selective_marking_rules (nft.sh) against a recording `nft` stub. Asserts:
+#   - without bypass nothing changes: same rules, subnets go to the union set;
+#   - an exclusion section with bypass_singbox feeds the bypass set, any other
+#     section (also an exclusion one without the flag) still the union set, and the
+#     choice never leaks from one section to the next;
+#   - the bypass `return` rules come FIRST in every chain, also under global proxy;
+#   - bypass_excluded_ips returns the listed devices before any mark (IPv6 only when
+#     IPv6 is enabled).
+test_bypass() {
+    header "Bypass sing-box (excluded destinations / devices)"
+
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    local nftsh="${NETSHIFT_LIB_DIR}/nft.sh"
+    if [ ! -r "$bin" ] || [ ! -r "$nftsh" ] || [ ! -r "${NETSHIFT_LIB_DIR}/constants.sh" ]; then
+        skip "netshift bin / nft.sh / constants.sh not found"
+        return
+    fi
+
+    local out
+    out="$(
+        . "${NETSHIFT_LIB_DIR}/constants.sh"
+        for fn in nft_select_subnet_target populate_netshift_subnets_from_file _nft_bypass_section_handler \
+            nft_bypass_requested _nft_bypass_source_ip_handler nft_bypass_source_ips; do
+            eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$bin")"
+        done
+        eval "$(awk '/^nft_add_selective_marking_rules\(\) \{/{p=1} p{print} p&&/^\}/{exit}' "$nftsh")"
+        log() { :; }
+
+        NFT_LOG="/tmp/netshift-bypass-$$"; : > "$NFT_LOG"
+        nft() {
+            case "$1 $2" in
+            "list set") return 0 ;;
+            esac
+            echo "$*" >> "$NFT_LOG"
+        }
+        nft_add_set_elements_from_file_chunked() { echo "fill4 $3" >> "$NFT_LOG"; }
+        nft_add_set_elements_from_file_chunked_v6() { echo "fill6 $3" >> "$NFT_LOG"; }
+        V6=0
+        netshift_ipv6_enabled() { [ "$V6" = 1 ]; }
+
+        # UCI stubs: BP_<section>_<option>; sections list in BP_SECTIONS
+        config_get() { eval "$1=\"\${BP_${2}_${3}:-$4}\""; }
+        config_get_bool() {
+            local _v
+            eval "_v=\"\${BP_${2}_${3}:-$4}\""
+            case "$_v" in 1) eval "$1=1" ;; *) eval "$1=0" ;; esac
+        }
+        config_foreach() { local _s; for _s in $BP_SECTIONS; do "$1" "$_s"; done; }
+        config_list_foreach() { local _i _cb="$3"; for _i in $BP_EXCL_LIST; do "$_cb" "$_i"; done; }
+
+        BP_SECTIONS="ex_bypass ex_plain prox"
+        BP_ex_bypass_connection_type=exclusion; BP_ex_bypass_bypass_singbox=1
+        BP_ex_plain_connection_type=exclusion
+        BP_prox_connection_type=proxy; BP_prox_bypass_singbox=1
+
+        # target selection
+        : > "$NFT_LOG"; nft_select_subnet_target ex_bypass
+        echo "target-bypass-section:$NFT_SUBNET_SET/$NFT_SUBNET_SET_V6/$NFT_SUBNET_IS_BYPASS"
+        nft_select_subnet_target ex_plain
+        echo "target-plain-exclusion:$NFT_SUBNET_SET/$NFT_SUBNET_IS_BYPASS"
+        nft_select_subnet_target prox
+        echo "target-proxy-section-ignores-flag:$NFT_SUBNET_SET/$NFT_SUBNET_IS_BYPASS"
+        nft_select_subnet_target ex_bypass; nft_select_subnet_target prox
+        echo "target-no-leak:$NFT_SUBNET_SET"
+
+        # populate follows the target (and the default when nothing was selected)
+        tmp="/tmp/netshift-bypass-list-$$"; echo 1.2.3.0/24 > "$tmp"
+        : > "$NFT_LOG"; nft_select_subnet_target ex_bypass; populate_netshift_subnets_from_file "$tmp"
+        echo "populate-bypass:$(tr '\n' ',' < "$NFT_LOG")"
+        V6=1; : > "$NFT_LOG"; populate_netshift_subnets_from_file "$tmp"
+        echo "populate-bypass-v6:$(tr '\n' ',' < "$NFT_LOG")"
+        : > "$NFT_LOG"; nft_select_subnet_target prox; populate_netshift_subnets_from_file "$tmp"
+        echo "populate-union:$(tr '\n' ',' < "$NFT_LOG")"
+        V6=0; unset NFT_SUBNET_SET NFT_SUBNET_SET_V6
+        : > "$NFT_LOG"; populate_netshift_subnets_from_file "$tmp"
+        echo "populate-default-unselected:$(tr '\n' ',' < "$NFT_LOG")"
+        rm -f "$tmp"
+
+        # requested?
+        nft_bypass_requested && echo "requested-section:yes" || echo "requested-section:no"
+        BP_SECTIONS="ex_plain prox"
+        nft_bypass_requested && echo "requested-none:yes" || echo "requested-none:no"
+        BP_settings_bypass_excluded_ips=1
+        nft_bypass_requested && echo "requested-ips-flag:yes" || echo "requested-ips-flag:no"
+        BP_settings_bypass_excluded_ips=0
+
+        # marking rules: untouched without bypass, bypass returns first with it
+        NFT_TABLE_NAME=T
+        marks() { : > "$NFT_LOG"; nft_add_selective_marking_rules mangle "$1" 0 iifname "@ifs"; cat "$NFT_LOG"; }
+        unset NFT_BYPASS_ACTIVE
+        off="$(marks 0 | tr '\n' ';')"
+        echo "marks-off-first-is-union:$(marks 0 | head -1 | grep -c "@$NFT_COMMON_SET_NAME meta mark set")"
+        NFT_BYPASS_ACTIVE=1
+        on="$(marks 0)"
+        echo "marks-on-first-return:$(echo "$on" | head -1 | grep -c "ip daddr @$NFT_BYPASS_SET_NAME return")"
+        echo "marks-on-rest-unchanged:$([ "$(echo "$on" | tail -n +2 | tr '\n' ';')" = "$off" ] && echo yes || echo no)"
+        echo "marks-on-global-first-return:$(marks 1 | head -1 | grep -c "ip daddr @$NFT_BYPASS_SET_NAME return")"
+        echo "marks-on-global-then-mark-all:$(marks 1 | sed -n 2p | grep -c 'l4proto tcp meta mark set')"
+        echo "marks-on-no-v6-rule:$(marks 0 | grep -c "$NFT_BYPASS_SET_NAME_V6")"
+        V6=1; echo "marks-on-v6-rule:$(marks 0 | grep -c "ip6 daddr @$NFT_BYPASS_SET_NAME_V6 return")"; V6=0
+
+        # devices
+        BP_EXCL_LIST="192.168.1.30 2001:db8::5"
+        BP_settings_bypass_excluded_ips=0
+        : > "$NFT_LOG"; nft_bypass_source_ips
+        echo "source-flag-off:[$(tr '\n' ';' < "$NFT_LOG")]"
+        BP_settings_bypass_excluded_ips=1
+        : > "$NFT_LOG"; nft_bypass_source_ips
+        echo "source-v4-only:$(tr '\n' ';' < "$NFT_LOG")"
+        V6=1; : > "$NFT_LOG"; nft_bypass_source_ips
+        echo "source-v4-and-v6:$(tr '\n' ';' < "$NFT_LOG")"
+        rm -f "$NFT_LOG"
+    )"
+
+    _bp_check() {
+        if echo "$out" | grep -qxF "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(echo "$out" | tr '\n' '|')"
+        fi
+    }
+
+    _bp_check "exclusion section with bypass_singbox targets the bypass sets" "target-bypass-section:netshift_bypass/netshift_bypass_v6/1"
+    _bp_check "an exclusion section without the flag keeps the union set" "target-plain-exclusion:netshift_subnets/0"
+    _bp_check "the flag is ignored outside exclusion sections" "target-proxy-section-ignores-flag:netshift_subnets/0"
+    _bp_check "the choice does not leak into the next section" "target-no-leak:netshift_subnets"
+    _bp_check "subnets of a bypass section fill the bypass set" "populate-bypass:fill4 netshift_bypass,"
+    _bp_check "IPv6 subnets fill the v6 bypass set too" "populate-bypass-v6:fill4 netshift_bypass,fill6 netshift_bypass_v6,"
+    _bp_check "other sections still fill the union set" "populate-union:fill4 netshift_subnets,fill6 netshift_subnets_v6,"
+    _bp_check "without any selection the union set is the default" "populate-default-unselected:fill4 netshift_subnets,"
+    _bp_check "a section asks for bypass" "requested-section:yes"
+    _bp_check "no flag anywhere: not requested" "requested-none:no"
+    _bp_check "bypass_excluded_ips alone requests it" "requested-ips-flag:yes"
+    _bp_check "without bypass the marking rules start with the union set" "marks-off-first-is-union:1"
+    _bp_check "with bypass the first rule returns the bypass set" "marks-on-first-return:1"
+    _bp_check "with bypass the other rules are exactly the old ones" "marks-on-rest-unchanged:yes"
+    _bp_check "under global proxy the bypass return still comes first" "marks-on-global-first-return:1"
+    _bp_check "under global proxy mark-all follows the return" "marks-on-global-then-mark-all:1"
+    _bp_check "no v6 bypass rule without IPv6" "marks-on-no-v6-rule:0"
+    _bp_check "v6 bypass rule with IPv6" "marks-on-v6-rule:1"
+    _bp_check "bypass_excluded_ips off: no device rules" "source-flag-off:[]"
+    _bp_check "device rules: IPv4 only without IPv6" "source-v4-only:add rule inet T mangle iifname @interfaces ip saddr 192.168.1.30 return;"
+    _bp_check "device rules: IPv6 devices with IPv6" "source-v4-and-v6:add rule inet T mangle iifname @interfaces ip saddr 192.168.1.30 return;add rule inet T mangle iifname @interfaces ip6 saddr 2001:db8::5 return;"
+}
 main() {
     printf "${BOLD}Netshift Evolution — Smoke Test Suite${NC}\n"
     printf "Source: %s\n" "$NETSHIFT_SRC"
@@ -14902,6 +15055,7 @@ main() {
             test_dns_section
             test_urltest_filters
             test_priority_selection
+            test_bypass
             ;;
         deps)        test_deps ;;
         syntax)      test_syntax ;;
@@ -14958,9 +15112,10 @@ main() {
         dnssection)  test_dns_section ;;
         utfilters)   test_urltest_filters ;;
         priority)    test_priority_selection ;;
+        bypass)      test_bypass ;;
         *)
             echo "Unknown test: $target"
-            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist realitymlkem cachebust ipv6routing dnspool compproxy cascade dnssection utfilters priority"
+            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist realitymlkem cachebust ipv6routing dnspool compproxy cascade dnssection utfilters priority bypass"
             exit 1
             ;;
     esac
