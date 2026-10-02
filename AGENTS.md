@@ -48,7 +48,7 @@ constants, never hardcode.
 
 - **Backend** (`netshift/files/**`): ShellCheck at severity error
   (`shellcheck -S error -s sh install.sh netshift/files/usr/bin/netshift
-  netshift/files/usr/lib/*.sh`); smoke suite —
+  netshift/files/usr/lib/*.sh luci-app-netshift/cache-bust.sh`); smoke suite —
   `docker compose -f tests/docker-compose.yml run --rm netshift-test all`
   (OpenWRT rootfs container; a run passes only with zero FAILs).
 - **Frontend** (`fe-app-netshift/**`): `yarn ci`, and the committed `main.js`
