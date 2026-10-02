@@ -9451,7 +9451,7 @@ get_outbound_tag_by_section() { echo "$1-out"; }
 subscription_outbound_is_unavailable() { return 1; }
 
 # Pull the real route builder + its two helpers VERBATIM out of the bin.
-for fn in section_is_disabled _active_section_dispatch foreach_active_section \
+for fn in tproxy_route_inbounds section_is_disabled _active_section_dispatch foreach_active_section \
     sing_box_configure_route configure_common_reject_route_rule configure_common_direct_route_rule; do
     eval "$(awk -v name="$fn" '$0 == name "() {"{p=1} p{print} p&&/^\}/{exit}' "$BIN")"
 done
