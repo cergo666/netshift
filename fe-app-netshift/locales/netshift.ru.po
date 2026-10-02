@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: NETSHIFT\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-28 10:56+0300\n"
-"PO-Revision-Date: 2026-09-28 10:56+0300\n"
+"POT-Creation-Date: 2026-10-02 17:17+0300\n"
+"PO-Revision-Date: 2026-10-02 17:17+0300\n"
 "Last-Translator: yandexru45\n"
 "Language-Team: none\n"
 "Language: ru\n"
@@ -269,6 +269,9 @@ msgstr "Скачивать списки через выбранную секци
 msgid "Downloading all lists via specific Proxy/VPN"
 msgstr "Загрузка всех списков через указанный прокси/VPN"
 
+msgid "Drop servers whose name carries the flag of one of these countries. Two-letter codes, for example RU or US."
+msgstr "Отбросить серверы, в названии которых есть флаг одной из этих стран. Двухбуквенные коды, например RU или US."
+
 msgid "Drop subscription servers whose name contains any of these keywords (case-insensitive)."
 msgstr "Исключать серверы подписки, имя которых содержит любое из этих ключевых слов (без учёта регистра)."
 
@@ -359,6 +362,9 @@ msgstr "Исключить NTP"
 msgid "Exclude NTP protocol traffic from the tunnel to prevent it from being routed through the proxy or VPN"
 msgstr "Исключите трафик протокола NTP из туннеля, чтобы предотвратить его маршрутизацию через прокси-сервер или VPN."
 
+msgid "Exclude servers by country"
+msgstr "Исключить серверы по стране"
+
 msgid "Exclude servers by keyword"
 msgstr "Исключать серверы по ключевому слову"
 
@@ -397,6 +403,9 @@ msgstr "Как часто автоматически обновлять подп
 
 msgid "HTTP error"
 msgstr "Ошибка HTTP"
+
+msgid "Include servers by country"
+msgstr "Оставить серверы по стране"
 
 msgid "Include servers by keyword"
 msgstr "Включать серверы по ключевому слову"
@@ -578,8 +587,14 @@ msgstr "IPv6 CIDR должен быть от 0 до 128"
 msgid "Issues detected"
 msgstr "Обнаружены проблемы"
 
+msgid "Keep only servers whose name carries the flag of one of these countries. Two-letter codes, for example NL or DE. Combined with the keywords above (any match keeps a server)."
+msgstr "Оставить только серверы, в названии которых есть флаг одной из этих стран. Двухбуквенные коды, например NL или DE. Объединяется с ключевыми словами выше (подходит любое совпадение)."
+
 msgid "Keep only subscription servers whose name contains at least one of these keywords (case-insensitive). Leave empty to keep all."
 msgstr "Оставлять только серверы подписки, имя которых содержит хотя бы одно из этих ключевых слов (без учёта регистра). Оставьте пустым, чтобы оставить все."
+
+msgid "Latency test URL"
+msgstr "URL теста задержки"
 
 msgid "Latest"
 msgstr "Последняя"
@@ -968,6 +983,9 @@ msgstr "Интервал между тестами подключения"
 msgid "The maximum difference in response times (ms) allowed when comparing servers"
 msgstr "Максимально допустимая разница во времени отклика (мс) при сравнении серверов"
 
+msgid "The URL the dashboard uses to measure server latency. Change it if the default is slow or blocked in your region."
+msgstr "Адрес, по которому дашборд измеряет задержку серверов. Измените, если адрес по умолчанию медленный или заблокирован в вашем регионе."
+
 msgid "The URL used to test server connectivity"
 msgstr "URL-адрес, используемый для проверки подключения к серверу"
 
@@ -1054,6 +1072,9 @@ msgstr "URLTest ссылка для проверки"
 
 msgid "URLTest Tolerance"
 msgstr "URLTest допустимое отклонение"
+
+msgid "Use a two-letter country code, for example NL"
+msgstr "Укажите двухбуквенный код страны, например NL"
 
 msgid "Use only for IP-host panels that serve an invalid or self-signed certificate."
 msgstr "Используйте только для панелей с IP-адресом, у которых недействительный или самоподписанный сертификат."
