@@ -150,6 +150,11 @@ UPDATES_SING_BOX_LITE_ORPHAN_CACHE="/etc/sing-box-version.cache"
 MONITOR_CHECK_INTERVAL=10
 # How often the monitor looks for a server picked outside LuCI (Clash dashboard).
 MONITOR_CACHE_SNAPSHOT_INTERVAL=60
+# Priority node selection (section option priority_mode): how often the monitor
+# re-checks the servers of such a section, and how long one latency probe may take.
+PRIORITY_CHECK_INTERVAL_DEFAULT=30
+PRIORITY_PROBE_TIMEOUT_MS=3000
+PRIORITY_MAX_PROBES=10
 MONITOR_MAX_CRASHES=5
 MONITOR_BACKOFF_BASE=10
 MONITOR_BACKOFF_MAX=300
