@@ -12725,6 +12725,9 @@ SNAPSHOTS=0
 sleep() { :; }
 sing_box_process_exists() { TICKS=$((TICKS + 1)); [ "$TICKS" -le 7 ]; }
 snapshot_sing_box_cache() { SNAPSHOTS=$((SNAPSHOTS + 1)); }
+# the monitor also runs the priority-selection check (covered by the priority test)
+priority_check_interval() { echo 30; }
+priority_check_sections() { :; }
 monitor_sing_box
 check cp-monitor-snapshots-once-per-minute '[ "$SNAPSHOTS" = "1" ]'
 
