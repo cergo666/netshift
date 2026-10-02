@@ -16,6 +16,8 @@
 #             sbextarch, sbextlite, netshiftcheck, latesttag, ipv6routing, dnspool, compproxy,
 #             cascade, dnssection, utfilters, priority, bypass, ghredirect, selfupdate,
 #             backupguard, hotreload, cachepersist,
+#             bittorrent, utfilters, geoip, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
+#             ghredirect, selfupdate, backupguard, hotreload, cachepersist,
 #             domsep, domcase
 # ──────────────────────────────────────────────────────────────────
 

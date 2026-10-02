@@ -377,6 +377,19 @@ function createSectionContent(section) {
 
   o = section.taboption(
     "subscription",
+    form.Flag,
+    "subscription_geoip",
+    _("Detect country by IP (GeoIP)"),
+    _(
+      "For servers whose name has no flag, look the country up once by the server address and put the flag in front of the name, so grouping and the country filters work for them too. The server addresses are sent to api.country.is over HTTPS; results are cached on the router.",
+    ),
+  );
+  o.default = "0";
+  o.rmempty = false;
+  o.depends({ connection_type: "proxy", proxy_config_type: "subscription" });
+
+  o = section.taboption(
+    "subscription",
     form.DynamicList,
     "subscription_filter_include_countries",
     _("Include servers by country"),
