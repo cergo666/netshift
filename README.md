@@ -300,6 +300,14 @@ uci commit netshift
 
 ```sh
 uci set netshift.<секция>.outbound_detour_section='<секция-цель>'
+**DNS-секция (split DNS).** Секция с типом подключения `dns` отдаёт домены из своих списков отдельному DNS-серверу (`dns_type`: `udp`, `tcp`, `dot`, `doh`, `doh3`, `doq`; `dns_server`; необязательно `dns_detour_section` - опрашивать сервер через outbound другой секции, при недоступном outbound - напрямую). Домены получают настоящие адреса, а не FakeIP, и через туннель не идут: это DNS для трафика, который и так выходит напрямую (корпоративная или локальная зона и т. п.). Используются только домены из списков, подсети игнорируются. Если домен есть и в списке proxy/VPN-секции, он остаётся на её FakeIP-пути. При включённом глобальном прокси такой трафик попадёт в него, если не добавить секцию-исключение.
+
+```sh
+uci set netshift.corp='section'
+uci set netshift.corp.connection_type='dns'
+uci set netshift.corp.dns_type='dot'
+uci set netshift.corp.dns_server='dns.corp.example'
+uci add_list netshift.corp.local_domain_lists='/etc/netshift/corp-domains.lst'
 uci commit netshift
 ```
 
