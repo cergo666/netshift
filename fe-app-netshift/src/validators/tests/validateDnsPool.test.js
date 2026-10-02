@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DNS_POOL_PRESETS } from '../../constants';
 import {
   validateDnsPoolServer,
   validateDnsPoolTimeout,
@@ -57,4 +58,20 @@ describe('validateDnsPoolTimeout', () => {
       expect(validateDnsPoolTimeout(value).valid).toBe(false);
     },
   );
+});
+
+describe('DNS_POOL_PRESETS', () => {
+  it.each(Object.keys(DNS_POOL_PRESETS))('%s is a valid entry', (value) => {
+    expect(validateDnsPoolServer(value).valid).toBe(true);
+  });
+
+  it('offers every transport the pool understands', () => {
+    const schemes = new Set(
+      Object.keys(DNS_POOL_PRESETS).map((value) => value.split('://')[0]),
+    );
+
+    expect([...schemes].sort()).toEqual(
+      ['doh', 'doh3', 'doq', 'dot', 'tcp', 'udp'].sort(),
+    );
+  });
 });
