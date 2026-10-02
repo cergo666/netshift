@@ -357,6 +357,42 @@ sing_box_cm_set_dns_final() {
     local final="$2"
 
     echo "$config" | jq --arg final "$final" '.dns.final = $final'
+
+# Chain a section through another one: set `detour` on every real proxy outbound
+# of the section (the leaves of its selector/urltest groups, or the outbound
+# itself) so its connections to the servers go through the target outbound.
+# Outbounds that already carry their own detour (user JSON) and the target's own
+# members are left alone, which also keeps a chain from looping back on itself.
+# Arguments:
+#   config: string (JSON), sing-box configuration to modify
+#   section_tag: string, tag of the section's outbound (its selector or leaf)
+#   target_tag: string, tag of the outbound to chain through
+# Outputs:
+#   Writes updated JSON configuration to stdout
+#######################################
+sing_box_cm_set_outbounds_detour() {
+    local config="$1"
+    local section_tag="$2"
+    local target_tag="$3"
+
+    echo "$config" | jq \
+        --arg section_tag "$section_tag" \
+        --arg target_tag "$target_tag" \
+        '(.outbounds | map({key: .tag, value: .}) | from_entries) as $by
+        | def leaves($tag):
+            ($by[$tag] // null) as $o
+            | if $o == null then empty
+              elif ((["selector", "urltest"] | index($o.type)) != null)
+              then ($o.outbounds[]? | leaves(.))
+              else $tag end;
+        ([leaves($section_tag)] | unique) as $mine
+        | ([leaves($target_tag)] | unique) as $theirs
+        | .outbounds |= map(
+            if ((.tag as $t | $mine | index($t)) != null)
+               and ((.tag as $t | $theirs | index($t)) == null)
+               and (has("detour") | not)
+            then . + { detour: $target_tag }
+            else . end)'
 }
 
 #######################################

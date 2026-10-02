@@ -16,6 +16,7 @@
 #             bittorrent, ipv6routing, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
 #             bittorrent, dnspool, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
 #             bittorrent, compproxy, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
+#             bittorrent, cascade, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
 #             ghredirect, selfupdate, backupguard, hotreload, cachepersist,
 #             domsep, domcase
 # ──────────────────────────────────────────────────────────────────
