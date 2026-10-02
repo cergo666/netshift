@@ -361,6 +361,9 @@ _add_outbound_security() {
         local reality_mlkem=""
         if [ "$security" = "reality" ] && [ "${NETSHIFT_REALITY_MLKEM:-0}" = "1" ]; then
             reality_mlkem="true"
+            if [ "$fingerprint" != "chrome" ]; then
+                log "reality_mlkem is on, but the link for '$outbound_tag' uses fingerprint '${fingerprint:-none}': the X25519MLKEM768 key share is only sent with fp=chrome" "warn"
+            fi
         fi
 
         config=$(
@@ -736,10 +739,16 @@ sing_box_cf_prepare_subscription_batch() {
                 feed: ($ob[$feed_key] // null),
                 outbound: (
                     $ob | del(.tag) | del(.remark) | del(.[$feed_key]) | . + {tag: $tag}
-                    # Keep the X25519MLKEM768 key share on Reality nodes when the
-                    # section asked for it (Xray-core >= 26.9.8 servers).
-                    | if $reality_mlkem and ((.tls.reality.enabled // false) == true)
-                      then .tls.reality.support_x25519mlkem768 = true else . end
+                    # Reality nodes follow the section option in BOTH directions:
+                    # the X25519MLKEM768 key share is kept when asked for
+                    # (Xray-core >= 26.9.8 servers) and removed otherwise, so a
+                    # body cached while the option was on cannot keep sending it
+                    # after it is switched off or the core is downgraded.
+                    | if (.tls.reality.enabled // false) == true
+                      then (if $reality_mlkem
+                            then .tls.reality.support_x25519mlkem768 = true
+                            else del(.tls.reality.support_x25519mlkem768) end)
+                      else . end
                 )
               }]
           ) as $resolved
