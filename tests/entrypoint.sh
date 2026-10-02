@@ -9314,7 +9314,7 @@ test_section_disabled() {
         . "$facade_lib"
         for fn in section_is_disabled _active_section_dispatch foreach_active_section \
             subscription_outbound_is_unavailable download_proxy_section_is_unavailable \
-            sing_box_additional_inbounds get_download_detour_tag; do
+            service_proxy_needed sing_box_additional_inbounds get_download_detour_tag; do
             eval "$(extract "$fn")"
         done
         _active_section_callback=
@@ -14507,8 +14507,9 @@ config_list_foreach() { # $1=section $2=option $3=callback ... : the option valu
     eval "_v=\"\${DS_${_sec}_${_opt}:-}\""
     for _i in $_v; do "$_cb" "$_i" "$@"; done
 }
-for fn in section_is_dns_rule section_has_enabled_lists configure_dns_section_handler configure_routing_for_section_lists \
-    configure_community_list_handler subscription_outbound_is_unavailable; do
+netshift_ipv6_enabled() { return 1; }
+for fn in section_is_dns_rule section_is_disabled section_has_enabled_lists configure_dns_section_handler configure_routing_for_section_lists \
+    configure_community_list_handler subscription_outbound_is_unavailable tproxy_route_inbounds; do
     eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$BIN")"
 done
 get_ruleset_tag() { echo "$1-$2-$3"; }
@@ -14866,7 +14867,8 @@ test_bypass() {
     local out
     out="$(
         . "${NETSHIFT_LIB_DIR}/constants.sh"
-        for fn in nft_select_subnet_target populate_netshift_subnets_from_file _nft_bypass_section_handler \
+        for fn in section_is_disabled _active_section_dispatch foreach_active_section \
+            nft_select_subnet_target populate_netshift_subnets_from_file _nft_bypass_section_handler \
             nft_bypass_requested _nft_bypass_source_ip_handler nft_bypass_source_ips; do
             eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$bin")"
         done
