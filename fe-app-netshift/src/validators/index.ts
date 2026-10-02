@@ -13,3 +13,4 @@ export * from './validateTrojanUrl';
 export * from './validateProxyUrl';
 export * from './validateProxyUrlList';
 export * from './validateSocksUrl';
+export * from './validateDnsPool';
