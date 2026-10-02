@@ -1,28 +1,66 @@
 "use strict";
-"require view";
+"require baseclass";
+"require form";
 "require uci";
-"require ui";
 "require network";
 "require view.netshift.main as main";
 
-// Local devices: route a LAN device (by source IP) fully through one section, or
-// send it directly. The state lives in the sections' fully_routed_ips and in
-// settings.routing_excluded_ips; the logic is in main.getDeviceRoute /
-// main.setDeviceRoute (unit-tested), this view only draws it.
+// Devices tab: route a LAN device (by source IP) fully through one section, or
+// send it directly. It does not write UCI itself: it drives the widgets of the
+// existing "Fully Routed IPs" (per section) and "Routing Excluded IPs" (settings)
+// options, so the normal Save / Save & Apply of the page stores the change and
+// the other tabs never overwrite it with a stale value. The logic (state of a
+// device, moving it between lists) is main.getDeviceRoute / main.setDeviceRoute.
 
-function readState() {
+const FULLY_ROUTED = "fully_routed_ips";
+const EXCLUDED = "routing_excluded_ips";
+
+function findOption(section, name) {
+  return section.children.find((child) => child.option === name);
+}
+
+function widgetList(option, sectionId, uciValue) {
+  const element = option?.getUIElement?.(sectionId);
+  const value = element?.getValue?.();
+
+  return Array.isArray(value) ? value : main.toIpList(uciValue);
+}
+
+function writeWidget(option, sectionId, values) {
+  const element = option?.getUIElement?.(sectionId);
+
+  if (element?.setValue) {
+    element.setValue(values);
+  }
+}
+
+// Only proxy sections have the Fully Routed IPs option.
+function proxySections() {
+  return uci
+    .sections("netshift", "section")
+    .filter((section) => section.connection_type === "proxy")
+    .map((section) => section[".name"]);
+}
+
+function readState(sectionsSection, settingsSection) {
+  const fullyRouted = findOption(sectionsSection, FULLY_ROUTED);
+  const excluded = findOption(settingsSection, EXCLUDED);
   const sections = {};
 
-  uci.sections("netshift", "section").forEach((section) => {
-    sections[section[".name"]] = main.toIpList(
-      uci.get("netshift", section[".name"], "fully_routed_ips"),
+  proxySections().forEach((name) => {
+    sections[name] = widgetList(
+      fullyRouted,
+      name,
+      uci.get("netshift", name, FULLY_ROUTED),
     );
   });
 
   return {
     sections,
-    excluded: main.toIpList(
-      uci.get("netshift", "settings", "routing_excluded_ips"),
+    excluded: widgetList(
+      excluded,
+      "settings",
+      uci.get("netshift", "settings", EXCLUDED),
     ),
   };
 }
@@ -31,41 +69,22 @@ function sameList(left, right) {
   return left.length === right.length && left.every((v, i) => v === right[i]);
 }
 
-// Write back only the lists that changed, so a section the user did not touch is
-// never rewritten. An emptied list is removed instead of left as an empty option.
-function writeState(before, after) {
-  Object.keys(after.sections).forEach((name) => {
-    if (sameList(before.sections[name] ?? [], after.sections[name])) {
-      return;
-    }
+function applyState(before, after, sectionsSection, settingsSection) {
+  const fullyRouted = findOption(sectionsSection, FULLY_ROUTED);
 
-    uci.set(
-      "netshift",
-      name,
-      "fully_routed_ips",
-      after.sections[name].length ? after.sections[name] : null,
-    );
+  Object.keys(after.sections).forEach((name) => {
+    if (!sameList(before.sections[name] ?? [], after.sections[name])) {
+      writeWidget(fullyRouted, name, after.sections[name]);
+    }
   });
 
   if (!sameList(before.excluded, after.excluded)) {
-    uci.set(
-      "netshift",
+    writeWidget(
+      findOption(settingsSection, EXCLUDED),
       "settings",
-      "routing_excluded_ips",
-      after.excluded.length ? after.excluded : null,
+      after.excluded,
     );
   }
-}
-
-function connectionSections() {
-  return uci
-    .sections("netshift", "section")
-    .filter(
-      (section) =>
-        section.connection_type === "proxy" ||
-        section.connection_type === "vpn",
-    )
-    .map((section) => section[".name"]);
 }
 
 function ipv4ToNumber(ip) {
@@ -114,98 +133,102 @@ function routeLabel(route) {
   return _("Everything through: %s").format(route);
 }
 
-const EntryPoint = {
-  load() {
-    return Promise.all([uci.load("netshift"), network.getHostHints()]);
-  },
+function buildDevices(sectionsSection, settingsSection) {
+  const tableBody = E("tbody");
+  let hints = null;
 
-  render([, hints]) {
-    main.injectGlobalStyles();
+  const renderRows = () => {
+    const state = readState(sectionsSection, settingsSection);
+    const routes = [main.DEVICE_ROUTE_DEFAULT, main.DEVICE_ROUTE_EXCLUDED].concat(
+      Object.keys(state.sections),
+    );
 
-    const sections = connectionSections();
-    const tableBody = E("tbody");
+    tableBody.replaceChildren();
 
-    const renderRows = () => {
-      const state = readState();
-      const routes = [main.DEVICE_ROUTE_DEFAULT, main.DEVICE_ROUTE_EXCLUDED]
-        .concat(sections);
+    collectDevices(hints, state).forEach((device) => {
+      const current = main.getDeviceRoute(state, device.ip);
+      const select = E(
+        "select",
+        {
+          class: "cbi-input-select",
+          change: (ev) => {
+            const before = readState(sectionsSection, settingsSection);
+            const after = main.setDeviceRoute(before, device.ip, ev.target.value);
 
-      tableBody.replaceChildren();
-
-      collectDevices(hints, state).forEach((device) => {
-        const current = main.getDeviceRoute(state, device.ip);
-        const select = E(
-          "select",
-          {
-            class: "cbi-input-select",
-            change: (ev) => {
-              const before = readState();
-              const after = main.setDeviceRoute(before, device.ip, ev.target.value);
-
-              writeState(before, after);
-              renderRows();
-            },
+            applyState(before, after, sectionsSection, settingsSection);
+            renderRows();
           },
-          routes.map((route) =>
-            E(
-              "option",
-              { value: route, selected: route === current ? "" : null },
-              [routeLabel(route)],
-            ),
+        },
+        routes.map((route) =>
+          E(
+            "option",
+            { value: route, selected: route === current ? "" : null },
+            [routeLabel(route)],
           ),
-        );
-
-        tableBody.appendChild(
-          E("tr", { class: "tr" }, [
-            E("td", { class: "td" }, [
-              device.name || (device.offline ? _("Not on the network") : "-"),
-            ]),
-            E("td", { class: "td" }, [device.ip]),
-            E("td", { class: "td" }, [device.mac || "-"]),
-            E("td", { class: "td" }, [select]),
-          ]),
-        );
-      });
-    };
-
-    renderRows();
-
-    return E("div", { class: "cbi-map" }, [
-      E("h2", {}, [_("NetShift: local devices")]),
-      E("div", { class: "cbi-map-descr" }, [
-        _(
-          "Choose how traffic of a device in your network is handled. A device can be sent completely through one section (all its traffic) or directly, ignoring the lists. Changes are applied with Save & Apply.",
         ),
-      ]),
-      E("div", { class: "cbi-section" }, [
-        E("div", { class: "table" }, [
-          E("table", { class: "table" }, [
-            E("thead", {}, [
-              E("tr", { class: "tr table-titles" }, [
-                E("th", { class: "th" }, [_("Device")]),
-                E("th", { class: "th" }, [_("IP address")]),
-                E("th", { class: "th" }, [_("MAC address")]),
-                E("th", { class: "th" }, [_("Routing")]),
-              ]),
-            ]),
-            tableBody,
+      );
+
+      tableBody.appendChild(
+        E("tr", { class: "tr" }, [
+          E("td", { class: "td" }, [
+            device.name || (device.offline ? _("Not on the network") : "-"),
+          ]),
+          E("td", { class: "td" }, [device.ip]),
+          E("td", { class: "td" }, [device.mac || "-"]),
+          E("td", { class: "td" }, [select]),
+        ]),
+      );
+    });
+  };
+
+  // The host hints arrive asynchronously; the table is filled when they are here.
+  network
+    .getHostHints()
+    .then((result) => {
+      hints = result;
+      renderRows();
+    })
+    .catch(() => {
+      hints = { getMACHints: () => [], getIPAddrByMACAddr: () => null };
+      renderRows();
+    });
+
+  return E("div", { class: "cbi-section" }, [
+    E("div", { class: "cbi-section-descr" }, [
+      _(
+        "Choose how traffic of a device in your network is handled. A device can be sent completely through one section (all its traffic) or directly, ignoring the lists. The change is stored with the page's Save & Apply, like the other settings.",
+      ),
+    ]),
+    E("div", { class: "table" }, [
+      E("table", { class: "table" }, [
+        E("thead", {}, [
+          E("tr", { class: "tr table-titles" }, [
+            E("th", { class: "th" }, [_("Device")]),
+            E("th", { class: "th" }, [_("IP address")]),
+            E("th", { class: "th" }, [_("MAC address")]),
+            E("th", { class: "th" }, [_("Routing")]),
           ]),
         ]),
+        tableBody,
       ]),
-    ]);
-  },
+    ]),
+  ]);
+}
 
-  handleSave() {
-    return uci.save();
-  },
+function createDevicesContent(devicesSection, sectionsSection, settingsSection) {
+  const o = devicesSection.option(form.DummyValue, "_devices");
 
-  handleSaveApply(ev) {
-    return this.handleSave(ev).then(() => ui.changes.apply());
-  },
+  o.render = function () {
+    return Promise.resolve(
+      E("div", { class: "cbi-value" }, [
+        buildDevices(sectionsSection, settingsSection),
+      ]),
+    );
+  };
+}
 
-  handleReset() {
-    return uci.unload("netshift").then(() => window.location.reload());
-  },
+const EntryPoint = {
+  createDevicesContent,
 };
 
-return view.extend(EntryPoint);
+return baseclass.extend(EntryPoint);
