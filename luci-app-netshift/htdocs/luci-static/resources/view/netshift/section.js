@@ -71,6 +71,16 @@ function createSectionContent(section) {
       "The domains of this section's lists are resolved by this server instead of the main one and are not sent through any tunnel (split DNS). Address, address:port or host/path for DoH",
     ),
   );
+  Object.entries(main.DNS_SERVER_OPTIONS).forEach(([key, label]) => {
+    o.value(key, _(label));
+  });
+  o.value("77.88.8.8", "77.88.8.8 (Yandex)");
+  o.value("common.dot.dns.yandex.net", "common.dot.dns.yandex.net (Yandex DoT)");
+  o.value("common.dns.yandex.net/dns-query", "common.dns.yandex.net/dns-query (Yandex DoH)");
+  o.value("dns.google/dns-query", "dns.google/dns-query (Google DoH)");
+  o.value("cloudflare-dns.com/dns-query", "cloudflare-dns.com/dns-query (Cloudflare DoH)");
+  o.value("dns.quad9.net/dns-query", "dns.quad9.net/dns-query (Quad9 DoH)");
+  o.value("dns.adguard-dns.com/dns-query", "dns.adguard-dns.com/dns-query (AdGuard DoH)");
   o.depends("connection_type", "dns");
   o.rmempty = false;
   o.validate = function (section_id, value) {
