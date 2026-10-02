@@ -18,6 +18,7 @@
 #             bittorrent, compproxy, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
 #             bittorrent, cascade, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
 #             bittorrent, dnssection, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
+#             bittorrent, utfilters, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
 #             ghredirect, selfupdate, backupguard, hotreload, cachepersist,
 #             domsep, domcase
 # ──────────────────────────────────────────────────────────────────

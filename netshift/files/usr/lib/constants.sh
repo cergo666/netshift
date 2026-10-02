@@ -224,6 +224,8 @@ SB_DNS_POOL_RESPONSE_PREFIX="dns-pool-response-"
 SB_DNS_EVALUATE_MIN="1.14.0"
 DNS_POOL_TIMEOUT_DEFAULT="2s"
 DNS_POOL_MAX_SERVERS=8
+# URL of the dashboard latency test (settings.latency_test_url overrides it)
+LATENCY_TEST_URL_DEFAULT="https://www.gstatic.com/generate_204"
 SB_FAKEIP_DNS_SERVER_TAG="fakeip-server"
 SB_FAKEIP_INET4_RANGE="198.18.0.0/15"
 SB_FAKEIP_INET6_RANGE="2001:2::/48"
