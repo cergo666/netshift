@@ -270,6 +270,23 @@ uci set netshift.settings.exclude_bittorrent='1'
 uci commit netshift
 ```
 
+**Несколько DNS-серверов (приоритет / параллельно).** Основной сервер (`dns_server`) остаётся первым, дополнительные задаются списком `dns_pool_server` в формате `схема://хост[:порт][/путь]` (схема - `udp`, `tcp`, `dot`, `doh`, `doh3`, `doq`; путь - только для `doh`/`doh3`). Режим - `dns_pool_mode`:
+
+- `single` (по умолчанию) - только основной сервер, всё как раньше;
+- `fallback` - по приоритету: основной, затем список по порядку; следующий опрашивается, если предыдущий не ответил за `dns_pool_timeout` или вернул ошибку (SERVFAIL/REFUSED);
+- `race` - параллельно: запрос уходит всем серверам сразу, берётся первый пригодный ответ (`NOERROR` или `NXDOMAIN`), остальные запросы отменяются.
+
+```sh
+uci set netshift.settings.dns_pool_mode='race'
+uci add_list netshift.settings.dns_pool_server='doh://dns.google/dns-query'
+uci add_list netshift.settings.dns_pool_server='dot://dns.quad9.net'
+uci add_list netshift.settings.dns_pool_server='udp://1.1.1.1'
+uci set netshift.settings.dns_pool_timeout='2s'   # на один сервер; по умолчанию 2s
+uci commit netshift
+```
+
+Нужен **sing-box 1.14.0 и новее** (режимы собираются из DNS-правил `evaluate`/`respond`/`race`); на более старом ядре список игнорируется с предупреждением в логе. Всего до 8 серверов вместе с основным, лишние и некорректные записи пропускаются с предупреждением. При включённом «DNS через прокси» все серверы пула идут через тот же outbound, имена хостов резолвятся через bootstrap DNS. В режиме `fallback` при недоступном основном сервере каждый новый запрос ждёт `dns_pool_timeout` до перехода к следующему (результат здоровья серверов не запоминается), поэтому для надёжного отказа лучше `race` или короткий таймаут (`500ms`).
+
 > По умолчанию NetShift гонит в sing-box **только** проксируемые подсети/домены, остальное - напрямую (выборочная маркировка). Режим «весь трафик в туннель» включается **только** опцией `global_proxy`.
 
 </details>

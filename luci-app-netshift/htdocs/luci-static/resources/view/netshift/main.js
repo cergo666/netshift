@@ -787,6 +787,55 @@ function validateProxyUrlList(value) {
   return { valid: true, message: "" };
 }
 
+// src/validators/validateDnsPool.ts
+var DNS_POOL_SCHEMES = ["udp", "tcp", "dot", "doh", "doh3", "doq"];
+var DNS_POOL_PATH_SCHEMES = ["doh", "doh3"];
+function validateDnsPoolServer(value) {
+  if (!value) {
+    return { valid: false, message: _("DNS server cannot be empty") };
+  }
+  const separator = value.indexOf("://");
+  if (separator < 0) {
+    return {
+      valid: false,
+      message: _(
+        "Use scheme://host[:port][/path], where scheme is udp, tcp, dot, doh, doh3 or doq. Example: doh://dns.google/dns-query"
+      )
+    };
+  }
+  const scheme = value.slice(0, separator);
+  const rest = value.slice(separator + 3);
+  if (!DNS_POOL_SCHEMES.includes(scheme)) {
+    return {
+      valid: false,
+      message: _("Unknown DNS scheme. Use udp, tcp, dot, doh, doh3 or doq")
+    };
+  }
+  if (!DNS_POOL_PATH_SCHEMES.includes(scheme) && rest.includes("/")) {
+    return {
+      valid: false,
+      message: _("A path is only allowed for doh and doh3")
+    };
+  }
+  if (/\s/.test(value)) {
+    return { valid: false, message: _("DNS server must not contain spaces") };
+  }
+  const address = validateDNS(rest);
+  if (!address.valid) {
+    return address;
+  }
+  return { valid: true, message: _("Valid") };
+}
+function validateDnsPoolTimeout(value) {
+  if (/^[1-9][0-9]*(ms|s)$/.test(value)) {
+    return { valid: true, message: _("Valid") };
+  }
+  return {
+    valid: false,
+    message: _("Invalid timeout. Examples: 500ms, 2s")
+  };
+}
+
 // src/helpers/parseValueList.ts
 function parseValueList(value) {
   return value.split(/\n/).map((line) => line.split("//")[0]).join(" ").split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
@@ -6450,6 +6499,8 @@ return baseclass.extend({
   store,
   svgEl,
   validateDNS,
+  validateDnsPoolServer,
+  validateDnsPoolTimeout,
   validateDomain,
   validateDomainRule,
   validateIP,
