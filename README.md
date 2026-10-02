@@ -248,7 +248,7 @@ UPX-бинарник распаковывает себя в память при 
 </details>
 
 <details>
-<summary><b>Дополнительные настройки (IPv6, блокировка DoH, глобальный прокси, DNS через прокси)</b></summary>
+<summary><b>Дополнительные настройки (IPv6, блокировка DoH, глобальный прокси, DNS через прокси, Reality ML-KEM)</b></summary>
 
 Все опции - в секции `settings` (`0` - выкл, `1` - вкл):
 
@@ -284,6 +284,10 @@ uci commit netshift
 
 ```sh
 uci set netshift.<секция>.disabled='1'   # отключить (='0' или удалить опцию - включить обратно)
+**Опция секции: Reality и Xray-core 26.9.8+ (постквантовый key share).** Сервер REALITY на Xray-core **26.9.8 и новее** (в 3x-ui - начиная с 3.8.0) отвергает клиента, который не присылает key share `X25519MLKEM768`; стандартный sing-box вырезает его из ClientHello, и подключение падает с `reality verification failed`. В sing-box-extended **2.7.2+** (включая lite) для этого есть опция, а в NetShift - галка секции **«Reality: постквантовый key share (X25519MLKEM768)»** (`reality_mlkem`, по умолчанию выкл.). Она добавляет `support_x25519mlkem768` в Reality-outbound'ы секции (ссылки, selector/urltest и подписки; свой `outbound_json` не трогается). Нужен отпечаток `chrome` (`fp=chrome`, у остальных отпечатков ML-KEM нет). На старых серверах включать не нужно: они могут не пройти рукопожатие. На стандартном ядре и на extended до 2.7.2 опция игнорируется с предупреждением в логе, потому что такое ядро не знает поле и отвергло бы весь конфиг.
+
+```sh
+uci set netshift.<секция>.reality_mlkem='1'
 uci commit netshift
 ```
 

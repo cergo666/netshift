@@ -1263,6 +1263,9 @@ is_sing_box_extended() { return 0; }
 # or per-link warnings are produced and the section is wrongly marked unavailable.
 eval "$(awk '/^_build_proxy_member_outbounds\(\) \{/{p=1} p{print} p&&/^\}/{exit}' "BIN_PATH")"
 eval "$(awk '/^configure_outbound_handler\(\) \{/{p=1} p{print} p&&/^\}/{exit}' "BIN_PATH")"
+# configure_outbound_handler calls set_section_reality_mlkem first; these sections
+# never opt into it (covered by the realitymlkem test), so the stub keeps it off.
+set_section_reality_mlkem() { NETSHIFT_REALITY_MLKEM=0; }
 eval "$(awk '/^mark_section_outbound_unavailable\(\) \{/{p=1} p{print} p&&/^\}/{exit}' "BIN_PATH")"
 
 # Table-driven UCI stub. Per-section options are read from US_<section>_<opt>
@@ -2152,6 +2155,9 @@ is_sing_box_extended() { return 0; }
 # awk-extract the SHIPPED helper + handler + unavailable marker verbatim.
 eval "$(awk '/^_build_proxy_member_outbounds\(\) \{/{p=1} p{print} p&&/^\}/{exit}' "BIN_PATH")"
 eval "$(awk '/^configure_outbound_handler\(\) \{/{p=1} p{print} p&&/^\}/{exit}' "BIN_PATH")"
+# configure_outbound_handler calls set_section_reality_mlkem first; these sections
+# never opt into it (covered by the realitymlkem test), so the stub keeps it off.
+set_section_reality_mlkem() { NETSHIFT_REALITY_MLKEM=0; }
 eval "$(awk '/^mark_section_outbound_unavailable\(\) \{/{p=1} p{print} p&&/^\}/{exit}' "BIN_PATH")"
 
 _tl_key() { printf 'TL_%s_%s' "$(printf '%s' "$1" | tr '.-' '__')" "$2"; }
@@ -13203,6 +13209,246 @@ CPEOF
 # ─────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────
+# Test: Reality X25519MLKEM768 per-section option
+# ─────────────────────────────────────────────────────────────────
+# REALITY servers on Xray-core >= 26.9.8 reject a client that does not offer the
+# X25519MLKEM768 key share, and sing-box strips it by default. sing-box-extended
+# 2.7.2+ has `tls.reality.support_x25519mlkem768` to keep it. The per-section
+# `reality_mlkem` option must:
+#   - do nothing by default (no field: older Xray servers may fail with it);
+#   - add the field ONLY to Reality outbounds, for link sections and for
+#     subscription batches, when the option is on;
+#   - be ignored, with a warning, on a core that does not know the field
+#     (stock sing-box, extended < 2.7.2), because that field would fail
+#     `sing-box check` and take the whole section down.
+# The REAL set_section_reality_mlkem / facade / config manager run here.
+test_reality_mlkem() {
+    header "Reality X25519MLKEM768 option"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    local f
+    for f in constants.sh helpers.sh sing_box_config_manager.sh sing_box_config_facade.sh helpers.jq; do
+        if [ ! -r "$lib/$f" ]; then
+            skip "reality_mlkem - $f not found"
+            return
+        fi
+    done
+    if [ ! -r "$bin" ] || ! command -v jq > /dev/null 2>&1; then
+        skip "reality_mlkem - bin/netshift or jq not found"
+        return
+    fi
+
+    # The facade sources its siblings from the runtime path.
+    mkdir -p /usr/lib/netshift
+    for f in constants.sh helpers.sh sing_box_config_manager.sh sing_box_config_facade.sh helpers.jq; do
+        ln -sf "$lib/$f" "/usr/lib/netshift/$f"
+    done
+
+    local out
+    out="$(
+        RM_LOG="/tmp/netshift-realitymlkem-$$.log"
+        : > "$RM_LOG"
+        log() { printf '[%s] %s\n' "${2:-info}" "$1" >> "$RM_LOG"; }
+        echolog() { log "$1" "${2:-info}"; }
+        nolog() { :; }
+        . "$lib/constants.sh"
+        . "$lib/helpers.sh"
+        NETSHIFT_LIB="$lib"
+        . "$lib/sing_box_config_manager.sh"
+        . "$lib/sing_box_config_facade.sh"
+        eval "$(awk -v f="set_section_reality_mlkem" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$bin")"
+
+        # UCI stub for config_get_bool: RM_<section>_<option>
+        config_get_bool() {
+            local _v
+            eval "_v=\"\${RM_${2}_${3}:-}\""
+            [ -n "$_v" ] || _v="$4"
+            case "$_v" in 1 | on | true | yes | enabled) _v=1 ;; *) _v=0 ;; esac
+            eval "$1=\"\$_v\""
+        }
+
+        gate() { # $1=core version, $2=option value ("" = option absent)
+            NETSHIFT_SING_BOX_VERSION="$1"
+            export NETSHIFT_SING_BOX_VERSION
+            RM_s_reality_mlkem="$2"
+            : > "$RM_LOG"
+            set_section_reality_mlkem s
+            printf '%s' "$NETSHIFT_REALITY_MLKEM"
+        }
+        echo "gate-default-off:$(gate 1.14.1-extended-2.7.2-lite '')"
+        echo "gate-off-explicit:$(gate 1.14.1-extended-2.7.2-lite 0)"
+        echo "gate-lite-2.7.2:$(gate 1.14.1-extended-2.7.2-lite 1)"
+        echo "gate-extended-2.7.2:$(gate 1.14.1-extended-2.7.2 1)"
+        echo "gate-extended-newer:$(gate 1.14.2-extended-2.8.0 1)"
+        echo "gate-extended-2.7.1:$(gate 1.14.0-extended-2.7.1 1)"
+        warned="no"
+        grep -q "^\[warn\] Section 's': reality_mlkem needs sing-box-extended $SB_EXTENDED_REALITY_MLKEM_MIN" "$RM_LOG" && warned="yes"
+        echo "gate-old-extended-warned:$warned"
+        # Two-digit minor: a plain string comparison would sort 2.10.0 below 2.7.2.
+        echo "gate-extended-2.10.0:$(gate 1.15.0-extended-2.10.0 1)"
+        echo "gate-stock:$(gate 1.13.14 1)"
+        warned="no"
+        grep -q "^\[warn\] Section 's': reality_mlkem needs sing-box-extended $SB_EXTENDED_REALITY_MLKEM_MIN" "$RM_LOG" && warned="yes"
+        echo "gate-stock-warned:$warned"
+        gate 1.14.1-extended-2.7.2-lite '' > /dev/null
+        warned="no"
+        [ -s "$RM_LOG" ] && warned="yes"
+        echo "gate-off-silent:$([ "$warned" = no ] && echo yes || echo no)"
+
+        mlk() { printf '%s' "$1" | jq -r '.outbounds[0].tls.reality.support_x25519mlkem768 // "absent"'; }
+        LINK_R='vless://11111111-2222-3333-4444-555555555555@r.example.com:443?encryption=none&flow=xtls-rprx-vision&fp=chrome&pbk=jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0&security=reality&sid=0123abcd&sni=r.example.com&type=tcp'
+        LINK_T='vless://11111111-2222-3333-4444-555555555555@t.example.com:443?encryption=none&security=tls&sni=t.example.com&type=tcp'
+        base='{"outbounds":[]}'
+
+        unset NETSHIFT_REALITY_MLKEM
+        echo "link-default:$(mlk "$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)")"
+        NETSHIFT_REALITY_MLKEM=0
+        echo "link-off:$(mlk "$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)")"
+        NETSHIFT_REALITY_MLKEM=1
+        echo "link-on:$(mlk "$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)")"
+        echo "link-on-tls-untouched:$(mlk "$(sing_box_cf_add_proxy_outbound "$base" t "$LINK_T" 0)")"
+        # Everything else about the Reality block is unchanged by the flag.
+        on="$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)"
+        NETSHIFT_REALITY_MLKEM=0
+        off="$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)"
+        same="no"
+        [ "$(printf '%s' "$on" | jq -S 'del(.outbounds[0].tls.reality.support_x25519mlkem768)')" = "$(printf '%s' "$off" | jq -S .)" ] && same="yes"
+        echo "link-on-otherwise-identical:$same"
+
+        # Subscription batch: only Reality nodes get the field.
+        SUBJ="/tmp/netshift-realitymlkem-sub-$$.json"
+        cat > "$SUBJ" << 'SUBEOF'
+{"outbounds":[
+ {"type":"vless","tag":"reality-node","server":"r.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555","flow":"xtls-rprx-vision","tls":{"enabled":true,"server_name":"r.example.com","utls":{"enabled":true,"fingerprint":"chrome"},"reality":{"enabled":true,"public_key":"jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0","short_id":"0123abcd"}}},
+ {"type":"vless","tag":"tls-node","server":"t.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555","tls":{"enabled":true,"server_name":"t.example.com"}},
+ {"type":"trojan","tag":"plain-node","server":"p.example.com","server_port":443,"password":"x"}
+]}
+SUBEOF
+        batch_field() { # $1=tag
+            printf '%s' "$BATCH" | jq -r --arg t "$1" '.outbounds[] | select(.tag==$t) | .tls.reality.support_x25519mlkem768 // "absent"'
+        }
+        NETSHIFT_REALITY_MLKEM=0
+        BATCH="$(sing_box_cf_prepare_subscription_batch "$base" "$SUBJ" '[]' '[]')"
+        echo "batch-off:$(batch_field reality-node)"
+        NETSHIFT_REALITY_MLKEM=1
+        BATCH="$(sing_box_cf_prepare_subscription_batch "$base" "$SUBJ" '[]' '[]')"
+        echo "batch-on-reality:$(batch_field reality-node)"
+        echo "batch-on-tls-untouched:$(batch_field tls-node)"
+        echo "batch-on-plain-untouched:$(batch_field plain-node)"
+        echo "batch-on-count:$(printf '%s' "$BATCH" | jq -r '.count')"
+
+        # The flag is authoritative in both directions: a body cached while the
+        # option was on (field already present) loses it once the option is off
+        # or the core cannot take it, and keeps it while the option is on.
+        SUBJ2="/tmp/netshift-realitymlkem-sub2-$$.json"
+        jq '.outbounds[0].tls.reality.support_x25519mlkem768 = true' "$SUBJ" > "$SUBJ2"
+        NETSHIFT_REALITY_MLKEM=0
+        BATCH="$(sing_box_cf_prepare_subscription_batch "$base" "$SUBJ2" '[]' '[]')"
+        echo "batch-off-strips-cached-field:$(batch_field reality-node)"
+        NETSHIFT_REALITY_MLKEM=1
+        BATCH="$(sing_box_cf_prepare_subscription_batch "$base" "$SUBJ2" '[]' '[]')"
+        echo "batch-on-keeps-cached-field:$(batch_field reality-node)"
+        rm -f "$SUBJ2"
+
+        # The normalized subscription cache never depends on the option: a URI
+        # body parsed with the flag ON comes out without the field.
+        NSRC="/tmp/netshift-realitymlkem-norm-$$.txt"
+        NOUT="/tmp/netshift-realitymlkem-norm-$$.json"
+        printf '%s\n' "$LINK_R" > "$NSRC"
+        NETSHIFT_REALITY_MLKEM=1
+        if normalize_subscription_to_singbox "$NSRC" "$NOUT" s; then
+            echo "normalize-ignores-flag:$(jq -r '[.outbounds[] | .tls.reality.support_x25519mlkem768 // "absent"] | unique | join(",")' "$NOUT")"
+        else
+            echo "normalize-ignores-flag:normalize-failed"
+        fi
+        echo "normalize-restores-flag:$NETSHIFT_REALITY_MLKEM"
+        rm -f "$NSRC" "$NOUT"
+
+        # The user's own outbound JSON is never touched, flag on or not.
+        RAW='{"type":"vless","server":"r.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555","tls":{"enabled":true,"reality":{"enabled":true,"public_key":"jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0","short_id":"0123abcd"}}}'
+        get_outbound_tag_by_section() { echo "$1-out"; }
+        NETSHIFT_REALITY_MLKEM=1
+        got="$(sing_box_cf_add_json_outbound "$base" raw "$RAW" | jq -cS '.outbounds[0] | del(.tag)')"
+        want="$(printf '%s' "$RAW" | jq -cS .)"
+        [ "$got" = "$want" ] && echo "raw-outbound-json-untouched:yes" || echo "raw-outbound-json-untouched:no [$got]"
+
+        # Seam: the option goes through the REAL set_section_reality_mlkem from
+        # the bin and the result reaches the facade, end to end (no hand-set flag).
+        seam() { # $1=core version, $2=option
+            NETSHIFT_SING_BOX_VERSION="$1"
+            export NETSHIFT_SING_BOX_VERSION
+            RM_s_reality_mlkem="$2"
+            : > "$RM_LOG"
+            set_section_reality_mlkem s
+            mlk "$(sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0)"
+        }
+        echo "seam-lite-on:$(seam 1.14.1-extended-2.7.2-lite 1)"
+        echo "seam-lite-off:$(seam 1.14.1-extended-2.7.2-lite 0)"
+        echo "seam-stock-on:$(seam 1.13.14 1)"
+        echo "seam-old-extended-on:$(seam 1.14.0-extended-2.7.1 1)"
+
+        # fp other than chrome: the option would be a silent no-op, so it is warned about.
+        LINK_F="${LINK_R/fp=chrome/fp=firefox}"
+        NETSHIFT_REALITY_MLKEM=1
+        : > "$RM_LOG"
+        sing_box_cf_add_proxy_outbound "$base" r "$LINK_R" 0 > /dev/null
+        grep -q "key share is only sent with fp=chrome" "$RM_LOG" && echo "fp-chrome-silent:no" || echo "fp-chrome-silent:yes"
+        : > "$RM_LOG"
+        sing_box_cf_add_proxy_outbound "$base" r "$LINK_F" 0 > /dev/null
+        grep -q "key share is only sent with fp=chrome" "$RM_LOG" && echo "fp-other-warned:yes" || echo "fp-other-warned:no"
+        NETSHIFT_REALITY_MLKEM=0
+        : > "$RM_LOG"
+        sing_box_cf_add_proxy_outbound "$base" r "$LINK_F" 0 > /dev/null
+        grep -q "key share is only sent with fp=chrome" "$RM_LOG" && echo "fp-other-off-silent:no" || echo "fp-other-off-silent:yes"
+        rm -f "$SUBJ" "$RM_LOG"
+    )"
+
+    _rm_check() {
+        if echo "$out" | grep -qxF "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(echo "$out" | tr '\n' '|')"
+        fi
+    }
+
+    _rm_check "off by default: the option absent leaves the field out" "gate-default-off:0"
+    _rm_check "off explicitly stays off" "gate-off-explicit:0"
+    _rm_check "extended-lite 2.7.2 enables it" "gate-lite-2.7.2:1"
+    _rm_check "extended 2.7.2 enables it" "gate-extended-2.7.2:1"
+    _rm_check "a newer extended enables it" "gate-extended-newer:1"
+    _rm_check "extended 2.7.1 (no such field) ignores it" "gate-extended-2.7.1:0"
+    _rm_check "extended 2.10.0 (two-digit minor) enables it" "gate-extended-2.10.0:1"
+    _rm_check "old extended: ignoring it is warned about" "gate-old-extended-warned:yes"
+    _rm_check "stock sing-box ignores it" "gate-stock:0"
+    _rm_check "stock sing-box: ignoring it is warned about" "gate-stock-warned:yes"
+    _rm_check "no warning when the option is off" "gate-off-silent:yes"
+    _rm_check "link: no field when the flag is unset" "link-default:absent"
+    _rm_check "link: no field when the flag is off" "link-off:absent"
+    _rm_check "link: Reality outbound gets support_x25519mlkem768" "link-on:true"
+    _rm_check "link: a plain TLS outbound is never touched" "link-on-tls-untouched:absent"
+    _rm_check "link: the flag changes nothing else in the outbound" "link-on-otherwise-identical:yes"
+    _rm_check "subscription: no field when the flag is off" "batch-off:absent"
+    _rm_check "subscription: Reality nodes get the field" "batch-on-reality:true"
+    _rm_check "subscription: TLS nodes are untouched" "batch-on-tls-untouched:absent"
+    _rm_check "subscription: non-TLS nodes are untouched" "batch-on-plain-untouched:absent"
+    _rm_check "subscription: every node is kept" "batch-on-count:3"
+    _rm_check "subscription: a cached field is removed when the option is off" "batch-off-strips-cached-field:absent"
+    _rm_check "subscription: a cached field stays when the option is on" "batch-on-keeps-cached-field:true"
+    _rm_check "subscription cache: normalizing ignores the option" "normalize-ignores-flag:absent"
+    _rm_check "subscription cache: normalizing restores the flag" "normalize-restores-flag:1"
+    _rm_check "outbound_json: raw outbound is never touched" "raw-outbound-json-untouched:yes"
+    _rm_check "seam: extended-lite 2.7.2 + option on puts the field in the outbound" "seam-lite-on:true"
+    _rm_check "seam: option off leaves the outbound without it" "seam-lite-off:absent"
+    _rm_check "seam: stock core leaves the outbound without it" "seam-stock-on:absent"
+    _rm_check "seam: extended 2.7.1 leaves the outbound without it" "seam-old-extended-on:absent"
+    _rm_check "fp=chrome: no warning" "fp-chrome-silent:yes"
+    _rm_check "fp other than chrome: warned about" "fp-other-warned:yes"
+    _rm_check "fp other than chrome with the option off: silent" "fp-other-off-silent:yes"
+}
+
 main() {
     printf "${BOLD}Netshift Evolution — Smoke Test Suite${NC}\n"
     printf "Source: %s\n" "$NETSHIFT_SRC"
@@ -13260,6 +13506,7 @@ main() {
             test_hot_reload
             test_domain_separators
             test_cache_persist
+            test_reality_mlkem
             ;;
         deps)        test_deps ;;
         syntax)      test_syntax ;;
@@ -13307,9 +13554,10 @@ main() {
         cm)          test_config_manager ;;
         sb)          test_sing_box_config ;;
         proxylink)   test_proxy_link_escaping ;;
+        realitymlkem) test_reality_mlkem ;;
         *)
             echo "Unknown test: $target"
-            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist"
+            echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist realitymlkem"
             exit 1
             ;;
     esac
