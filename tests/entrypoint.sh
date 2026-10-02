@@ -132,6 +132,16 @@ test_syntax() {
         fi
     done
 
+    # The LuCI package's build-time script (not under files/, so not in the list above).
+    local cache_bust="${NETSHIFT_LUCI_SRC:-/luci-app-netshift}/cache-bust.sh"
+    if [ -r "$cache_bust" ]; then
+        if ash -n "$cache_bust" 2>&1; then
+            pass "Syntax OK: cache-bust.sh"
+        else
+            fail "Syntax ERROR in cache-bust.sh" "$(ash -n "$cache_bust" 2>&1)"
+        fi
+    fi
+
     # Parse-check the CLI dispatcher itself (not just the libs).
     local cli="${NETSHIFT_SRC}/usr/bin/netshift"
     if [ ! -r "$cli" ]; then
@@ -8919,17 +8929,23 @@ test_luci_cache_bust() {
 
         # Deterministic: the same build gives the same directory.
         fresh b
-        run b
+        run b || echo "run-b:failed"
         echo "deterministic:$([ "$(tag_of b)" = "$tag" ] && echo yes || echo no)"
         # The tag follows the stamped version (a new release => new URLs) ...
         fresh c 0.9.10
-        run c
+        run c || echo "run-c:failed"
         echo "changes-with-version:$([ "$(tag_of c)" != "$tag" ] && echo yes || echo no)"
         # ... and the content.
         fresh d
         printf '\n// edit\n' >> "$W/d/$view_rel/netshift/section.js"
-        run d
+        run d || echo "run-d:failed"
         echo "changes-with-content:$([ "$(tag_of d)" != "$tag" ] && echo yes || echo no)"
+
+        # The tag is the md5 of the stamped views concatenated in byte order.
+        fresh m
+        want_tag="netshift_$(cd "$W/m/$view_rel/netshift" && cat ./*.js | md5sum | cut -c1-8)"
+        run m || echo "run-m:failed"
+        echo "tag-is-content-md5:$([ "$(tag_of m)" = "$want_tag" ] && echo yes || echo no)"
 
         # A broken tree must fail the build.
         fresh e
@@ -8942,6 +8958,21 @@ test_luci_cache_bust() {
         fresh g
         sed -i 's/require view\.netshift\.main as main/require view.netshift.nosuchview as main/' "$W/g/$view_rel/netshift/diagnostic.js"
         run g && echo "dangling-require-fails:no" || echo "dangling-require-fails:yes"
+        # A leftover path-form reference and a reference to another hash are caught too.
+        fresh h
+        printf '\nL.resource("view/netshift/main.js");\n' >> "$W/h/$view_rel/netshift/diagnostic.js"
+        run h && echo "path-form-reference-fails:no" || echo "path-form-reference-fails:yes"
+        fresh i
+        printf '\n// require view.netshift_deadbeef.main\n' >> "$W/i/$view_rel/netshift/diagnostic.js"
+        run i && echo "foreign-hash-reference-fails:no" || echo "foreign-hash-reference-fails:yes"
+        # No .js views at all, and a second run over a processed tree, fail with a clear error.
+        fresh j
+        rm -f "$W/j/$view_rel/netshift"/*.js
+        run j && echo "empty-views-fails:no" || echo "empty-views-fails:yes"
+        echo "empty-views-message:$(grep -c 'no .js views' "$W/j.out")"
+        fresh k
+        run k || echo "run-k:failed"
+        run k && echo "rerun-fails:no" || echo "rerun-fails:yes"
 
         # ── backend: version of the installed LuCI app ──────────────────
         log() { :; }
@@ -8957,6 +8988,11 @@ test_luci_cache_bust() {
         echo "version-hashed-dir-wins:$(get_luci_app_version)"
         rm -rf "$LUCI_VIEW_DIR/netshift"
         echo "version-hashed-dir:$(get_luci_app_version)"
+        # A main.js without the version line is skipped, never reported as an empty string.
+        mkdir -p "$LUCI_VIEW_DIR/netshift_00000000"
+        printf 'var SOMETHING_ELSE = 1;\n' > "$LUCI_VIEW_DIR/netshift_00000000/main.js"
+        rm -rf "$LUCI_VIEW_DIR/netshift_1a2b3c4d"
+        echo "version-missing-line:$(get_luci_app_version)"
     )"
     rm -rf "$work"
 
@@ -8988,6 +9024,13 @@ test_luci_cache_bust() {
     _cb_check "version is read from a legacy view/netshift directory" "version-legacy-dir:0.8.0"
     _cb_check "the hashed directory wins over a legacy one" "version-hashed-dir-wins:0.9.9.5"
     _cb_check "version is read from the hashed directory" "version-hashed-dir:0.9.9.5"
+    _cb_check "a main.js without a version line gives not installed, not an empty string" "version-missing-line:not installed"
+    _cb_check "the tag is the md5 of the stamped views" "tag-is-content-md5:yes"
+    _cb_check "a leftover view/netshift path reference fails the build" "path-form-reference-fails:yes"
+    _cb_check "a reference to another hash fails the build" "foreign-hash-reference-fails:yes"
+    _cb_check "no .js views fails the build" "empty-views-fails:yes"
+    _cb_check "no .js views: the error says so" "empty-views-message:1"
+    _cb_check "a second run over a processed tree fails" "rerun-fails:yes"
     if echo "$out" | grep -q '^menu-path:netshift_[0-9a-f]\{8\}/netshift$'; then
         pass "the menu path is netshift_<hash>/netshift"
     else

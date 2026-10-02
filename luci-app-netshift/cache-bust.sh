@@ -17,6 +17,9 @@
 #   <htdocs dir>  contains luci-static/resources/view/netshift/
 #   <package root> contains usr/share/luci/menu.d/luci-app-netshift.json
 set -eu
+# The hash must not depend on the build host's locale: glob order and md5 input
+# are then the same for the ipk and the apk build.
+export LC_ALL=C
 
 HTDOCS="${1:?usage: cache-bust.sh <htdocs dir> <package root dir>}"
 ROOT="${2:?usage: cache-bust.sh <htdocs dir> <package root dir>}"
@@ -35,25 +38,46 @@ MENU="$ROOT/usr/share/luci/menu.d/luci-app-netshift.json"
 
 # The tag is derived from the content (including the version stamped into
 # main.js), so it changes exactly when the views change and is the same for the
-# same build. Files are concatenated in glob (sorted) order.
+# same build. Files are concatenated in glob order, which LC_ALL=C makes plain
+# byte order.
+ls "$VIEW"/netshift/*.js > /dev/null 2>&1 || {
+    echo "cache-bust: no .js views in $VIEW/netshift" >&2
+    exit 1
+}
 tag="$(cat "$VIEW"/netshift/*.js | md5sum | cut -c1-8)"
 new="netshift_$tag"
+
+# Never move the views INTO an existing hashed directory (a second run over an
+# already processed tree would otherwise fail later with a confusing sed error).
+[ ! -e "$VIEW/$new" ] || {
+    echo "cache-bust: $VIEW/$new already exists" >&2
+    exit 1
+}
 
 mv "$VIEW/netshift" "$VIEW/$new"
 sed -i -e "s/view\.netshift\./view.$new./g" "$VIEW/$new"/*.js
 sed -i -e "s#\"netshift/netshift\"#\"$new/netshift\"#" "$MENU"
 
 # A rewrite that missed something would ship a UI that cannot load: fail the
-# build instead.
-if grep -l 'view\.netshift\.' "$VIEW/$new"/*.js > /dev/null 2>&1; then
-    echo "cache-bust: unrewritten view.netshift. reference left in $VIEW/$new" >&2
+# build instead. Both the dotted (`view.netshift.x`) and the path form
+# (`view/netshift/x`) must be gone, and nothing may point at another hash.
+if grep -qE 'view[./]netshift[./]' "$VIEW/$new"/*.js; then
+    echo "cache-bust: unrewritten view/netshift reference left in $VIEW/$new" >&2
+    exit 1
+fi
+stale="$(grep -hoE 'view[./]netshift_[0-9a-f]+' "$VIEW/$new"/*.js | tr / . | sort -u | grep -vx "view.$new" || true)"
+if [ -n "$stale" ]; then
+    echo "cache-bust: reference to another view directory left in $VIEW/$new: $stale" >&2
     exit 1
 fi
 if ! grep -q "\"$new/netshift\"" "$MENU"; then
     echo "cache-bust: menu path was not updated in $MENU" >&2
     exit 1
 fi
-grep -ho "require view\.$new\.[A-Za-z0-9_]*" "$VIEW/$new"/*.js | sort -u | while read -r _ ref; do
+# Every `require` must resolve to a file of the new directory. A plain loop (not
+# a pipe into `while`) so the `exit 1` really ends the script.
+refs="$(grep -hoE "require view\.$new\.[A-Za-z0-9_]*" "$VIEW/$new"/*.js | sort -u | sed 's/^require //')"
+for ref in $refs; do
     [ -f "$VIEW/$new/${ref#view."$new".}.js" ] || {
         echo "cache-bust: $ref has no file in $VIEW/$new" >&2
         exit 1

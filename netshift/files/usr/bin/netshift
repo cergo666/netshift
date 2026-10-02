@@ -5096,12 +5096,16 @@ show_system_info() {
 # Reads NETSHIFT_LUCI_APP_VERSION out of main.js in the hashed views directory
 # (view/netshift_<hash>/) or, for a hand-copied dev tree, view/netshift/.
 get_luci_app_version() {
-    local dir file
+    local dir file version
 
     for dir in "$LUCI_VIEW_DIR"/netshift_* "$LUCI_VIEW_DIR"/netshift; do
         file="$dir/main.js"
         [ -f "$file" ] || continue
-        grep 'var NETSHIFT_LUCI_APP_VERSION' "$file" | cut -d'"' -f2
+        version="$(grep 'var NETSHIFT_LUCI_APP_VERSION' "$file" | cut -d'"' -f2)"
+        # A main.js without the version line must not yield an empty answer
+        # (jq's `// "unknown"` does not catch an empty string).
+        [ -n "$version" ] || continue
+        echo "$version"
         return 0
     done
 

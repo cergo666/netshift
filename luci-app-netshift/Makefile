@@ -28,7 +28,7 @@ define Package/$(PKG_NAME)/install
 	# Content-hashed view directory + rewritten requires/menu path, so a browser
 	# cannot keep serving the previous version's JS after an update
 	# (see cache-bust.sh). Must run after the version stamp above.
-	sh $(CURDIR)/cache-bust.sh $(1)$(HTDOCS) $(1)
+	sh "$(CURDIR)/cache-bust.sh" "$(1)$(HTDOCS)" "$(1)"
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
