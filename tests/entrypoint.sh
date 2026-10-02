@@ -12935,6 +12935,7 @@ eval "$(extract discard_restored_sing_box_cache)"
 eval "$(extract get_sing_box_selection)"
 eval "$(extract snapshot_sing_box_cache)"
 eval "$(extract monitor_sing_box)"
+eval "$(extract dnsmasq_should_be_restored)"
 eval "$(extract clash_api)"
 
 CP_DIR="/tmp/netshift-cachepersist-state-$$"
@@ -12965,7 +12966,15 @@ config_get() {
     [ -n "$__v" ] || __v="$4"
     eval "$1=\$__v"
 }
-config_get_bool() { eval "$1=\"\${4:-0}\""; }
+# dont_touch_dhcp is driven by CFG_DONT_TOUCH_DHCP; every other bool takes its default.
+config_get_bool() {
+    case "$3" in
+    dont_touch_dhcp) eval "$1=\"\${CFG_DONT_TOUCH_DHCP:-0}\"" ;;
+    *) eval "$1=\"\${4:-0}\"" ;;
+    esac
+}
+# netshift_configured sentinel: driven by CFG_NS_CONFIGURED (1 = NetShift configured dnsmasq).
+dnsmasq_is_configured_for_netshift() { [ "${CFG_NS_CONFIGURED:-0}" = "1" ]; }
 get_service_listen_address() { printf '%s' "127.0.0.1"; }
 config_load() { :; }
 network_get_ipaddr() { eval "$1=\$CFG_LAN_IP"; }
@@ -13164,6 +13173,66 @@ dnsmasq_restore() { :; }
 sing_box_process_exists() { return 1; }
 monitor_sing_box
 check cp-monitor-heals-restored-cache '[ ! -e "$NETSHIFT_CACHE_BACKUP" ] && [ ! -e "$LIVE" ]'
+
+# H5: dont_touch_dhcp. The user owns /etc/config/dhcp then, so a crash must
+#     neither restore nor re-configure dnsmasq (the restore used to wipe their
+#     DNS forwardings: issue #40); without the flag both still happen. The run
+#     is crash -> recovery restart -> crash again -> give up.
+for DTD in 0 1; do
+    reset_state
+    CFG_SHUTDOWN="0"
+    CFG_DONT_TOUCH_DHCP="$DTD"
+    RESTORED=0
+    CONFIGURED=0
+    dnsmasq_restore() { RESTORED=$((RESTORED + 1)); }
+    dnsmasq_configure() { CONFIGURED=$((CONFIGURED + 1)); }
+    stop_main() { :; }
+    start_main() { return 0; }
+    MONITOR_PIDFILE="$CP_DIR/monitor-dhcp$DTD.pid"
+    MONITOR_MAX_CRASHES=2
+    MONITOR_BACKOFF_BASE=1
+    MONITOR_BACKOFF_MAX=1
+    : > "$LOG"
+    sing_box_process_exists() { return 1; }
+    monitor_sing_box
+    if [ "$DTD" = "1" ]; then
+        check cp-monitor-dont-touch-skips-restore '[ "$RESTORED" = "0" ]'
+        check cp-monitor-dont-touch-skips-reconfigure '[ "$CONFIGURED" = "0" ]'
+        check cp-monitor-dont-touch-log-honest '! grep -q "restoring DNS\|Restoring DNS" "$LOG"'
+    else
+        check cp-monitor-restores-without-dont-touch '[ "$RESTORED" = "2" ]'
+        check cp-monitor-reconfigures-without-dont-touch '[ "$CONFIGURED" = "1" ]'
+        check cp-monitor-restore-is-logged 'grep -q "Restoring DNS" "$LOG"'
+    fi
+done
+CFG_DONT_TOUCH_DHCP=""
+
+# H6: ownership beats the flag. dont_touch_dhcp=1 switched on AFTER NetShift had
+#     configured dnsmasq must still get that undone on a crash/stop (the sentinel
+#     says the values are ours); with the flag on and the sentinel clear nothing
+#     is touched (the original #40 case).
+for CASE in "1 1 yes" "1 0 no" "0 0 yes" "0 1 yes"; do
+    set -- $CASE
+    CFG_DONT_TOUCH_DHCP="$1"
+    CFG_NS_CONFIGURED="$2"
+    WANT="$3"
+    if dnsmasq_should_be_restored; then GOT=yes; else GOT=no; fi
+    check "cp-restore-decision-flag$1-configured$2" '[ "$GOT" = "$WANT" ]'
+done
+reset_state
+CFG_SHUTDOWN="0"
+CFG_DONT_TOUCH_DHCP="1"
+CFG_NS_CONFIGURED="1"
+RESTORED=0
+dnsmasq_restore() { RESTORED=$((RESTORED + 1)); }
+MONITOR_PIDFILE="$CP_DIR/monitor-owned.pid"
+MONITOR_MAX_CRASHES=1
+sing_box_process_exists() { return 1; }
+monitor_sing_box
+check cp-monitor-restores-owned-dnsmasq-despite-flag '[ "$RESTORED" = "1" ]'
+check cp-stop-uses-restore-decision 'extract stop | grep -qE "^[[:space:]]*if dnsmasq_should_be_restored"'
+CFG_DONT_TOUCH_DHCP=""
+CFG_NS_CONFIGURED=""
 
 # ── clash_api 204 branch snapshots the cache (the LuCI pick) ───────────
 # A grep of the source cannot tell a real call from a commented-out one, so
