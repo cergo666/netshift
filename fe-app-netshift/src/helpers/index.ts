@@ -13,3 +13,4 @@ export * from './svgEl';
 export * from './insertIf';
 export * from './deviceRouting';
 export * from './withCountryFlag';
+export * from './dashboardView';

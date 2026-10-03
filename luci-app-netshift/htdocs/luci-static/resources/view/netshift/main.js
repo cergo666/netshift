@@ -1805,6 +1805,31 @@ var TabService = class _TabService {
 };
 var TabServiceInstance = TabService.getInstance();
 
+// src/helpers/dashboardView.ts
+var STORAGE_KEY = "netshift_dashboard_view";
+var DEFAULT_DASHBOARD_VIEW = {
+  viewMode: "list",
+  sortByPing: false
+};
+function loadDashboardViewPrefs() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      viewMode: parsed?.viewMode === "tiles" ? "tiles" : "list",
+      sortByPing: parsed?.sortByPing === true
+    };
+  } catch {
+    return { ...DEFAULT_DASHBOARD_VIEW };
+  }
+}
+function saveDashboardViewPrefs(prefs) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+  } catch {
+  }
+}
+
 // src/netshift/tabs/diagnostic/helpers/getCheckTitle.ts
 function getCheckTitle(name) {
   return `${name} ${_("checks")}`;
@@ -2112,6 +2137,7 @@ var initialStore = {
     failed: false,
     latencyTestingSections: [],
     latencyPendingOutbounds: [],
+    ...loadDashboardViewPrefs(),
     data: []
   },
   ...initialDiagnosticStore,
@@ -3139,6 +3165,22 @@ ${styles}
 ${styles2}
 `;
 
+// src/netshift/tabs/dashboard/sortOutbounds.ts
+var GROUP_TYPES = ["urltest", "selector"];
+function sortOutboundsByLatency(outbounds) {
+  const isGroup2 = (item) => GROUP_TYPES.includes(item.type.toLowerCase());
+  const groups = outbounds.filter(isGroup2);
+  const servers = outbounds.filter((item) => !isGroup2(item)).map((item, index) => ({ item, index })).sort((a, b) => {
+    const left = a.item.latency > 0 ? a.item.latency : Infinity;
+    const right = b.item.latency > 0 ? b.item.latency : Infinity;
+    if (left === right) {
+      return a.index - b.index;
+    }
+    return left < right ? -1 : 1;
+  }).map(({ item }) => item);
+  return [...groups, ...servers];
+}
+
 // src/netshift/tabs/dashboard/partials/renderSections.ts
 function renderFailedState() {
   return E(
@@ -3169,7 +3211,11 @@ function renderDefaultState({
   onChooseOutbound,
   onTestLatency,
   latencyFetching,
-  pendingOutbounds
+  pendingOutbounds,
+  viewMode,
+  sortByPing,
+  onToggleViewMode,
+  onToggleSortByPing
 }) {
   function renderOutbound(outbound) {
     function getLatencyClass() {
@@ -3207,6 +3253,59 @@ function renderDefaultState({
       ]
     );
   }
+  function renderRow(outbound) {
+    const latencyClass = !outbound.latency ? "empty" : outbound.latency < 800 ? "green" : outbound.latency < 1500 ? "yellow" : "red";
+    return E(
+      "div",
+      {
+        class: `pdk_dashboard-page__outbound-row ${outbound.selected ? "pdk_dashboard-page__outbound-row--active" : ""} ${section.withTagSelect ? "pdk_dashboard-page__outbound-row--selectable" : ""}`,
+        click: () => section.withTagSelect && onChooseOutbound(section.code, outbound.code)
+      },
+      [
+        E(
+          "b",
+          { class: "pdk_dashboard-page__outbound-row__name" },
+          outbound.displayName
+        ),
+        E(
+          "span",
+          { class: "pdk_dashboard-page__outbound-row__type" },
+          outbound.type
+        ),
+        pendingOutbounds.includes(outbound.code) ? renderSkeleton("width: 44px; height: 16px; margin-left: auto") : E(
+          "span",
+          {
+            class: `pdk_dashboard-page__outbound-row__latency pdk_dashboard-page__outbound-grid__item__latency--${latencyClass}`
+          },
+          outbound.latency ? `${outbound.latency}ms` : "N/A"
+        ),
+        outbound.selected ? E(
+          "span",
+          { class: "pdk_dashboard-page__outbound-row__badge" },
+          _("Active")
+        ) : E("span", {
+          class: "pdk_dashboard-page__outbound-row__badge-space"
+        })
+      ]
+    );
+  }
+  function renderOutbounds(outbounds, key) {
+    const items = sortByPing ? sortOutboundsByLatency(outbounds) : outbounds;
+    if (viewMode === "tiles") {
+      return E(
+        "div",
+        { class: "pdk_dashboard-page__outbound-grid" },
+        items.map((outbound) => renderOutbound(outbound))
+      );
+    }
+    const list = E(
+      "div",
+      { class: "pdk_dashboard-page__outbound-list" },
+      items.map((outbound) => renderRow(outbound))
+    );
+    list.dataset.listKey = key;
+    return list;
+  }
   return E("div", { class: "card pdk_dashboard-page__outbound-section" }, [
     // Title with test latency
     E("div", { class: "pdk_dashboard-page__outbound-section__title-section" }, [
@@ -3217,17 +3316,24 @@ function renderDefaultState({
         },
         section.displayName
       ),
-      latencyFetching ? renderSkeleton("width: 99px; height: 28px") : renderButton({
-        text: _("Test latency"),
-        onClick: () => onTestLatency(),
-        classNames: ["dashboard-sections-grid-item-test-latency"]
-      })
+      E("div", { class: "pdk_dashboard-page__outbound-section__controls" }, [
+        renderButton({
+          text: viewMode === "list" ? _("Tiles") : _("List"),
+          onClick: () => onToggleViewMode()
+        }),
+        renderButton({
+          text: _("Sort by ping"),
+          onClick: () => onToggleSortByPing(),
+          classNames: sortByPing ? ["pdk_dashboard-page__control--on"] : []
+        }),
+        latencyFetching ? renderSkeleton("width: 99px; height: 28px") : renderButton({
+          text: _("Test latency"),
+          onClick: () => onTestLatency(),
+          classNames: ["dashboard-sections-grid-item-test-latency"]
+        })
+      ])
     ]),
-    E(
-      "div",
-      { class: "pdk_dashboard-page__outbound-grid" },
-      section.outbounds.map((outbound) => renderOutbound(outbound))
-    ),
+    renderOutbounds(section.outbounds, section.code),
     ...(section.subgroups ?? []).map(
       (subgroup) => E("div", { class: "pdk_dashboard-page__outbound-subgroup" }, [
         E(
@@ -3235,11 +3341,7 @@ function renderDefaultState({
           { class: "pdk_dashboard-page__outbound-subgroup__title" },
           subgroup.displayName
         ),
-        E(
-          "div",
-          { class: "pdk_dashboard-page__outbound-grid" },
-          subgroup.outbounds.map((outbound) => renderOutbound(outbound))
-        )
+        renderOutbounds(subgroup.outbounds, `${section.code}:${subgroup.code}`)
       ])
     )
   ]);
@@ -3366,7 +3468,13 @@ function render() {
           onChooseOutbound: () => {
           },
           latencyFetching: false,
-          pendingOutbounds: []
+          pendingOutbounds: [],
+          viewMode: "list",
+          sortByPing: false,
+          onToggleViewMode: () => {
+          },
+          onToggleSortByPing: () => {
+          }
         })
       )
     ]
@@ -3415,9 +3523,9 @@ async function fetchServicesInfo() {
 }
 
 // src/netshift/tabs/dashboard/latency.ts
-var GROUP_TYPES = ["urltest", "selector"];
+var GROUP_TYPES2 = ["urltest", "selector"];
 function isGroup(outbound) {
-  return GROUP_TYPES.includes(outbound.type.toLowerCase());
+  return GROUP_TYPES2.includes(outbound.type.toLowerCase());
 }
 function getAllOutbounds(section) {
   return [
@@ -3573,6 +3681,18 @@ async function handleChooseOutbound(selector, tag) {
   await NetShiftShellMethods.setClashApiGroupProxy(selector, tag);
   await fetchDashboardSections();
 }
+function handleToggleViewMode() {
+  const widget = store.get().sectionsWidget;
+  const viewMode = widget.viewMode === "list" ? "tiles" : "list";
+  saveDashboardViewPrefs({ viewMode, sortByPing: widget.sortByPing });
+  store.set({ sectionsWidget: { ...widget, viewMode } });
+}
+function handleToggleSortByPing() {
+  const widget = store.get().sectionsWidget;
+  const sortByPing = !widget.sortByPing;
+  saveDashboardViewPrefs({ viewMode: widget.viewMode, sortByPing });
+  store.set({ sectionsWidget: { ...widget, sortByPing } });
+}
 function updateSectionsWidget(update) {
   const widget = store.get().sectionsWidget;
   store.set({ sectionsWidget: { ...widget, ...update(widget) } });
@@ -3628,7 +3748,13 @@ async function renderSectionsWidget() {
       onChooseOutbound: () => {
       },
       latencyFetching: false,
-      pendingOutbounds: []
+      pendingOutbounds: [],
+      viewMode: sectionsWidget.viewMode,
+      sortByPing: sectionsWidget.sortByPing,
+      onToggleViewMode: () => {
+      },
+      onToggleSortByPing: () => {
+      }
     });
     return preserveScrollForPage(() => {
       container.replaceChildren(renderedWidget);
@@ -3646,11 +3772,22 @@ async function renderSectionsWidget() {
       onTestLatency: () => handleTestSectionLatency(section),
       onChooseOutbound: (selector, tag) => {
         handleChooseOutbound(selector, tag);
-      }
+      },
+      viewMode: sectionsWidget.viewMode,
+      sortByPing: sectionsWidget.sortByPing,
+      onToggleViewMode: handleToggleViewMode,
+      onToggleSortByPing: handleToggleSortByPing
     })
+  );
+  const listScroll = /* @__PURE__ */ new Map();
+  container.querySelectorAll("[data-list-key]").forEach(
+    (list) => listScroll.set(list.dataset.listKey ?? "", list.scrollTop)
   );
   return preserveScrollForPage(() => {
     container.replaceChildren(...renderedWidgets);
+    container.querySelectorAll("[data-list-key]").forEach((list) => {
+      list.scrollTop = listScroll.get(list.dataset.listKey ?? "") ?? 0;
+    });
   });
 }
 async function renderBandwidthWidget() {
@@ -3911,6 +4048,85 @@ var styles3 = `
     display: grid;
     grid-template-columns: repeat(var(--dashboard-grid-columns), 1fr);
     grid-gap: 10px;
+}
+
+.pdk_dashboard-page__outbound-section__controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pdk_dashboard-page__control--on {
+    border-color: var(--primary-color-high, dodgerblue);
+    color: var(--primary-color-high, dodgerblue);
+}
+
+.pdk_dashboard-page__outbound-list {
+    margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 520px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.pdk_dashboard-page__outbound-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: var(--ns-card-border-width) solid var(--ns-card-border);
+    border-radius: 8px;
+    transition: border 0.2s ease;
+}
+
+.pdk_dashboard-page__outbound-row--selectable {
+    cursor: pointer;
+}
+
+.pdk_dashboard-page__outbound-row--selectable:hover {
+    border-color: var(--primary-color-high, dodgerblue);
+}
+
+.pdk_dashboard-page__outbound-row--active {
+    border-color: var(--success-color-medium, green);
+}
+
+.pdk_dashboard-page__outbound-row__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdk_dashboard-page__outbound-row__type {
+    flex: none;
+    font-size: 0.85em;
+    padding: 1px 8px;
+    border-radius: 6px;
+    opacity: 0.75;
+    border: var(--ns-card-border-width) solid var(--ns-card-border);
+}
+
+.pdk_dashboard-page__outbound-row__latency {
+    margin-left: auto;
+    flex: none;
+}
+
+.pdk_dashboard-page__outbound-row__badge,
+.pdk_dashboard-page__outbound-row__badge-space {
+    flex: none;
+    width: 76px;
+    text-align: center;
+}
+
+.pdk_dashboard-page__outbound-row__badge {
+    font-size: 0.85em;
+    padding: 2px 0;
+    border-radius: 6px;
+    color: var(--success-color-medium, green);
+    border: var(--ns-card-border-width) solid var(--success-color-medium, green);
 }
 
 .pdk_dashboard-page__outbound-subgroup {
@@ -6578,6 +6794,7 @@ return baseclass.extend({
   COMMAND_SCHEDULING,
   COMMAND_TIMEOUT,
   CustomNetShiftMethods,
+  DEFAULT_DASHBOARD_VIEW,
   DEVICE_ROUTE_DEFAULT,
   DEVICE_ROUTE_EXCLUDED,
   DIAGNOSTICS_INITIAL_DELAY,
@@ -6614,12 +6831,14 @@ return baseclass.extend({
   insertIf,
   insertIfObj,
   listedDeviceIps,
+  loadDashboardViewPrefs,
   logger,
   maskIP,
   onMount,
   parseQueryString,
   parseValueList,
   preserveScrollForPage,
+  saveDashboardViewPrefs,
   setDeviceRoute,
   socket,
   splitProxyString,

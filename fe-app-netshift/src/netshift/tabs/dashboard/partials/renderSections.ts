@@ -1,6 +1,8 @@
 import { renderButton } from '../../../../partials';
 import { NetShift } from '../../../types';
 import { SKELETON_SHIMMER_DURATION } from '../../../../constants';
+import type { DashboardViewMode } from '../../../../helpers/dashboardView';
+import { sortOutboundsByLatency } from '../sortOutbounds';
 
 interface IRenderSectionsProps {
   loading: boolean;
@@ -11,6 +13,10 @@ interface IRenderSectionsProps {
   latencyFetching: boolean;
   // Outbound codes whose latency is being measured right now.
   pendingOutbounds: string[];
+  viewMode: DashboardViewMode;
+  sortByPing: boolean;
+  onToggleViewMode: () => void;
+  onToggleSortByPing: () => void;
 }
 
 function renderFailedState() {
@@ -50,6 +56,10 @@ export function renderDefaultState({
   onTestLatency,
   latencyFetching,
   pendingOutbounds,
+  viewMode,
+  sortByPing,
+  onToggleViewMode,
+  onToggleSortByPing,
 }: IRenderSectionsProps) {
   function renderOutbound(outbound: NetShift.Outbound) {
     function getLatencyClass() {
@@ -96,6 +106,77 @@ export function renderDefaultState({
     );
   }
 
+  function renderRow(outbound: NetShift.Outbound) {
+    const latencyClass = !outbound.latency
+      ? 'empty'
+      : outbound.latency < 800
+        ? 'green'
+        : outbound.latency < 1500
+          ? 'yellow'
+          : 'red';
+
+    return E(
+      'div',
+      {
+        class: `pdk_dashboard-page__outbound-row ${outbound.selected ? 'pdk_dashboard-page__outbound-row--active' : ''} ${section.withTagSelect ? 'pdk_dashboard-page__outbound-row--selectable' : ''}`,
+        click: () =>
+          section.withTagSelect &&
+          onChooseOutbound(section.code, outbound.code),
+      },
+      [
+        E(
+          'b',
+          { class: 'pdk_dashboard-page__outbound-row__name' },
+          outbound.displayName,
+        ),
+        E(
+          'span',
+          { class: 'pdk_dashboard-page__outbound-row__type' },
+          outbound.type,
+        ),
+        pendingOutbounds.includes(outbound.code)
+          ? renderSkeleton('width: 44px; height: 16px; margin-left: auto')
+          : E(
+              'span',
+              {
+                class: `pdk_dashboard-page__outbound-row__latency pdk_dashboard-page__outbound-grid__item__latency--${latencyClass}`,
+              },
+              outbound.latency ? `${outbound.latency}ms` : 'N/A',
+            ),
+        outbound.selected
+          ? E(
+              'span',
+              { class: 'pdk_dashboard-page__outbound-row__badge' },
+              _('Active'),
+            )
+          : E('span', {
+              class: 'pdk_dashboard-page__outbound-row__badge-space',
+            }),
+      ],
+    );
+  }
+
+  function renderOutbounds(outbounds: NetShift.Outbound[], key: string) {
+    const items = sortByPing ? sortOutboundsByLatency(outbounds) : outbounds;
+
+    if (viewMode === 'tiles') {
+      return E(
+        'div',
+        { class: 'pdk_dashboard-page__outbound-grid' },
+        items.map((outbound) => renderOutbound(outbound)),
+      );
+    }
+
+    const list = E(
+      'div',
+      { class: 'pdk_dashboard-page__outbound-list' },
+      items.map((outbound) => renderRow(outbound)),
+    );
+    list.dataset.listKey = key;
+
+    return list;
+  }
+
   return E('div', { class: 'card pdk_dashboard-page__outbound-section' }, [
     // Title with test latency
     E('div', { class: 'pdk_dashboard-page__outbound-section__title-section' }, [
@@ -106,19 +187,26 @@ export function renderDefaultState({
         },
         section.displayName,
       ),
-      latencyFetching
-        ? renderSkeleton('width: 99px; height: 28px')
-        : renderButton({
-            text: _('Test latency'),
-            onClick: () => onTestLatency(),
-            classNames: ['dashboard-sections-grid-item-test-latency'],
-          }),
+      E('div', { class: 'pdk_dashboard-page__outbound-section__controls' }, [
+        renderButton({
+          text: viewMode === 'list' ? _('Tiles') : _('List'),
+          onClick: () => onToggleViewMode(),
+        }),
+        renderButton({
+          text: _('Sort by ping'),
+          onClick: () => onToggleSortByPing(),
+          classNames: sortByPing ? ['pdk_dashboard-page__control--on'] : [],
+        }),
+        latencyFetching
+          ? renderSkeleton('width: 99px; height: 28px')
+          : renderButton({
+              text: _('Test latency'),
+              onClick: () => onTestLatency(),
+              classNames: ['dashboard-sections-grid-item-test-latency'],
+            }),
+      ]),
     ]),
-    E(
-      'div',
-      { class: 'pdk_dashboard-page__outbound-grid' },
-      section.outbounds.map((outbound) => renderOutbound(outbound)),
-    ),
+    renderOutbounds(section.outbounds, section.code),
     ...(section.subgroups ?? []).map((subgroup) =>
       E('div', { class: 'pdk_dashboard-page__outbound-subgroup' }, [
         E(
@@ -126,11 +214,7 @@ export function renderDefaultState({
           { class: 'pdk_dashboard-page__outbound-subgroup__title' },
           subgroup.displayName,
         ),
-        E(
-          'div',
-          { class: 'pdk_dashboard-page__outbound-grid' },
-          subgroup.outbounds.map((outbound) => renderOutbound(outbound)),
-        ),
+        renderOutbounds(subgroup.outbounds, `${section.code}:${subgroup.code}`),
       ]),
     ),
   ]);
