@@ -18397,6 +18397,18 @@ curl() {
     plain) [ "$route" != plain ] || return 7 ;;
     direct) case "$route" in plain | ip:*) return 7 ;; esac ;;
     nocfg) case "$method" in PATCH) printf '{"result":{}}\n200\n'; return 0 ;; esac ;;
+    flat)
+        # a relay that answers without the "result" wrapper and without a token
+        printf '{"id":"dev-1","config":{"peers":[{"public_key":"FLATPEER="}],"interface":{"addresses":{"v4":"172.16.0.9","v6":"2606:4700::9"}}}}\n200\n'
+        return 0
+        ;;
+    flattoken)
+        case "$method" in
+        POST) printf '{"id":"dev-1","token":"tok-1","config":{"peers":[{"public_key":"FLATPEER="}],"interface":{"addresses":{"v4":"172.16.0.9"}}}}\n200\n' ;;
+        PATCH) printf '{"errors":[{"code":1}]}\n404\n' ;;
+        esac
+        return 0
+        ;;
     esac
     case "$method" in
     POST) printf '{"result":{"id":"dev-1","token":"tok-1"}}\n200\n' ;;
@@ -18499,6 +18511,20 @@ WARP_FAIL_MODE=""
 echo "via-relay:$(warp_generate engage.cloudflareclient.com:4500 warp '' https://relay.example/api | jq -r '.ok') calls=$(grep -v '^doh' "$CALLS" | tr '\n' ',')"
 echo "relay-bad:$(warp_generate '' '' '' 'ftp://x' | jq -r '.ok')"
 
+# an answer without the wrapper and without a token (a relay) carries the configuration
+reset
+WARP_FAIL_MODE=flat
+out="$(warp_generate)"
+echo "flat-ok:$(printf '%s' "$out" | jq -r '[.ok, .addresses[0]] | @csv')"
+echo "flat-peer:$(uget network.amneziawg_warp.public_key)"
+echo "flat-calls:$(grep -v '^doh' "$CALLS" | tr '\n' ',')"
+
+# the activation fails but the registration already gave the configuration
+reset
+WARP_FAIL_MODE=flattoken
+echo "flattoken:$(warp_generate | jq -r '.ok') peer=$(uget network.amneziawg_warp.public_key) addresses=[$(uget network.warp.addresses)]"
+WARP_FAIL_MODE=""
+
 # nothing works: an error that says what was tried, and nothing is written
 reset
 WARP_FAIL_MODE=all
@@ -18557,12 +18583,16 @@ WPEOF
     _wp "an existing NetShift section is kept" "section-kept:proxy"
     _wp "when the router's own way fails the API address found over HTTPS is used" "via-pinned-ip:true calls=POST reg plain,POST reg ip:104.16.192.82,PATCH dev-1 ip:104.16.192.82,ifup warp,"
     _wp "only the first addresses of the answer are used, and only real addresses" "doh-asked:2"
-    _wp "when pinning fails too the NetShift proxy is used" "via-proxy:true calls=POST reg plain,POST reg ip:104.16.192.82,POST reg ip:104.16.24.84,POST reg proxy:127.0.0.1:4534,PATCH dev-1 proxy:127.0.0.1:4534,ifup warp,"
+    _wp "when pinning fails too the NetShift proxy is used" "via-proxy:true calls=POST reg plain,POST reg ip:104.16.192.82,POST reg ip:104.16.24.84,POST reg ip:162.159.137.105,POST reg ip:162.159.138.105,POST reg proxy:127.0.0.1:4534,PATCH dev-1 proxy:127.0.0.1:4534,ifup warp,"
     _wp "without an HTTPS resolver the proxy is still tried" "no-doh-via-proxy:true"
     _wp "a relay is used first, for registration and activation" "via-relay:true calls=POST reg relay:https://relay.example,PATCH dev-1 relay:https://relay.example,ifup warp,"
     _wp "a relay that is not http(s) is refused" "relay-bad:false"
+    _wp "an answer without wrapper and token carries the configuration (relays)" 'flat-ok:true,"172.16.0.9"'
+    _wp "the peer is taken from it" "flat-peer:FLATPEER="
+    _wp "no activation is asked for without a token" "flat-calls:POST reg plain,ifup warp,"
+    _wp "a failing activation does not lose the configuration of the registration" "flattoken:true peer=FLATPEER= addresses=[172.16.0.9/32]"
     _wp "an unreachable API is an error" 'unreachable:false,"Cloudflare did not answer the registration"'
-    _wp "the error lists every way that was tried with the curl result" 'unreachable-attempts:[["plain",7],["ip:104.16.192.82",7],["ip:104.16.24.84",7],["proxy:127.0.0.1:4534",7]]'
+    _wp "the error lists every way that was tried with the curl result" 'unreachable-attempts:[["plain",7],["ip:104.16.192.82",7],["ip:104.16.24.84",7],["ip:162.159.137.105",7],["ip:162.159.138.105",7],["proxy:127.0.0.1:4534",7]]'
     _wp "the temporary trace file is removed" "trace-file-removed:0"
     _wp "an unreachable API writes nothing" "unreachable-nothing-written:[][]"
     _wp "an answer without a configuration is an error" "no-config:false"

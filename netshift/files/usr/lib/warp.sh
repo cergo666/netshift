@@ -10,8 +10,10 @@
 
 WARP_API="https://api.cloudflareclient.com/v0i1909051800"
 WARP_API_HOST="api.cloudflareclient.com"
-WARP_API_TIMEOUT=10
-WARP_CONNECT_TIMEOUT=6
+WARP_API_TIMEOUT=8
+WARP_CONNECT_TIMEOUT=5
+# Addresses the API has been served from (any address of the network serves the name)
+WARP_API_FALLBACK_IPS="162.159.137.105 162.159.138.105"
 WARP_ENDPOINTS="engage.cloudflareclient.com:4500 engage.cloudflareclient.com:2408 engage.cloudflareclient.com:500"
 WARP_INTERFACE_DEFAULT="warp"
 # Address ranges of the WARP endpoints; "auto" picks a fast one of them (like the
@@ -151,13 +153,20 @@ warp_valid_interface_name() {
     [ "${#1}" -le 15 ]
 }
 
+# Reads a field of an API answer, with or without the {"result": ...} wrapper some
+# versions of the API (and the relays of them) use. $1 JSON, $2 jq expression.
+warp_field() {
+    printf '%s' "$1" | jq -r "(.result // .) | ($2) // empty" 2> /dev/null
+}
+
 # Registers a device. Prints, one per line: private key, peer public key, IPv4
 # address, IPv6 address. The ways to reach the API are tried in turn: through the
-# relay (when given), the router's own way, the API address found over HTTPS, the
-# NetShift service proxy. $1 - relay URL (optional).
+# relay (when given), the router's own way, the API address found over HTTPS and
+# the ones it has been served from, the NetShift service proxy. $1 - relay URL
+# (optional).
 warp_register() {
     local relay="$1"
-    local keys private public body reg id token cfg peer v4 v6 route routes address
+    local keys private public body reg id token cfg peer v4 v6 route routes address answered
 
     keys="$(warp_keypair)" || return 1
     private="$(printf '%s\n' "$keys" | sed -n '1p')"
@@ -168,31 +177,51 @@ warp_register() {
     routes=""
     [ -z "$relay" ] || routes="relay:$relay"
     routes="$routes plain"
-    for address in $(warp_resolve_api); do
-        routes="$routes ip:$address"
+    for address in $(warp_resolve_api) $WARP_API_FALLBACK_IPS; do
+        case " $routes " in
+        *" ip:$address "*) ;;
+        *) routes="$routes ip:$address" ;;
+        esac
     done
     if command -v get_service_proxy_address > /dev/null 2>&1; then
         address="$(get_service_proxy_address 2> /dev/null)"
         [ -z "$address" ] || routes="$routes proxy:$address"
     fi
 
-    id=""
-    token=""
+    peer=""
+    v4=""
+    v6=""
+    answered=""
     for route in $routes; do
         reg="$(warp_api_call POST reg "" "$body" "$route")"
-        id="$(printf '%s' "$reg" | jq -r '.result.id // empty' 2> /dev/null)"
-        token="$(printf '%s' "$reg" | jq -r '.result.token // empty' 2> /dev/null)"
-        [ -z "$id" ] || [ -z "$token" ] || break
-        id=""
-        token=""
-    done
-    [ -n "$id" ] && [ -n "$token" ] || return 2
+        cfg="$reg"
+        id="$(warp_field "$reg" '.id')"
+        token="$(warp_field "$reg" '.token')"
+        [ -z "$id$token" ] || answered="yes"
 
-    cfg="$(warp_api_call PATCH "reg/$id" "$token" '{"warp_enabled":true}' "$route")"
-    peer="$(printf '%s' "$cfg" | jq -r '.result.config.peers[0].public_key // empty' 2> /dev/null)"
-    v4="$(printf '%s' "$cfg" | jq -r '.result.config.interface.addresses.v4 // empty' 2> /dev/null)"
-    v6="$(printf '%s' "$cfg" | jq -r '.result.config.interface.addresses.v6 // empty' 2> /dev/null)"
-    [ -n "$peer" ] && [ -n "$v4" ] || return 3
+        # the answer to the registration may carry the configuration already (and a relay
+        # may not pass the token); otherwise ask for it
+        peer="$(warp_field "$cfg" '.config.peers[0].public_key')"
+        v4="$(warp_field "$cfg" '.config.interface.addresses.v4')"
+        if [ -n "$id" ] && [ -n "$token" ]; then
+            cfg="$(warp_api_call PATCH "reg/$id" "$token" '{"warp_enabled":true}' "$route")"
+            if [ -n "$(warp_field "$cfg" '.config.peers[0].public_key')" ]; then
+                peer="$(warp_field "$cfg" '.config.peers[0].public_key')"
+                v4="$(warp_field "$cfg" '.config.interface.addresses.v4')"
+            else
+                cfg="$reg"
+            fi
+        fi
+        [ -z "$peer" ] || [ -z "$v4" ] || break
+        peer=""
+        v4=""
+    done
+    if [ -z "$peer" ] || [ -z "$v4" ]; then
+        # an answer was there but without a configuration: another error than silence
+        [ -z "$answered" ] || return 3
+        return 2
+    fi
+    v6="$(warp_field "$cfg" '.config.interface.addresses.v6')"
 
     printf '%s\n%s\n%s\n%s\n' "$private" "$peer" "$v4" "$v6"
 }
@@ -293,7 +322,7 @@ warp_generate() {
     local name="${2:-}"
     local proto="${3:-}"
     local relay="${4:-}"
-    local profile private peer v4 v6 rc host port trace
+    local profile private peer v4 v6 rc host port trace hint
 
     [ -n "$endpoint" ] || endpoint="${WARP_ENDPOINTS%% *}"
     [ -n "$name" ] || name="$WARP_INTERFACE_DEFAULT"
@@ -357,7 +386,11 @@ warp_generate() {
         return 1
         ;;
     2)
-        warp_error "Cloudflare did not answer the registration" "api.cloudflareclient.com seems to be blocked here: use a relay (your own reverse proxy of the API) or try another network" "$trace"
+        hint="api.cloudflareclient.com seems to be blocked here: use a relay (your own reverse proxy of the API) or try another network"
+        if ! command -v get_service_proxy_address > /dev/null 2>&1 || [ -z "$(get_service_proxy_address 2> /dev/null)" ]; then
+            hint="$hint; or turn on 'Download lists via Proxy/VPN' in the settings, then the router also tries the API through that section"
+        fi
+        warp_error "Cloudflare did not answer the registration" "$hint" "$trace"
         rm -f "$trace"
         return 1
         ;;
