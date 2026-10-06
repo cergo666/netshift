@@ -98,6 +98,9 @@ msgstr "Необходимо указать хотя бы одну действ�
 msgid "Auto"
 msgstr "Авто"
 
+msgid "Auto (the fastest address)"
+msgstr "Авто (самый быстрый адрес)"
+
 msgid "Automatic (first working)"
 msgstr "Автоматически (первый рабочий)"
 

@@ -14,6 +14,16 @@ WARP_API_TIMEOUT=10
 WARP_CONNECT_TIMEOUT=6
 WARP_ENDPOINTS="engage.cloudflareclient.com:4500 engage.cloudflareclient.com:2408 engage.cloudflareclient.com:500"
 WARP_INTERFACE_DEFAULT="warp"
+# Address ranges of the WARP endpoints; "auto" picks a fast one of them (like the
+# endpoint scouting of the apps that make WARP profiles): an address that answers
+# the plain-HTTP trace page, in a data centre other than the Moscow one (DME), whose
+# answer comes first.
+WARP_ENDPOINT_PREFIXES="188.114.96. 188.114.97. 188.114.98. 188.114.99. 162.159.192. 162.159.193. 162.159.195. 8.34.146. 8.39.214. 8.39.204. 8.6.112. 8.35.211. 8.39.125. 8.47.69."
+WARP_PROBE_COUNT=40
+WARP_ENDPOINT_PORT=4500
+# The signature packet (a QUIC-like first packet) AmneziaWG 1.5 sends before the handshake
+WARP_AWG_I1='<b 0xce000000010897a297ecc34cd6dd000044d0ec2e2e1ea2991f467ace4222129b5a098823784694b4897b9986ae0b7280135fa85e196d9ad980b150122129ce2a9379531b0fd3e871ca5fdb883c369832f730e272d7b8b74f393f9f0fa43f11e510ecb2219a52984410c204cf875585340c62238e14ad04dff382f2c200e0ee22fe743b9c6b8b043121c5710ec289f471c91ee414fca8b8be8419ae8ce7ffc53837f6ade262891895f3f4cecd31bc93ac5599e18e4f01b472362b8056c3172b513051f8322d1062997ef4a383b01706598d08d48c221d30e74c7ce000cdad36b706b1bf9b0607c32ec4b3203a4ee21ab64df336212b9758280803fcab14933b0e7ee1e04a7becce3e2633f4852585c567894a5f9efe9706a151b615856647e8b7dba69ab357b3982f554549bef9256111b2d67afde0b496f16962d4957ff654232aa9e845b61463908309cfd9de0a6abf5f425f577d7e5f6440652aa8da5f73588e82e9470f3b21b27b28c649506ae1a7f5f15b876f56abc4615f49911549b9bb39dd804fde182bd2dcec0c33bad9b138ca07d4a4a1650a2c2686acea05727e2a78962a840ae428f55627516e73c83dd8893b02358e81b524b4d99fda6df52b3a8d7a5291326e7ac9d773c5b43b8444554ef5aea104a738ed650aa979674bbed38da58ac29d87c29d387d80b526065baeb073ce65f075ccb56e47533aef357dceaa8293a523c5f6f790be90e4731123d3c6152a70576e90b4ab5bc5ead01576c68ab633ff7d36dcde2a0b2c68897e1acfc4d6483aaaeb635dd63c96b2b6a7a2bfe042f6aed82e5363aa850aace12ee3b1a93f30d8ab9537df483152a5527faca21efc9981b304f11fc95336f5b9637b174c5a0659e2b22e159a9fed4b8e93047371175b1d6d9cc8ab745f3b2281537d1c75fb9451871864efa5d184c38c185fd203de206751b92620f7c369e031d2041e152040920ac2c5ab5340bfc9d0561176abf10a147287ea90758575ac6a9f5ac9f390d0d5b23ee12af583383d994e22c0cf42383834bcd3ada1b3825a0664d8f3fb678261d57601ddf94a8a68a7c273a18c08aa99c7ad8c6c42eab67718843597ec9930457359dfdfbce024afc2dcf9348579a57d8d3490b2fa99f278f1c37d87dad9b221acd575192ffae1784f8e60ec7cee4068b6b988f0433d96d6a1b1865f4e155e9fe020279f434f3bf1bd117b717b92f6cd1cc9bea7d45978bcc3f24bda631a36910110a6ec06da35f8966c9279d130347594f13e9e07514fa370754d1424c0a1545c5070ef9fb2acd14233e8a50bfc5978b5bdf8bc1714731f798d21e2004117c61f2989dd44f0cf027b27d4019e81ed4b5c31db347c4a3a4d85048d7093cf16753d7b0d15e078f5c7a5205dc2f87e330a1f716738dce1c6180e9d02869b5546f1c4d2748f8c90d9693cba4e0079297d22fd61402dea32ff0eb69ebd65a5d0b687d87e3a8b2c42b648aa723c7c7daf37abcc4bb85caea2ee8f55bec20e913b3324ab8f5c3304f820d42ad1b9f2ffc1a3af9927136b4419e1e579ab4c2ae3c776d293d397d575df181e6cae0a4ada5d67ecea171cca3288d57c7bbdaee3befe745fb7d634f70386d873b90c4d6c6596bb65af68f9e5121e67ebf0d89d3c909ceedfb32ce9575a7758ff080724e1ab5d5f43074ecb53a479af21ed03d7b6899c36631c0166f9d47e5e1d4528a5d3d3f744029c4b1c190cbfbad06f5f83f7ad0429fa9a2719c56ffe3783460e166de2d8>'
+
 # Resolvers asked over HTTPS by address when the router's own DNS cannot find the API
 WARP_DOH_URLS="https://1.1.1.1/dns-query https://8.8.8.8/resolve"
 
@@ -47,6 +57,35 @@ warp_api_call() {
     http="$(printf '%s\n' "$out" | sed -n '$p')"
     [ -z "$WARP_TRACE" ] || printf '%s %s %s\n' "$route" "$rc" "${http:-000}" >> "$WARP_TRACE"
     printf '%s\n' "$out" | sed '$d'
+}
+
+# Picks a WARP endpoint: probes random addresses of the ranges in parallel and prints
+# "<address>:<port>" of the fastest that answers from a data centre other than DME.
+# Fails when none answers.
+warp_pick_endpoint() {
+    local dir ip count=0 best
+
+    dir="$(mktemp -d "${TMPDIR:-/tmp}/netshift-warp-ep.XXXXXX")" || return 1
+    for ip in $(awk -v prefixes="$WARP_ENDPOINT_PREFIXES" -v n="$WARP_PROBE_COUNT" \
+        'BEGIN { srand(); m = split(prefixes, a, " "); for (i = 0; i < n; i++) print a[int(rand() * m) + 1] int(rand() * 256) }'); do
+        (
+            out="$(curl -s --connect-timeout 2 -m 4 -H 'Host: trace.cloudflare.com' -w '\n%{time_total}' "http://$ip/cdn-cgi/trace" 2> /dev/null)" || exit 0
+            colo="$(printf '%s\n' "$out" | sed -n 's/^colo=//p' | sed -n '1p')"
+            case "$colo" in
+            '' | DME) exit 0 ;;
+            esac
+            ms="$(printf '%s\n' "$out" | sed -n '$p' | awk '{printf "%d", $1 * 1000}')"
+            [ -n "$ms" ] && printf '%s %s\n' "$ms" "$ip" >> "$dir/pings"
+        ) &
+        count=$((count + 1))
+        [ $((count % 20)) -ne 0 ] || wait
+    done
+    wait
+
+    best="$(sort -n "$dir/pings" 2> /dev/null | sed -n '1p')"
+    rm -rf "$dir"
+    [ -n "$best" ] || return 1
+    printf '%s:%s\n' "${best#* }" "$WARP_ENDPOINT_PORT"
 }
 
 # The addresses of the API found over HTTPS, one per line (empty when no resolver
@@ -191,6 +230,10 @@ warp_write_interface() {
         uci set "network.$name.awg_h2=2"
         uci set "network.$name.awg_h3=3"
         uci set "network.$name.awg_h4=4"
+        # the signature packet only where the protocol handler knows the option
+        if grep -q awg_i1 /lib/netifd/proto/amneziawg.sh 2> /dev/null; then
+            uci set "network.$name.awg_i1=$WARP_AWG_I1"
+        fi
     fi
 
     uci set "network.$peer_section=$peer_section"
@@ -242,7 +285,7 @@ warp_error() {
         '{ok: false, error: $error, hint: (if $hint == "" then null else $hint end), attempts: $attempts}'
 }
 
-# warp_generate [endpoint] [interface] [proto] [relay-url]
+# warp_generate [endpoint|auto] [interface] [proto] [relay-url]
 # Registers a WARP device and sets up the interface and the section. Prints
 # {"ok":true,...} or {"ok":false,"error":...}.
 warp_generate() {
@@ -254,6 +297,11 @@ warp_generate() {
 
     [ -n "$endpoint" ] || endpoint="${WARP_ENDPOINTS%% *}"
     [ -n "$name" ] || name="$WARP_INTERFACE_DEFAULT"
+
+    # "auto": the fastest address of the ranges, else the usual name
+    if [ "$endpoint" = "auto" ]; then
+        endpoint="$(warp_pick_endpoint)" || endpoint="${WARP_ENDPOINTS%% *}"
+    fi
 
     warp_valid_endpoint "$endpoint" || {
         warp_error "invalid endpoint (expected host:port)" ""

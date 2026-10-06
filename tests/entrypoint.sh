@@ -18370,6 +18370,14 @@ curl() {
         shift
     done
     case "$url" in
+    http://*/cdn-cgi/trace)
+        [ "$WARP_TRACE_MODE" != "none" ] || return 7
+        local ip="${url#http://}"; ip="${ip%%/*}"
+        local last="${ip##*.}"
+        # odd last octet: the Moscow data centre; even: Amsterdam, faster the lower
+        if [ $((last % 2)) -eq 1 ]; then printf 'fl=1\ncolo=DME\n\n0.010\n'; else printf 'fl=1\ncolo=AMS\n\n0.0%02d\n' $((last % 100)); fi
+        return 0
+        ;;
     *dns-query* | *resolve\?*)
         echo "doh ${url%%\?*}" >> "$CALLS"
         [ "$WARP_DOH" = "off" ] && return 7
@@ -18417,6 +18425,7 @@ touch /lib/netifd/proto/amneziawg.sh /lib/netifd/proto/wireguard.sh
 reset
 out="$(warp_generate engage.cloudflareclient.com:2408)"
 echo "ok-json:$(printf '%s' "$out" | jq -c '[.ok, .interface, .proto, .endpoint, .addresses]')"
+echo "awg-i1-absent:[$(uget network.warp.awg_i1)]"
 echo "no-private-key-in-answer:$(printf '%s' "$out" | grep -c "$(uci -q get network.warp.private_key)")"
 echo "proto:$(uget network.warp.proto)"
 echo "addresses:$(uget network.warp.addresses)"
@@ -18435,6 +18444,30 @@ echo "exists:$(warp_generate | jq -r '.ok')"
 reset
 out="$(warp_generate engage.cloudflareclient.com:500 warp wireguard)"
 echo "wg-proto:$(uget network.warp.proto) peer-section:$(uget network.wireguard_warp.public_key) awg:[$(uget network.warp.awg_jc)]"
+
+# a protocol handler that knows awg_i1 gets the signature packet
+reset
+echo "awg_i1" > /lib/netifd/proto/amneziawg.sh
+warp_generate > /dev/null
+echo "awg-i1-set:$(uget network.warp.awg_i1 | cut -c1-8)"
+: > /lib/netifd/proto/amneziawg.sh
+
+# "auto": a probed address of the ranges, not from the Moscow centre, on port 4500
+reset
+WARP_TRACE_MODE=""
+out="$(warp_generate auto)"
+ep="$(printf '%s' "$out" | jq -r '.endpoint')"
+host="${ep%:*}"
+last="${host##*.}"
+case " $WARP_ENDPOINT_PREFIXES " in *" ${host%.*}. "*) known=yes ;; *) known=no ;; esac
+echo "auto-endpoint:$known/$([ $((last % 2)) -eq 0 ] && echo even || echo odd)/${ep##*:}"
+echo "auto-peer-host:$([ "$(uget network.amneziawg_warp.endpoint_host)" = "$host" ] && echo same || echo different)"
+
+# "auto" when nothing answers: the usual name
+reset
+WARP_TRACE_MODE=none
+echo "auto-fallback:$(warp_generate auto | jq -r '.endpoint')"
+WARP_TRACE_MODE=""
 
 # an existing NetShift section is not touched
 reset
@@ -18514,6 +18547,11 @@ WPEOF
     _wp "the private key is stored in the interface" "private-key-set:yes"
     _wp "a VPN section bound to the interface is created" "section:vpn/warp/0"
     _wp "registration, then activation, by the router's own way" "calls:POST reg plain,PATCH dev-1 plain,ifup warp,"
+    _wp "no signature packet when the protocol handler does not know it" "awg-i1-absent:[]"
+    _wp "the signature packet is set when it does" "awg-i1-set:<b 0xce0"
+    _wp "auto picks an address of the ranges, from a data centre that is not the Moscow one" "auto-endpoint:yes/even/4500"
+    _wp "the picked address goes into the peer" "auto-peer-host:same"
+    _wp "auto falls back to the usual name when nothing answers" "auto-fallback:engage.cloudflareclient.com:4500"
     _wp "an existing interface is not overwritten" "exists:false"
     _wp "plain WireGuard can be asked for: no AmneziaWG options" "wg-proto:wireguard peer-section:PEERPUBKEY= awg:[]"
     _wp "an existing NetShift section is kept" "section-kept:proxy"

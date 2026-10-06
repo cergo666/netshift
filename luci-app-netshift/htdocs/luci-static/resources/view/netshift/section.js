@@ -929,7 +929,12 @@ function createSectionContent(section) {
     const select = E(
       "select",
       { class: "cbi-input-select" },
-      main.WARP_ENDPOINTS.map((endpoint) => E("option", { value: endpoint }, endpoint)),
+      [
+        E("option", { value: "auto" }, _("Auto (the fastest address)")),
+        ...main.WARP_ENDPOINTS.map((endpoint) =>
+          E("option", { value: endpoint }, endpoint),
+        ),
+      ],
     );
     const relay = E("input", {
       class: "cbi-input-text",

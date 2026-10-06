@@ -72,11 +72,11 @@ msgstr ""
 msgid "Add one or more subscription URLs to fetch proxy configurations from. All feeds are downloaded and merged."
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1096
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1101
 msgid "Add your own domains: choose Dynamic List (one per row) or Text List (free-form), or Disabled to skip"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1186
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1191
 msgid "Add your own subnets or IPs: choose Dynamic List (one per row) or Text List (free-form), or Disabled to skip"
 msgstr ""
 
@@ -105,7 +105,7 @@ msgstr ""
 msgid "Applicable for SOCKS and Shadowsocks proxy"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1436
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1441
 msgid "Ask for a user name and a password. Without a login anyone in your network can use this proxy. If the login is not complete the proxy is not created at all."
 msgstr ""
 
@@ -113,16 +113,20 @@ msgstr ""
 msgid "At least one proxy link must be specified."
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1158
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1163
 msgid "At least one valid domain must be specified. Comments-only content is not allowed."
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1247
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1252
 msgid "At least one valid subnet or IP must be specified. Comments-only content is not allowed."
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:236
 msgid "Auto"
+msgstr ""
+
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:933
+msgid "Auto (the fastest address)"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:612
@@ -299,7 +303,7 @@ msgstr ""
 msgid "common.dot.dns.yandex.net (Yandex DoT)"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1002
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1007
 msgid "Community Lists"
 msgstr ""
 
@@ -365,16 +369,16 @@ msgstr ""
 msgid "Core switch timed out"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:962
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:980
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:967
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:985
 msgid "Could not create the WARP interface"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:985
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:990
 msgid "Create a WARP interface"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:974
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:979
 msgid "Created the interface %s (%s) and a VPN section with the same name. Reloading the page..."
 msgstr ""
 
@@ -382,11 +386,11 @@ msgstr ""
 msgid "Currently unavailable"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1095
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1100
 msgid "Custom domains"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1185
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1190
 msgid "Custom subnets"
 msgstr ""
 
@@ -477,7 +481,7 @@ msgstr ""
 msgid "Disable QUIC"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1393
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1398
 msgid "Disable section"
 msgstr ""
 
@@ -485,8 +489,8 @@ msgstr ""
 msgid "Disable the QUIC protocol to improve compatibility or fix issues with video streaming"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1100
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1190
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1105
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1195
 msgid "Disabled"
 msgstr ""
 
@@ -644,8 +648,8 @@ msgstr ""
 msgid "Dynamic"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1101
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1191
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1106
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1196
 msgid "Dynamic List"
 msgstr ""
 
@@ -665,7 +669,7 @@ msgstr ""
 msgid "Enable built-in DNS resolver for domains handled by this section"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1479
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1484
 msgid "Enable DNS resolve to get real IP when routing"
 msgstr ""
 
@@ -677,7 +681,7 @@ msgstr ""
 msgid "Enable IPv6 TProxy routing, IPv6 DNS inbound, and IPv6 FakeIP support."
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1405
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1410
 msgid "Enable Mixed Proxy"
 msgstr ""
 
@@ -685,7 +689,7 @@ msgstr ""
 msgid "Enable Output Network Interface"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1406
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1411
 msgid "Enable the mixed proxy, allowing this section to route traffic through both HTTP and SOCKS proxies"
 msgstr ""
 
@@ -701,11 +705,11 @@ msgstr ""
 msgid "Enter a domain or an IP address to see which section, DNS server or block handles it."
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1471
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1476
 msgid "Enter a password"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1454
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1459
 msgid "Enter a user name"
 msgstr ""
 
@@ -713,15 +717,15 @@ msgstr ""
 msgid "Enter complete outbound configuration in JSON format"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1140
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1145
 msgid "Enter domain names separated by commas, spaces, or newlines. You can add comments using //. Prefixes: full: (exact host), keyword: (part of the name), regex: (regular expression, no spaces or commas)"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1111
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1116
 msgid "Enter domain names without protocols, e.g. example.com or sub.example.com. Prefixes: full: (exact host), keyword: (part of the name), regex: (regular expression)"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1201
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1206
 msgid "Enter subnets in CIDR notation (e.g. 103.21.244.0/22) or single IP addresses"
 msgstr ""
 
@@ -891,7 +895,7 @@ msgstr ""
 msgid "From the device (optional)"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1365
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1370
 msgid "Fully Routed IPs"
 msgstr ""
 
@@ -1274,7 +1278,7 @@ msgstr ""
 msgid "Kept before a restore"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1465
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1470
 msgid "Kept in the configuration file as it is typed."
 msgstr ""
 
@@ -1327,11 +1331,11 @@ msgstr ""
 msgid "Load"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1269
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1274
 msgid "Local Domain Lists"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1293
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1298
 msgid "Local Subnet Lists"
 msgstr ""
 
@@ -1390,15 +1394,15 @@ msgstr ""
 msgid "Mixed proxy and DNS resolution tuning"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1464
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1469
 msgid "Mixed Proxy password"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1419
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1424
 msgid "Mixed Proxy Port"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1448
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1453
 msgid "Mixed Proxy user name"
 msgstr ""
 
@@ -1475,7 +1479,7 @@ msgstr ""
 msgid "No snapshots yet"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1457
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1462
 msgid "No spaces or colons in the user name"
 msgstr ""
 
@@ -1651,11 +1655,11 @@ msgstr ""
 msgid "Refresh"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1036
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1041
 msgid "Regional options cannot be used together"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:948
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:953
 msgid "Registering the device..."
 msgstr ""
 
@@ -1667,7 +1671,7 @@ msgstr ""
 msgid "Regular expression must not contain spaces or commas"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:937
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:942
 msgid "Relay URL (optional)"
 msgstr ""
 
@@ -1679,11 +1683,11 @@ msgstr ""
 msgid "Release the static lease of this device? It will get an address from the pool."
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1317
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1322
 msgid "Remote Domain Lists"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1341
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1346
 msgid "Remote Subnet Lists"
 msgstr ""
 
@@ -1691,7 +1695,7 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1435
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1440
 msgid "Require a login for the Mixed Proxy"
 msgstr ""
 
@@ -1699,7 +1703,7 @@ msgstr ""
 msgid "Required by REALITY servers on Xray-core 26.9.8 or newer, which reject clients without it. Older servers may fail the handshake, so keep it off for them. Needs sing-box-extended 2.7.2 or newer and the chrome fingerprint; ignored on other cores"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1478
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1483
 msgid "Resolve real IP for routing"
 msgstr ""
 
@@ -1777,7 +1781,7 @@ msgstr ""
 msgid "Run Diagnostic"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1055
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1060
 msgid "Russia inside restrictions"
 msgstr ""
 
@@ -1830,7 +1834,7 @@ msgstr ""
 msgid "Sections"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1003
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1008
 msgid "Select a predefined list for routing"
 msgstr ""
 
@@ -1997,20 +2001,20 @@ msgstr ""
 msgid "Specify a local IP address to be excluded from routing"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1366
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1371
 msgid "Specify local IP addresses or subnets whose traffic will always be routed through the configured route"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1318
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1323
 msgid "Specify remote URLs to download and use domain lists"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1342
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1347
 msgid "Specify remote URLs to download and use subnet lists"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1270
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1294
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1275
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1299
 msgid "Specify the path to the list file located on the router filesystem"
 msgstr ""
 
@@ -2111,8 +2115,8 @@ msgstr ""
 msgid "Testing..."
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1102
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1192
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1107
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1197
 msgid "Text List"
 msgstr ""
 
@@ -2187,7 +2191,7 @@ msgstr ""
 msgid "The router has a global IPv6 address, IPv6 handling is off"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1394
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1399
 msgid "The section is completely ignored (routing, lists, subscriptions), but its settings are kept. Clear the checkbox to enable it again"
 msgstr ""
 
@@ -2283,7 +2287,7 @@ msgstr ""
 msgid "Traffic Total"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:966
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:971
 msgid "Tried"
 msgstr ""
 
@@ -2444,19 +2448,19 @@ msgstr ""
 msgid "Use with Exclusion sections to route specific domains directly."
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1110
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1115
 msgid "User Domains"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1139
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1144
 msgid "User Domains List"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1200
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1205
 msgid "User Subnets"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1227
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1232
 msgid "User Subnets List"
 msgstr ""
 
@@ -2488,8 +2492,8 @@ msgstr ""
 msgid "Valid"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1172
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1259
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1177
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1264
 msgid "Validation errors:"
 msgstr ""
 
@@ -2521,11 +2525,11 @@ msgstr ""
 msgid "WAN interface for the EDNS Client Subnet"
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1038
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1043
 msgid "Warning: %s cannot be used together with %s. Previous selections have been removed."
 msgstr ""
 
-#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1057
+#: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1062
 msgid "Warning: Russia inside can only be used with %s. %s already in Russia inside and have been removed from selection."
 msgstr ""
 
