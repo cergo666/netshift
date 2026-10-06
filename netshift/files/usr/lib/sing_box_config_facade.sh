@@ -753,10 +753,12 @@ sing_box_cf_prepare_subscription_batch() {
         # means plain TCP) and security (reality, tls, none). Every list that is set
         # must pass: an include list keeps only its members, an exclude list drops
         # its members.
-        def node_protocol: (.type // "" | ascii_downcase);
-        def node_transport: (.transport.type // "tcp" | ascii_downcase);
+        def node_protocol: (.type // "" | tostring | ascii_downcase);
+        def node_transport: (if ((.transport | type) == "object") then (.transport.type // "tcp") else "tcp" end | tostring | ascii_downcase);
+        # tls may be a scalar in a malformed node: only an object is looked into
         def node_security:
-            if ((.tls.reality.enabled // false) == true) then "reality"
+            if ((.tls | type) != "object") then "none"
+            elif (((.tls.reality | type) == "object") and ((.tls.reality.enabled // false) == true)) then "reality"
             elif ((.tls.enabled // false) == true) then "tls"
             else "none" end;
         def param_ok($kind; $value):

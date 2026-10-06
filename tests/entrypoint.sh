@@ -15666,6 +15666,13 @@ SUB
         echo "exc-none=$(names '{"exclude":{"security":["none"]}}')"
         echo "combined=$(names '{"include":{"protocols":["vless"],"security":["tls","reality"]}}')"
         echo "combined-empty=$(names '{"include":{"protocols":["trojan"]},"exclude":{"security":["tls"]}}')"
+        cat > "$work/scalar.json" << 'SUB2'
+{"outbounds":[
+ {"type":"vless","tag":"s-tls","server":"a.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555","tls":"yes"},
+ {"type":"vless","tag":"s-reality","server":"b.example.com","server_port":443,"uuid":"11111111-2222-3333-4444-555555555555","tls":{"enabled":true,"reality":"on"}}
+]}
+SUB2
+        echo "scalar=$(SUBSCRIPTION_PARAM_FILTER='{"include":{"security":["none","tls"]}}' sing_box_cf_prepare_subscription_batch '{"outbounds":[]}' "$work/scalar.json" '[]' '[]' | jq -c '[.names[]] | sort')"
         echo "with-keyword=$(SUBSCRIPTION_PARAM_FILTER='{"include":{"protocols":["vless"]}}' sing_box_cf_prepare_subscription_batch '{"outbounds":[]}' "$work/sub.json" '["ws"]' '[]' | jq -c '[.names[]] | sort')"
     )"
 
@@ -15702,6 +15709,7 @@ SUB
     _pf "exclude plain servers" 'exc-none=["hy2","t-tls","v-reality","v-ws-tls"]'
     _pf "lists of different kinds all have to pass" 'combined=["v-reality","v-ws-tls"]'
     _pf "...and may leave nothing" "combined-empty=[]"
+    _pf "a node with a scalar tls or reality does not abort the batch" 'scalar=["s-reality","s-tls"]'
     _pf "the name filter and the parameter filter combine" 'with-keyword=["v-ws-tls"]'
 
     rm -rf "$work"
