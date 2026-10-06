@@ -18,3 +18,5 @@ export * from './lanDevices';
 export * from './dnsServers';
 export * from './dnsBenchmark';
 export * from './subscriptionInfo';
+export * from './connections';
+export * from './prettyBytes';
