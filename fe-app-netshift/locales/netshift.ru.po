@@ -53,8 +53,8 @@ msgstr "Активный"
 msgid "Active Connections"
 msgstr "Активные соединения"
 
-msgid "Add"
-msgstr "Добавить"
+msgid "Add a server: pick one or type scheme://host"
+msgstr "Добавить сервер: выберите из списка или введите схема://хост"
 
 msgid "Add one or more subscription URLs to fetch proxy configurations from. All feeds are downloaded and merged."
 msgstr "Добавьте один или несколько URL подписок для получения конфигураций прокси. Все источники загружаются и объединяются."
@@ -521,8 +521,17 @@ msgstr "Установленные соединения могут обходи�
 msgid "Every 1 minute"
 msgstr "Каждую минуту"
 
+msgid "Every 10 minutes"
+msgstr "Каждые 10 минут"
+
 msgid "Every 12 hours"
 msgstr "Каждые 12 часов"
+
+msgid "Every 20 minutes"
+msgstr "Каждые 20 минут"
+
+msgid "Every 24 hours"
+msgstr "Каждые 24 часа"
 
 msgid "Every 3 hours"
 msgstr "Каждые 3 часа"
@@ -1076,6 +1085,9 @@ msgstr "Выключено"
 msgid "One entry per line: \"zone server\", for example \"ru 77.88.8.8\" sends the zone .ru and all its subdomains to that DNS server directly, the way a \"server=/ru/77.88.8.8\" line does in the dnsmasq config. The server is an IP address, optionally with #port. The names of these zones get their real addresses, not FakeIP, so they are not routed by domain; the entries are applied to dnsmasq unless \"Dont Touch My DHCP\" is on."
 msgstr "Одна запись в строке: «зона сервер». Например, «ru 77.88.8.8» отправляет зону .ru и все её поддомены прямо на этот DNS-сервер, как строка «server=/ru/77.88.8.8» в конфиге dnsmasq. Сервер - IP-адрес, при необходимости с #портом. Имена этих зон получают настоящие адреса, а не FakeIP, поэтому по домену не маршрутизируются; записи применяются к dnsmasq, если не включена «Dont Touch My DHCP»."
 
+msgid "Only at start, never again"
+msgstr "Только при запуске, потом не проверять"
+
 msgid "Only one section can be global at a time."
 msgstr "Только одна секция может быть глобальной одновременно."
 
@@ -1261,6 +1273,9 @@ msgstr "Сохранён при удачном запуске"
 
 msgid "Saved by hand"
 msgstr "Сохранён вручную"
+
+msgid "scheme://host[:port][/path], then Enter"
+msgstr "схема://хост[:порт][/путь], затем Enter"
 
 msgid "scheme://host[:port][/path], where scheme is udp, tcp, dot, doh, doh3 or doq. The first server is the main one. Choose for each server whether its queries go directly or through the proxy/VPN of a section (bootstrap DNS always stays direct). The time is measured from the router, through the tunnel for the servers that go through one, with the routes saved last."
 msgstr "схема://хост[:порт][/путь], где схема - udp, tcp, dot, doh, doh3 или doq. Первый сервер - основной. Для каждого сервера выберите, идут ли его запросы напрямую или через прокси/VPN секции (bootstrap DNS всегда идёт напрямую). Время замеряется с роутера, а для серверов, идущих через туннель, - через него, по последним сохранённым маршрутам."
@@ -1514,8 +1529,8 @@ msgstr "DNS-сервер, используемый для поиска IP-адр
 msgid "The domains of this section's lists are resolved by this server instead of the main one and are not sent through any tunnel (split DNS). Address, address:port or host/path for DoH"
 msgstr "Домены из списков этой секции резолвит этот сервер вместо основного, и через туннель они не идут (split DNS). Адрес, адрес:порт или хост/путь для DoH"
 
-msgid "The interval between connectivity tests"
-msgstr "Интервал между тестами подключения"
+msgid "The interval between connectivity tests. A longer interval means less traffic through every server of the group; \"Only at start\" tests once when the service starts."
+msgstr "Интервал между проверками связи. Чем он длиннее, тем меньше трафика на каждый сервер группы; «Только при запуске» проверяет один раз при старте службы."
 
 msgid "The maximum difference in response times (ms) allowed when comparing servers"
 msgstr "Максимально допустимая разница во времени отклика (мс) при сравнении серверов"

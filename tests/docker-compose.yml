@@ -15,7 +15,7 @@
 #             bittorrent, dnssection, utfilters, stablecheck, extcheck, sbextarch, sbextlite, netshiftcheck, latesttag,
 #             ghredirect, selfupdate, backupguard, hotreload, cachepersist,
 #             domsep, domcase, mixedauth, routerstats, pinguard, snapshots, updatepkg, updatenotice, paramfilters, connections, subinfo, dnsbench, dnsservers, ecsauto, lan, environment, routecheck, domrules, ipv6routing, latencyurl, geoip, compproxy, httpupgrade,
-#             scalaropt, emptylink, dnsroute, dnsforward,
+#             scalaropt, emptylink, dnsroute, dnsforward, urlint,
 # ──────────────────────────────────────────────────────────────────
 
 services:
