@@ -21,6 +21,7 @@ check_required_file "$NETSHIFT_LIB/sing_box_config_facade.sh"
 check_required_file "$NETSHIFT_LIB/logging.sh"
 check_required_file "$NETSHIFT_LIB/rulesets.sh"
 check_required_file "$NETSHIFT_LIB/updater.sh"
+check_required_file "$NETSHIFT_LIB/dnsbench.sh"
 . /lib/functions.sh
 . /lib/config/uci.sh
 . /lib/functions/network.sh
@@ -32,6 +33,7 @@ check_required_file "$NETSHIFT_LIB/updater.sh"
 . "$NETSHIFT_LIB/logging.sh"
 . "$NETSHIFT_LIB/rulesets.sh"
 . "$NETSHIFT_LIB/updater.sh"
+. "$NETSHIFT_LIB/dnsbench.sh"
 
 config_load "$NETSHIFT_CONFIG"
 
@@ -7598,6 +7600,8 @@ Available commands:
     get_geoip_flags         Print the GeoIP country of manually added links as JSON
     check_sing_box_logs     Show sing-box logs
     check_fakeip            Test FakeIP on router
+    dns_benchmark [server...]
+                            Time each DNS server (the configured ones by default) from this router
     clash_api               Clash API interface for managing proxies and groups
     show_config             Display current NetShift configuration
     show_version            Show NetShift version
@@ -7668,6 +7672,10 @@ check_sing_box_logs)
     ;;
 check_fakeip)
     check_fakeip
+    ;;
+dns_benchmark)
+    shift
+    dns_benchmark "$@"
     ;;
 clash_api)
     clash_api "$2" "$3" "$4"

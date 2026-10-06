@@ -900,6 +900,7 @@ var NetShift;
   ((AvailableMethods2) => {
     AvailableMethods2["CHECK_DNS_AVAILABLE"] = "check_dns_available";
     AvailableMethods2["CHECK_FAKEIP"] = "check_fakeip";
+    AvailableMethods2["DNS_BENCHMARK"] = "dns_benchmark";
     AvailableMethods2["CHECK_NFT_RULES"] = "check_nft_rules";
     AvailableMethods2["GET_STATUS"] = "get_status";
     AvailableMethods2["CHECK_SING_BOX"] = "check_sing_box";
@@ -1008,6 +1009,12 @@ var NetShiftShellMethods = {
   ),
   checkFakeIP: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_FAKEIP
+  ),
+  dnsBenchmark: async () => callBaseMethod(
+    NetShift.AvailableMethods.DNS_BENCHMARK,
+    [],
+    void 0,
+    { nobatch: true }
   ),
   checkNftRules: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_NFT_RULES
@@ -6787,6 +6794,40 @@ function listedDeviceIps(state) {
   return [...seen];
 }
 
+// src/helpers/dnsBenchmark.ts
+function parseDnsBenchmark(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return [];
+    }
+  }
+  const list = data?.results;
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.filter((item) => item && typeof item.server === "string").map((item) => ({
+    server: item.server,
+    ms: typeof item.ms === "number" && item.ms >= 0 ? item.ms : null
+  }));
+}
+function sortBySpeed(results) {
+  return results.map((result, index) => ({ result, index })).sort((a, b) => {
+    if (a.result.ms === null && b.result.ms === null) {
+      return a.index - b.index;
+    }
+    if (a.result.ms === null) {
+      return 1;
+    }
+    if (b.result.ms === null) {
+      return -1;
+    }
+    return a.result.ms - b.result.ms || a.index - b.index;
+  }).map((item) => item.result);
+}
+
 // src/main.ts
 if (typeof structuredClone !== "function")
   globalThis.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -6839,12 +6880,14 @@ return baseclass.extend({
   logger,
   maskIP,
   onMount,
+  parseDnsBenchmark,
   parseQueryString,
   parseValueList,
   preserveScrollForPage,
   saveDashboardViewPrefs,
   setDeviceRoute,
   socket,
+  sortBySpeed,
   splitProxyString,
   store,
   svgEl,
