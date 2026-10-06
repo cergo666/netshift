@@ -7913,6 +7913,27 @@ function dnsServersToOptions(list) {
   }
   return { dns_type: scheme, dns_server: server, dns_pool_server: rest };
 }
+function dnsRoutesFromOptions(entries) {
+  const routes = {};
+  entries.forEach((entry) => {
+    const text2 = entry.trim();
+    const split = text2.lastIndexOf(" ");
+    if (split < 0) {
+      return;
+    }
+    const server = text2.slice(0, split).trim();
+    const mode = text2.slice(split + 1);
+    if (server && (mode === "direct" || mode === "tunnel")) {
+      routes[server] = mode;
+    }
+  });
+  return routes;
+}
+function dnsRoutesToOptions(servers, routes) {
+  return servers.map((server) => server.trim()).filter((server, index, all) => server && all.indexOf(server) === index).filter(
+    (server) => routes[server] === "direct" || routes[server] === "tunnel"
+  ).map((server) => `${server} ${routes[server]}`);
+}
 
 // src/helpers/dnsBenchmark.ts
 function parseDnsBenchmark(input) {
@@ -7930,7 +7951,8 @@ function parseDnsBenchmark(input) {
   }
   return list.filter((item) => item && typeof item.server === "string").map((item) => ({
     server: item.server,
-    ms: typeof item.ms === "number" && item.ms >= 0 ? item.ms : null
+    ms: typeof item.ms === "number" && item.ms >= 0 ? item.ms : null,
+    via: item.via === "tunnel" ? "tunnel" : "direct"
   }));
 }
 function parseDnsBenchmarkVia(input) {
@@ -7942,7 +7964,8 @@ function parseDnsBenchmarkVia(input) {
       return "direct";
     }
   }
-  return data?.via === "tunnel" ? "tunnel" : "direct";
+  const via = data?.via;
+  return via === "tunnel" || via === "mixed" ? via : "direct";
 }
 function sortBySpeed(results) {
   return results.map((result, index) => ({ result, index })).sort((a, b) => {
@@ -8109,6 +8132,8 @@ return baseclass.extend({
   coreService,
   describeSubscriptionInfo,
   deviceMatchesQuery,
+  dnsRoutesFromOptions,
+  dnsRoutesToOptions,
   dnsServersFromOptions,
   dnsServersToOptions,
   executeShellCommand,

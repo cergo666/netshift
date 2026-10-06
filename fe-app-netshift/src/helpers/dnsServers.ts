@@ -55,3 +55,49 @@ export function dnsServersToOptions(list: string[]): DnsServerOptions | null {
 
   return { dns_type: scheme, dns_server: server, dns_pool_server: rest };
 }
+
+// How one DNS server is reached. "default" follows the global "Route main DNS
+// through proxy/VPN" switch; the other two override it for that server.
+export type DnsServerRoute = 'default' | 'direct' | 'tunnel';
+
+// dns_server_route holds "<server> direct|tunnel" entries (<server> is written
+// as in the server list); a server without an entry follows the switch.
+export function dnsRoutesFromOptions(
+  entries: string[],
+): Record<string, DnsServerRoute> {
+  const routes: Record<string, DnsServerRoute> = {};
+
+  entries.forEach((entry) => {
+    const text = entry.trim();
+    const split = text.lastIndexOf(' ');
+
+    if (split < 0) {
+      return;
+    }
+
+    const server = text.slice(0, split).trim();
+    const mode = text.slice(split + 1);
+
+    if (server && (mode === 'direct' || mode === 'tunnel')) {
+      routes[server] = mode;
+    }
+  });
+
+  return routes;
+}
+
+// The entries to store for the servers of the list, in list order. Servers
+// that follow the switch have no entry, so a config without overrides stays as
+// it was.
+export function dnsRoutesToOptions(
+  servers: string[],
+  routes: Record<string, DnsServerRoute>,
+): string[] {
+  return servers
+    .map((server) => server.trim())
+    .filter((server, index, all) => server && all.indexOf(server) === index)
+    .filter(
+      (server) => routes[server] === 'direct' || routes[server] === 'tunnel',
+    )
+    .map((server) => `${server} ${routes[server]}`);
+}

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { dnsServersFromOptions, dnsServersToOptions } from '../dnsServers';
+import {
+  dnsRoutesFromOptions,
+  dnsRoutesToOptions,
+  dnsServersFromOptions,
+  dnsServersToOptions,
+} from '../dnsServers';
 
 describe('dnsServersFromOptions', () => {
   it('puts the main server first, then the pool', () => {
@@ -79,5 +84,56 @@ describe('dnsServersToOptions', () => {
     expect(dnsServersToOptions(['8.8.8.8'])).toBeNull();
     expect(dnsServersToOptions(['ftp://8.8.8.8'])).toBeNull();
     expect(dnsServersToOptions(['udp://'])).toBeNull();
+  });
+});
+
+describe('dnsRoutesFromOptions / dnsRoutesToOptions', () => {
+  it('reads the entries of dns_server_route', () => {
+    expect(
+      dnsRoutesFromOptions([
+        'doh://dns.google/dns-query tunnel',
+        'udp://1.1.1.1 direct',
+      ]),
+    ).toEqual({
+      'doh://dns.google/dns-query': 'tunnel',
+      'udp://1.1.1.1': 'direct',
+    });
+  });
+
+  it('skips entries that are not "<server> direct|tunnel"', () => {
+    expect(
+      dnsRoutesFromOptions([
+        'udp://1.1.1.1',
+        'udp://1.1.1.1 default',
+        ' tunnel',
+        '',
+      ]),
+    ).toEqual({});
+  });
+
+  it('writes only the servers of the list that differ from the switch, in list order', () => {
+    expect(
+      dnsRoutesToOptions(['udp://9.9.9.9', 'udp://1.1.1.1', 'dot://x'], {
+        'udp://1.1.1.1': 'tunnel',
+        'udp://9.9.9.9': 'direct',
+        'dot://x': 'default',
+        'udp://gone': 'tunnel',
+      }),
+    ).toEqual(['udp://9.9.9.9 direct', 'udp://1.1.1.1 tunnel']);
+  });
+
+  it('writes nothing when no server has its own route', () => {
+    expect(dnsRoutesToOptions(['udp://1.1.1.1'], {})).toEqual([]);
+  });
+
+  it('round-trips', () => {
+    const entries = ['udp://1.1.1.1 tunnel', 'dot://dns.google direct'];
+
+    expect(
+      dnsRoutesToOptions(
+        ['udp://1.1.1.1', 'dot://dns.google'],
+        dnsRoutesFromOptions(entries),
+      ),
+    ).toEqual(entries);
   });
 });

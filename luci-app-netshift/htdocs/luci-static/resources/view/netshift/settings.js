@@ -122,6 +122,135 @@ function createSettingsContent(section) {
     return validation.message;
   };
 
+  // How each server is reached: the switch below decides for the ones left on
+  // "as the switch says"; any server can be forced direct or through the tunnel.
+  // The rows follow the list above while it is edited.
+  o = section.taboption(
+    "dns",
+    form.DummyValue,
+    "_dns_server_route",
+    _("Route of each server"),
+    _(
+      "Choose for every server above whether its queries go directly or through the proxy/VPN. \"As the switch says\" follows \"Route main DNS through proxy/VPN\" below.",
+    ),
+  );
+  o.rawhtml = true;
+  o.routes = null;
+  o.cfgvalue = function (section_id) {
+    return uci.get("netshift", section_id, "dns_server_route");
+  };
+  o.renderWidget = function (section_id, option_index, cfgvalue) {
+    const widget = this;
+    const box = E("div", { class: "netshift-dns-routes" });
+
+    if (widget.routes === null) {
+      widget.routes = main.dnsRoutesFromOptions(main.toIpList(cfgvalue));
+    }
+
+    const routeChoices = [
+      ["default", _("As the switch says")],
+      ["direct", _("Directly")],
+      ["tunnel", _("Through the proxy/VPN")],
+    ];
+
+    const currentServers = () => {
+      const element = widget.section.getUIElement(section_id, "dns_servers");
+      const value = element ? element.getValue() : null;
+
+      return (Array.isArray(value) ? value : value ? [value] : [])
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    };
+
+    const refresh = () => {
+      const servers = currentServers();
+
+      box.replaceChildren(
+        ...(servers.length
+          ? servers.map((server) =>
+              E(
+                "div",
+                {
+                  class: "netshift-dns-route-row",
+                  style:
+                    "display:flex;gap:.75em;align-items:center;flex-wrap:wrap;margin:.25em 0",
+                },
+                [
+                E(
+                  "span",
+                  {
+                    class: "netshift-dns-route-server",
+                    style: "flex:1 1 14em;word-break:break-all",
+                  },
+                  server,
+                ),
+                E(
+                  "select",
+                  {
+                    class: "cbi-input-select",
+                    change: (ev) => {
+                      widget.routes[server] = ev.target.value;
+                    },
+                  },
+                  routeChoices.map(([value, label]) =>
+                    E(
+                      "option",
+                      {
+                        value,
+                        selected: (widget.routes[server] || "default") === value,
+                      },
+                      label,
+                    ),
+                  ),
+                ),
+              ],
+              ),
+            )
+          : [E("em", {}, _("No servers yet"))]),
+      );
+    };
+
+    // The list is built by its own option, possibly after this one: look for it
+    // for a moment, then follow its changes.
+    let attempts = 0;
+    const bind = () => {
+      const element = widget.section.getUIElement(section_id, "dns_servers");
+
+      if (!element || !element.node) {
+        if (attempts++ < 50) {
+          window.setTimeout(bind, 100);
+        }
+
+        return;
+      }
+
+      element.node.addEventListener("cbi-dynlist-change", refresh);
+      refresh();
+    };
+
+    refresh();
+    bind();
+
+    return box;
+  };
+  o.parse = function (section_id) {
+    if (this.routes === null) {
+      return;
+    }
+
+    const element = this.section.getUIElement(section_id, "dns_servers");
+    const value = element ? element.getValue() : [];
+    const servers = (Array.isArray(value) ? value : [value]).filter(Boolean);
+    const entries = main.dnsRoutesToOptions(servers, this.routes);
+
+    uci.set(
+      "netshift",
+      section_id,
+      "dns_server_route",
+      entries.length ? entries : null,
+    );
+  };
+
   // Speed test of the configured DNS servers, from this router.
   o = section.taboption(
     "dns",
@@ -162,7 +291,9 @@ function createSettingsContent(section) {
                         {},
                         via === "tunnel"
                           ? _("Measured through the tunnel, the way real queries go")
-                          : _("Measured from the router"),
+                          : via === "mixed"
+                            ? _("Measured the way each server is reached: the ones marked \"tunnel\" through the tunnel, the others from the router")
+                            : _("Measured from the router"),
                       ),
                     ]
                   : []),
@@ -171,6 +302,9 @@ function createSettingsContent(section) {
                       E("div", {}, [
                         `${row.server}: `,
                         row.ms === null ? _("no answer") : `${row.ms} ${_("ms")}`,
+                        via === "mixed" && row.via === "tunnel"
+                          ? ` (${_("tunnel")})`
+                          : "",
                       ]),
                     )
                   : [_("The test could not be run")]),
@@ -258,7 +392,7 @@ function createSettingsContent(section) {
     "dns_via_outbound",
     _("Route main DNS through proxy/VPN"),
     _(
-      "Send upstream DNS queries through a proxy/VPN outbound instead of directly. Bootstrap DNS always stays direct.",
+      "Send upstream DNS queries through a proxy/VPN outbound instead of directly. This is the default for every server above; a server can be set to go directly or through the tunnel in \"Route of each server\". Bootstrap DNS always stays direct.",
     ),
   );
   o.default = "0";
@@ -270,11 +404,10 @@ function createSettingsContent(section) {
     "dns_outbound_section",
     _("DNS outbound section"),
     _(
-      "Which proxy/VPN section carries the DNS. Leave unset to use the first configured outbound.",
+      "Which proxy/VPN section carries the DNS of the servers sent through the tunnel. Leave unset to use the first configured outbound.",
     ),
   );
   o.rmempty = true;
-  o.depends("dns_via_outbound", "1");
   o.cfgvalue = function (section_id) {
     return uci.get("netshift", section_id, "dns_outbound_section");
   };

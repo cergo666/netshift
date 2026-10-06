@@ -80,6 +80,9 @@ msgstr "Обеспечивает доступ к YACD из WAN. Убедитес
 msgid "Applicable for SOCKS and Shadowsocks proxy"
 msgstr "Применимо для SOCKS и Shadowsocks прокси"
 
+msgid "As the switch says"
+msgstr "Как скажет переключатель"
+
 msgid "Ask for a user name and a password. Without a login anyone in your network can use this proxy. If the login is not complete the proxy is not created at all."
 msgstr "Запрашивать имя пользователя и пароль. Без логина этим прокси может пользоваться любой в вашей сети. Если логин задан не полностью, прокси не создаётся вовсе."
 
@@ -178,6 +181,9 @@ msgstr "Проверки не выполнены"
 
 msgid "Checks passed"
 msgstr "Проверки пройдены"
+
+msgid "Choose for every server above whether its queries go directly or through the proxy/VPN. \"As the switch says\" follows \"Route main DNS through proxy/VPN\" below."
+msgstr "Для каждого сервера из списка выше выберите, идут ли его запросы напрямую или через прокси/VPN. «Как скажет переключатель» - как указано в «Основной DNS через прокси/VPN» ниже."
 
 msgid "Choose how traffic of a device in your network is handled. A device can be sent completely through one section (all its traffic) or directly, ignoring the lists. The change is stored with the page's Save & Apply, like the other settings."
 msgstr "Выберите, как обрабатывается трафик устройства в вашей сети. Устройство можно полностью направить через одну секцию (весь его трафик) или напрямую, игнорируя списки. Изменение сохраняется кнопкой «Сохранить и применить», как и остальные настройки."
@@ -956,6 +962,9 @@ msgstr "МБ свободно"
 msgid "Measured from the router"
 msgstr "Замер с самого роутера"
 
+msgid "Measured the way each server is reached: the ones marked \"tunnel\" through the tunnel, the others from the router"
+msgstr "Замер так, как достигается каждый сервер: помеченные «туннель» - через туннель, остальные - с самого роутера"
+
 msgid "Measured through the tunnel, the way real queries go"
 msgstr "Замер через туннель, так же, как идут настоящие запросы"
 
@@ -1024,6 +1033,9 @@ msgstr "Без слоя шифрования"
 
 msgid "No other marking rules found"
 msgstr "Другие правила маркировки не найдены"
+
+msgid "No servers yet"
+msgstr "Серверов пока нет"
 
 msgid "No snapshots yet"
 msgstr "Снимков пока нет"
@@ -1190,6 +1202,9 @@ msgstr "Направлять трафик BitTorrent напрямую, мину�
 msgid "Route main DNS through proxy/VPN"
 msgstr "Основной DNS через прокси/VPN"
 
+msgid "Route of each server"
+msgstr "Маршрут каждого сервера"
+
 msgid "Router"
 msgstr "Роутер"
 
@@ -1319,8 +1334,8 @@ msgstr "Отправлять DNS-запросы через секцию"
 msgid "Send this IP address or prefix with every DNS query (EDNS Client Subnet, RFC 7871), so geo-distributed services resolve to the node closest to you. Leave empty to disable. The detected WAN subnets are offered in the list."
 msgstr "Отправлять этот IP-адрес или префикс с каждым DNS-запросом (EDNS Client Subnet, RFC 7871), чтобы геораспределённые сервисы отдавали ближайший к вам узел. Пусто - отключено. Найденные WAN-подсети предлагаются в списке."
 
-msgid "Send upstream DNS queries through a proxy/VPN outbound instead of directly. Bootstrap DNS always stays direct."
-msgstr "Отправлять запросы к основному DNS через outbound прокси/VPN вместо прямого подключения. Bootstrap DNS всегда остаётся прямым."
+msgid "Send upstream DNS queries through a proxy/VPN outbound instead of directly. This is the default for every server above; a server can be set to go directly or through the tunnel in \"Route of each server\". Bootstrap DNS always stays direct."
+msgstr "Отправлять запросы к DNS-серверам через прокси/VPN вместо прямого соединения. Это значение по умолчанию для каждого сервера из списка; для отдельного сервера можно выбрать «напрямую» или «через туннель» в «Маршрут каждого сервера». Bootstrap DNS всегда идёт напрямую."
 
 msgid "Services info"
 msgstr "Информация о сервисах"
@@ -1553,6 +1568,9 @@ msgstr "URL-адрес, используемый для проверки под�
 msgid "This is a security trade-off: an attacker could intercept the fetch."
 msgstr "Это компромисс в безопасности: злоумышленник может перехватить загрузку."
 
+msgid "Through the proxy/VPN"
+msgstr "Через прокси/VPN"
+
 msgid "Tiles"
 msgstr "Плитки"
 
@@ -1566,7 +1584,7 @@ msgid "Time of the daily update, HH:MM (00:00-23:59) in the router's local time.
 msgstr "Время ежедневного обновления, ЧЧ:ММ (00:00–23:59) по местному времени роутера. Избегайте минут, совпадающих с другими интервалами обновления, например :00 и :30, если есть секция с интервалом 30 минут."
 
 msgid "Times every configured DNS server (UDP, TCP, DoT and DoH; DoH3 and DoQ cannot be timed). With \"Route main DNS through proxy/VPN\" the servers are reached through the tunnel, so a resolver inside it can be timed too. Nothing is changed: use it to decide the order of the servers."
-msgstr ""
+msgstr "Замеряет каждый настроенный DNS-сервер (UDP, TCP, DoT и DoH; DoH3 и DoQ замерить нельзя). При включённом «Route main DNS through proxy/VPN» серверы опрашиваются через туннель, поэтому можно замерить и резолвер внутри него. Ничего не меняется: результат помогает выбрать порядок серверов."
 
 msgid "TLS and Reality fail with a wrong time: check NTP"
 msgstr "С неверным временем не работают TLS и Reality: проверьте NTP"
@@ -1588,6 +1606,9 @@ msgstr "TTL должно быть положительным числом"
 
 msgid "TTL value cannot be empty"
 msgstr "Значение TTL не может быть пустым"
+
+msgid "tunnel"
+msgstr "туннель"
 
 msgid "UDP (Unprotected DNS)"
 msgstr "UDP (Незащищённый DNS)"
@@ -1733,8 +1754,8 @@ msgstr "Когда включено, трафик, не совпадающий �
 msgid "Where will a request go"
 msgstr "Куда пойдёт запрос"
 
-msgid "Which proxy/VPN section carries the DNS. Leave unset to use the first configured outbound."
-msgstr "Какая секция прокси/VPN обслуживает DNS. Оставьте пустым, чтобы использовать первый настроенный outbound."
+msgid "Which proxy/VPN section carries the DNS of the servers sent through the tunnel. Leave unset to use the first configured outbound."
+msgstr "Какая секция прокси/VPN несёт DNS серверов, которые идут через туннель. Если не задано, используется первый настроенный выход."
 
 msgid "Which subscription format (client) to fetch first. Auto uses the default order. Choose Xray JSON (Happ) when your panel only exposes some nodes (e.g. xhttp) under a Happ-like client, or Sing-box to prefer the sing-box format."
 msgstr "Какой формат подписки (клиент) запрашивать первым. «Авто» использует порядок по умолчанию. Выберите «Xray JSON (Happ)», если ваша панель отдаёт некоторые узлы (например, xhttp) только под клиентом вроде Happ, или «Sing-box», чтобы предпочесть формат sing-box."
