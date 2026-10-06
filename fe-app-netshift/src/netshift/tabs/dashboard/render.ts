@@ -34,6 +34,11 @@ export function render() {
           { id: 'dashboard-widget-service-info' },
           renderWidget({ loading: true, failed: false, title: '', items: [] }),
         ),
+        E(
+          'div',
+          { id: 'dashboard-widget-router' },
+          renderWidget({ loading: true, failed: false, title: '', items: [] }),
+        ),
       ]),
       // All outbounds
       E(

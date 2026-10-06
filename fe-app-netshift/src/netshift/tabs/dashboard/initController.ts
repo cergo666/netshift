@@ -16,6 +16,12 @@ import {
   recentPinGuardEvents,
 } from '../../../helpers/pinGuardEvents';
 import {
+  formatUptime,
+  loadPercent,
+  parseRouterStats,
+  ramUsedPercent,
+} from '../../../helpers/routerStats';
+import {
   loadDashboardViewPrefs,
   saveDashboardViewPrefs,
 } from '../../../helpers/dashboardView';
@@ -196,6 +202,87 @@ async function loadPinGuardEvents() {
     );
   } catch (e) {
     logger.error('[DASHBOARD]', 'loadPinGuardEvents: failed', e);
+  }
+}
+
+// The router's own numbers: refreshed every few seconds while the dashboard is
+// open. Optional: a backend without the command leaves the card empty.
+const ROUTER_STATS_INTERVAL = 10000;
+let routerStatsTimer: number | undefined;
+
+async function renderRouterStats() {
+  const container = document.getElementById('dashboard-widget-router');
+
+  if (!container) {
+    return;
+  }
+
+  try {
+    const response = await NetShiftShellMethods.getRouterStats();
+    const stats = response.success ? parseRouterStats(response.data) : null;
+
+    if (!stats) {
+      container.replaceChildren();
+
+      return;
+    }
+
+    container.replaceChildren(
+      renderWidget({
+        loading: false,
+        failed: false,
+        title: _('Router'),
+        items: [
+          {
+            key: _('Uptime'),
+            value: formatUptime(stats.uptime_seconds, {
+              d: _('d'),
+              h: _('h'),
+              min: _('min'),
+              s: _('s'),
+            }),
+          },
+          {
+            key: _('Load'),
+            value: `${stats.load[0].toFixed(2)} (${loadPercent(stats)}%)`,
+          },
+          {
+            key: _('Memory'),
+            value: `${ramUsedPercent(stats)}% (${stats.ram_available_mb} ${_('MB free')})`,
+          },
+          {
+            key: _('Flash free'),
+            value: `${stats.flash_free_mb} ${_('MB')}`,
+          },
+          ...(stats.temperature_c !== null
+            ? [
+                {
+                  key: _('Temperature'),
+                  value: `${stats.temperature_c} °C`,
+                },
+              ]
+            : []),
+        ],
+      }),
+    );
+  } catch (e) {
+    logger.error('[DASHBOARD]', 'renderRouterStats: failed', e);
+  }
+}
+
+function startRouterStats() {
+  stopRouterStats();
+  void renderRouterStats();
+  routerStatsTimer = window.setInterval(
+    () => void renderRouterStats(),
+    ROUTER_STATS_INTERVAL,
+  );
+}
+
+function stopRouterStats() {
+  if (routerStatsTimer !== undefined) {
+    window.clearInterval(routerStatsTimer);
+    routerStatsTimer = undefined;
   }
 }
 
@@ -618,6 +705,8 @@ async function onPageMount() {
 
   void loadPinGuardEvents();
 
+  startRouterStats();
+
   // Add new listener
   store.subscribe(onStoreUpdate);
 
@@ -639,6 +728,7 @@ async function onPageMount() {
 function onPageUnmount() {
   // Remove old listener
   store.unsubscribe(onStoreUpdate);
+  stopRouterStats();
   // Clear store
   store.reset([
     'bandwidthWidget',

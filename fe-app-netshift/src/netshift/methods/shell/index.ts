@@ -76,6 +76,8 @@ export const NetShiftShellMethods = {
     ),
   getPinGuardEvents: async () =>
     callBaseMethod<unknown>(NetShift.AvailableMethods.GET_PIN_GUARD_EVENTS),
+  getRouterStats: async () =>
+    callBaseMethod<unknown>(NetShift.AvailableMethods.GET_ROUTER_STATS),
   checkNftRules: async () =>
     callBaseMethod<NetShift.NftRulesCheckResult>(
       NetShift.AvailableMethods.CHECK_NFT_RULES,

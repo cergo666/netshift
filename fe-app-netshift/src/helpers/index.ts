@@ -23,3 +23,4 @@ export * from './prettyBytes';
 export * from './updateNotice';
 export * from './configSnapshots';
 export * from './pinGuardEvents';
+export * from './routerStats';
