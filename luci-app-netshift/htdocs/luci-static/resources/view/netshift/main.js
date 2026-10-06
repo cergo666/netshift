@@ -1096,11 +1096,11 @@ function parseComponentCheckUpdate(stdout) {
 // src/netshift/methods/shell/index.ts
 var NetShiftShellMethods = {
   // Registering a device can take a while: Cloudflare is asked twice.
-  warpGenerate: async (endpoint) => callBaseMethod(
+  warpGenerate: async (endpoint, relay = "") => callBaseMethod(
     NetShift.AvailableMethods.WARP_GENERATE,
-    [endpoint],
+    relay ? [endpoint, "", "", relay] : [endpoint],
     void 0,
-    { nobatch: true, timeout: 6e4 }
+    { nobatch: true, timeout: 9e4 }
   ),
   checkDNSAvailable: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_DNS_AVAILABLE
@@ -8178,7 +8178,19 @@ function parseWarpResult(input) {
       endpoint: text2(value.endpoint)
     };
   }
-  return { ok: false, error: text2(value.error) ?? "", hint: text2(value.hint) };
+  const attempts = Array.isArray(value.attempts) ? value.attempts.filter(
+    (item) => !!item && typeof item === "object"
+  ).map((item) => ({
+    route: String(item.route ?? ""),
+    curl: Number(item.curl ?? 0),
+    http: String(item.http ?? "")
+  })).filter((item) => item.route) : [];
+  return {
+    ok: false,
+    error: text2(value.error) ?? "",
+    hint: text2(value.hint),
+    attempts
+  };
 }
 
 // src/main.ts

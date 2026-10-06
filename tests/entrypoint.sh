@@ -18353,28 +18353,46 @@ LIB="NETSHIFT_LIB"
 log() { :; }
 . "$LIB/warp.sh"
 
-# the API: registration, then the activation answer; PROXY_ONLY makes the direct route fail
+# the API: registration, then the activation answer. WARP_FAIL_MODE says which routes
+# fail: all, plain (the router's own way), direct (plain and pinned address), nocfg
 CALLS="/tmp/netshift-warp-calls-$$"; : > "$CALLS"
 WARP_FAIL_MODE=""
 curl() {
-    local proxy="" url="" method=""
+    local proxy="" url="" method="" pinned="" doh=""
     while [ $# -gt 0 ]; do
         case "$1" in
         -x) proxy="$2"; shift ;;
         -X) method="$2"; shift ;;
+        --resolve) pinned="${2##*:}"; shift ;;
+        -m | --connect-timeout | -H | -d | -w) shift ;;
         http*) url="$1" ;;
         esac
         shift
     done
-    echo "$method ${url##*/} proxy=${proxy:-none}" >> "$CALLS"
+    case "$url" in
+    *dns-query* | *resolve\?*)
+        echo "doh ${url%%\?*}" >> "$CALLS"
+        [ "$WARP_DOH" = "off" ] && return 7
+        echo '{"Answer":[{"type":1,"data":"104.16.192.82"},{"type":1,"data":"104.16.24.84"},{"type":5,"data":"alias.example."},{"type":1,"data":"not-an-ip"}]}'
+        return 0
+        ;;
+    esac
+    local route="plain"
+    [ -z "$pinned" ] || route="ip:$pinned"
+    [ -z "$proxy" ] || route="proxy:${proxy#http://}"
+    case "$url" in
+    https://relay.example/*) route="relay:https://relay.example" ;;
+    esac
+    echo "$method ${url##*/} $route" >> "$CALLS"
     case "$WARP_FAIL_MODE" in
     all) return 7 ;;
-    direct) [ -n "$proxy" ] || return 7 ;;
-    nocfg) case "$method" in PATCH) echo '{"result":{}}'; return 0 ;; esac ;;
+    plain) [ "$route" != plain ] || return 7 ;;
+    direct) case "$route" in plain | ip:*) return 7 ;; esac ;;
+    nocfg) case "$method" in PATCH) printf '{"result":{}}\n200\n'; return 0 ;; esac ;;
     esac
     case "$method" in
-    POST) echo '{"result":{"id":"dev-1","token":"tok-1"}}' ;;
-    PATCH) echo '{"result":{"config":{"peers":[{"public_key":"PEERPUBKEY="}],"interface":{"addresses":{"v4":"172.16.0.2","v6":"2606:4700:110:8a36::2"}}}}}' ;;
+    POST) printf '{"result":{"id":"dev-1","token":"tok-1"}}\n200\n' ;;
+    PATCH) printf '{"result":{"config":{"peers":[{"public_key":"PEERPUBKEY="}],"interface":{"addresses":{"v4":"172.16.0.2","v6":"2606:4700:110:8a36::2"}}}}}\n200\n' ;;
     esac
 }
 ifup() { echo "ifup $1" >> "$CALLS"; }
@@ -18410,7 +18428,7 @@ echo "peer-allowed:$(uget network.amneziawg_warp.allowed_ips)"
 echo "no-route-allowed:$(uget network.amneziawg_warp.route_allowed_ips)"
 echo "private-key-set:$([ -n "$(uci -q get network.warp.private_key)" ] && echo yes || echo no)"
 echo "section:$(uget netshift.warp.connection_type)/$(uget netshift.warp.interface)/$(uget netshift.warp.domain_resolver_enabled)"
-echo "calls:$(tr '\n' ',' < "$CALLS")"
+echo "calls:$(grep -v '^doh' "$CALLS" | tr '\n' ',')"
 
 echo "exists:$(warp_generate | jq -r '.ok')"
 
@@ -18424,17 +18442,38 @@ uci set netshift.warp=section; uci set netshift.warp.connection_type=proxy; uci 
 warp_generate > /dev/null
 echo "section-kept:$(uget netshift.warp.connection_type)"
 
-# the direct route fails: the NetShift proxy is used
+# the router's own way fails (a spoiled DNS): the API address found over HTTPS is pinned
+reset
+WARP_FAIL_MODE=plain
+echo "via-pinned-ip:$(warp_generate | jq -r '.ok') calls=$(grep -v '^doh' "$CALLS" | tr '\n' ',')"
+echo "doh-asked:$(grep -c '^doh' "$CALLS")"
+
+# plain and pinned fail: the NetShift proxy is used
 reset
 WARP_FAIL_MODE=direct
-echo "via-proxy:$(warp_generate | jq -r '.ok') calls=$(tr '\n' ',' < "$CALLS")"
+echo "via-proxy:$(warp_generate | jq -r '.ok') calls=$(grep -v '^doh' "$CALLS" | tr '\n' ',')"
 
-# nothing works: an error, and nothing is written
+# no HTTPS resolver answers either: still the proxy
+reset
+WARP_FAIL_MODE=direct
+WARP_DOH=off
+echo "no-doh-via-proxy:$(warp_generate | jq -r '.ok')"
+WARP_DOH=""
+
+# a relay is tried first and used for both calls
+reset
+WARP_FAIL_MODE=""
+echo "via-relay:$(warp_generate engage.cloudflareclient.com:4500 warp '' https://relay.example/api | jq -r '.ok') calls=$(grep -v '^doh' "$CALLS" | tr '\n' ',')"
+echo "relay-bad:$(warp_generate '' '' '' 'ftp://x' | jq -r '.ok')"
+
+# nothing works: an error that says what was tried, and nothing is written
 reset
 WARP_FAIL_MODE=all
 out="$(warp_generate)"
 echo "unreachable:$(printf '%s' "$out" | jq -r '[.ok, .error] | @csv')"
+echo "unreachable-attempts:$(printf '%s' "$out" | jq -c '[.attempts[] | [.route, .curl]]')"
 echo "unreachable-nothing-written:[$(uget network.warp.proto)][$(uget netshift.warp.interface)]"
+echo "trace-file-removed:$(ls /tmp/netshift-warp.* 2> /dev/null | wc -l | tr -d ' ')"
 
 # no configuration in the answer
 reset
@@ -18474,12 +18513,19 @@ WPEOF
     _wp "no default route is installed (NetShift binds its own outbound)" "no-route-allowed:0"
     _wp "the private key is stored in the interface" "private-key-set:yes"
     _wp "a VPN section bound to the interface is created" "section:vpn/warp/0"
-    _wp "registration, then activation, direct" "calls:POST reg proxy=none,PATCH dev-1 proxy=none,ifup warp,"
+    _wp "registration, then activation, by the router's own way" "calls:POST reg plain,PATCH dev-1 plain,ifup warp,"
     _wp "an existing interface is not overwritten" "exists:false"
     _wp "plain WireGuard can be asked for: no AmneziaWG options" "wg-proto:wireguard peer-section:PEERPUBKEY= awg:[]"
     _wp "an existing NetShift section is kept" "section-kept:proxy"
-    _wp "when the direct route fails the NetShift proxy is used" "via-proxy:true calls=POST reg proxy=none,POST reg proxy=http://127.0.0.1:4534,PATCH dev-1 proxy=http://127.0.0.1:4534,ifup warp,"
+    _wp "when the router's own way fails the API address found over HTTPS is used" "via-pinned-ip:true calls=POST reg plain,POST reg ip:104.16.192.82,PATCH dev-1 ip:104.16.192.82,ifup warp,"
+    _wp "only the first addresses of the answer are used, and only real addresses" "doh-asked:2"
+    _wp "when pinning fails too the NetShift proxy is used" "via-proxy:true calls=POST reg plain,POST reg ip:104.16.192.82,POST reg ip:104.16.24.84,POST reg proxy:127.0.0.1:4534,PATCH dev-1 proxy:127.0.0.1:4534,ifup warp,"
+    _wp "without an HTTPS resolver the proxy is still tried" "no-doh-via-proxy:true"
+    _wp "a relay is used first, for registration and activation" "via-relay:true calls=POST reg relay:https://relay.example,PATCH dev-1 relay:https://relay.example,ifup warp,"
+    _wp "a relay that is not http(s) is refused" "relay-bad:false"
     _wp "an unreachable API is an error" 'unreachable:false,"Cloudflare did not answer the registration"'
+    _wp "the error lists every way that was tried with the curl result" 'unreachable-attempts:[["plain",7],["ip:104.16.192.82",7],["ip:104.16.24.84",7],["proxy:127.0.0.1:4534",7]]'
+    _wp "the temporary trace file is removed" "trace-file-removed:0"
     _wp "an unreachable API writes nothing" "unreachable-nothing-written:[][]"
     _wp "an answer without a configuration is an error" "no-config:false"
     _wp "an answer without a configuration writes nothing" "no-config-nothing-written:[]"

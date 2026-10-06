@@ -24,7 +24,12 @@ describe('parseWarpResult', () => {
   it('reads an error with a hint', () => {
     expect(
       parseWarpResult({ ok: false, error: 'no answer', hint: 'use a proxy' }),
-    ).toEqual({ ok: false, error: 'no answer', hint: 'use a proxy' });
+    ).toEqual({
+      ok: false,
+      error: 'no answer',
+      hint: 'use a proxy',
+      attempts: [],
+    });
   });
 
   it('survives garbage', () => {
@@ -37,7 +42,26 @@ describe('parseWarpResult', () => {
       ok: false,
       error: '',
       hint: undefined,
+      attempts: [],
     });
+  });
+
+  it('reads the ways that were tried', () => {
+    expect(
+      parseWarpResult({
+        ok: false,
+        error: 'x',
+        attempts: [
+          { route: 'plain', curl: 28, http: '000' },
+          { route: 'ip:104.16.192.82', curl: 7, http: '000' },
+          { curl: 1 },
+          null,
+        ],
+      }).attempts,
+    ).toEqual([
+      { route: 'plain', curl: 28, http: '000' },
+      { route: 'ip:104.16.192.82', curl: 7, http: '000' },
+    ]);
   });
 
   it('offers the three Cloudflare endpoints', () => {

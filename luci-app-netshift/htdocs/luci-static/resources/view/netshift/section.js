@@ -920,7 +920,7 @@ function createSectionContent(section) {
     "_warp_generate",
     _("Cloudflare WARP"),
     _(
-      "Registers a free WARP device on this router (no account needed) and creates a network interface and a VPN section for it. AmneziaWG is used when its protocol is installed, otherwise WireGuard; one of them is required. Cloudflare's API may be blocked in your network: route cloudflareclient.com through a NetShift section and try again.",
+      "Registers a free WARP device on this router (no account needed) and creates a network interface and a VPN section for it. AmneziaWG is used when its protocol is installed, otherwise WireGuard; one of them is required. If Cloudflare's API is blocked in your network, the router also tries the API address found over HTTPS and the NetShift proxy; as a last resort give the address of a relay: your own reverse proxy of https://api.cloudflareclient.com/v0i1909051800 (for example BaseRelay on Vercel or Cloudflare Workers).",
     ),
   );
   o.depends("connection_type", "vpn");
@@ -931,6 +931,12 @@ function createSectionContent(section) {
       { class: "cbi-input-select" },
       main.WARP_ENDPOINTS.map((endpoint) => E("option", { value: endpoint }, endpoint)),
     );
+    const relay = E("input", {
+      class: "cbi-input-text",
+      type: "text",
+      placeholder: _("Relay URL (optional)"),
+      style: "min-width:16em",
+    });
     const result = E("div", { class: "cbi-value-description" });
     const button = E(
       "button",
@@ -941,20 +947,26 @@ function createSectionContent(section) {
           button.disabled = true;
           result.textContent = _("Registering the device...");
 
-          main.NetShiftShellMethods.warpGenerate(select.value)
+          main.NetShiftShellMethods.warpGenerate(select.value, relay.value.trim())
             .then((reply) => {
               const answer = reply.success
                 ? main.parseWarpResult(reply.data)
                 : { ok: false, error: "" };
 
               if (!answer.ok) {
+                const tried = (answer.attempts || [])
+                  .map((item) => `${item.route} (curl ${item.curl}, HTTP ${item.http})`)
+                  .join("; ");
+
                 result.textContent = [
-                  _("Could not create the WARP interface"),
-                  answer.error,
+                  [_("Could not create the WARP interface"), answer.error]
+                    .filter(Boolean)
+                    .join(": "),
                   answer.hint,
+                  tried ? `${_("Tried")}: ${tried}` : "",
                 ]
                   .filter(Boolean)
-                  .join(": ");
+                  .join(". ");
                 button.disabled = false;
                 return;
               }
@@ -974,7 +986,11 @@ function createSectionContent(section) {
     );
 
     return E("div", {}, [
-      E("div", { style: "display:flex;gap:.5em;flex-wrap:wrap" }, [select, button]),
+      E("div", { style: "display:flex;gap:.5em;flex-wrap:wrap" }, [
+        select,
+        relay,
+        button,
+      ]),
       result,
     ]);
   };

@@ -8008,7 +8008,7 @@ Available commands:
     get_sing_box_status     Get sing-box service status
     get_system_info         Get system information in JSON format
     check_dns_available     Check DNS server availability
-    warp_generate [host:port] [interface] [amneziawg|wireguard]
+    warp_generate [host:port] [interface] [amneziawg|wireguard] [relay-url]
                             Register a free Cloudflare WARP device (no login) and set up an
                             interface plus a NetShift VPN section for it
     global_check            Run global system check
@@ -8154,7 +8154,7 @@ check_dns_available)
     check_dns_available
     ;;
 warp_generate)
-    warp_generate "${2:-}" "${3:-}" "${4:-}"
+    warp_generate "${2:-}" "${3:-}" "${4:-}" "${5:-}"
     ;;
 global_check)
     global_check "${2:-}"

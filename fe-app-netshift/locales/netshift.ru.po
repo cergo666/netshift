@@ -1187,11 +1187,14 @@ msgstr "Нельзя использовать несколько региона�
 msgid "Registering the device..."
 msgstr "Регистрируем устройство..."
 
-msgid "Registers a free WARP device on this router (no account needed) and creates a network interface and a VPN section for it. AmneziaWG is used when its protocol is installed, otherwise WireGuard; one of them is required. Cloudflare's API may be blocked in your network: route cloudflareclient.com through a NetShift section and try again."
-msgstr "Регистрирует бесплатное устройство WARP на этом роутере (аккаунт не нужен) и создаёт для него сетевой интерфейс и VPN-секцию. Используется AmneziaWG, если установлен его протокол, иначе WireGuard; нужен один из них. API Cloudflare может быть заблокирован в вашей сети: направьте cloudflareclient.com через секцию NetShift и повторите попытку."
+msgid "Registers a free WARP device on this router (no account needed) and creates a network interface and a VPN section for it. AmneziaWG is used when its protocol is installed, otherwise WireGuard; one of them is required. If Cloudflare's API is blocked in your network, the router also tries the API address found over HTTPS and the NetShift proxy; as a last resort give the address of a relay: your own reverse proxy of https://api.cloudflareclient.com/v0i1909051800 (for example BaseRelay on Vercel or Cloudflare Workers)."
+msgstr "Регистрирует бесплатное устройство WARP на этом роутере (аккаунт не нужен) и создаёт для него сетевой интерфейс и VPN-секцию. Используется AmneziaWG, если установлен его протокол, иначе WireGuard; нужен один из них. Если API Cloudflare заблокирован в вашей сети, роутер также пробует адрес API, найденный по HTTPS, и прокси NetShift; в крайнем случае укажите адрес реле: собственного обратного прокси для https://api.cloudflareclient.com/v0i1909051800 (например, BaseRelay на Vercel или Cloudflare Workers)."
 
 msgid "Regular expression must not contain spaces or commas"
 msgstr "Регулярное выражение не должно содержать пробелов и запятых"
+
+msgid "Relay URL (optional)"
+msgstr "Адрес реле (необязательно)"
 
 msgid "Release"
 msgstr "Освободить"
@@ -1639,6 +1642,9 @@ msgstr "Трафик перечисленных выше IP-адресов во�
 
 msgid "Traffic Total"
 msgstr "Всего трафика"
+
+msgid "Tried"
+msgstr "Пробовали"
 
 msgid "Troubleshooting"
 msgstr "Устранение неполадок"
