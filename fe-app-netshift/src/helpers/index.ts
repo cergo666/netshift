@@ -20,3 +20,4 @@ export * from './dnsBenchmark';
 export * from './subscriptionInfo';
 export * from './connections';
 export * from './prettyBytes';
+export * from './updateNotice';

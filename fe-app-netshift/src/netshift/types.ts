@@ -59,6 +59,8 @@ export namespace NetShift {
     CHECK_ENVIRONMENT = 'check_environment',
     DNS_BENCHMARK = 'dns_benchmark',
     GET_SUBSCRIPTION_INFO = 'get_subscription_info',
+    GET_UPDATE_NOTICE = 'get_update_notice',
+    REFRESH_UPDATE_NOTICE = 'refresh_update_notice',
     CHECK_NFT_RULES = 'check_nft_rules',
     GET_STATUS = 'get_status',
     CHECK_SING_BOX = 'check_sing_box',
