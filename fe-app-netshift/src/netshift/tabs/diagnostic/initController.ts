@@ -8,6 +8,7 @@ import { logger, store, StoreType } from '../../services';
 import {
   renderAvailableActions,
   renderCheckSection,
+  renderRouteCheck,
   renderRunAction,
   renderSystemInfo,
 } from './partials';
@@ -570,6 +571,11 @@ function onPageMount() {
 
   // Initial Wiki disclaimer render
   renderWikiDisclaimerWidget();
+
+  // Route check widget (keeps its own state)
+  document
+    .getElementById('pdk_diagnostic-page-route-check')
+    ?.replaceChildren(renderRouteCheck());
 
   // Initial services info fetch
   fetchServicesInfo();
