@@ -27,6 +27,10 @@ export const NetShiftShellMethods = {
       // Replaying the rules runs the core a few times: do not hold other calls.
       { nobatch: true },
     ),
+  checkEnvironment: async () =>
+    callBaseMethod<NetShift.EnvironmentCheckResult>(
+      NetShift.AvailableMethods.CHECK_ENVIRONMENT,
+    ),
   checkNftRules: async () =>
     callBaseMethod<NetShift.NftRulesCheckResult>(
       NetShift.AvailableMethods.CHECK_NFT_RULES,
