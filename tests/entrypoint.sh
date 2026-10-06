@@ -128,7 +128,8 @@ test_syntax() {
         "$lib/pinguard.sh" \
         "$lib/routerstats.sh" \
         "$lib/updater.sh" \
-        "$lib/dnsforward.sh"; do
+        "$lib/dnsforward.sh" \
+        "$lib/warp.sh"; do
 
         if [ ! -r "$f" ]; then
             fail "File not found: $f"
@@ -18326,6 +18327,163 @@ test_urltest_interval() {
         skip "section.js not found for the UI check"
     fi
 }
+
+# ─────────────────────────────────────────────────────────────────
+# Test: WARP profile generator (warp_generate)
+# ─────────────────────────────────────────────────────────────────
+test_warp_generate() {
+    header "Cloudflare WARP generator"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    if [ ! -r "$lib/warp.sh" ] || [ ! -r "$bin" ]; then
+        fail "warp.sh / netshift bin not found"
+        return
+    fi
+    if ! command -v jq > /dev/null 2>&1 || ! command -v uci > /dev/null 2>&1; then
+        skip "jq / uci not available"
+        return
+    fi
+
+    local drv="/tmp/netshift-warp-$$.sh"
+    cat > "$drv" << 'WPEOF'
+LIB="NETSHIFT_LIB"
+. "$LIB/constants.sh"
+. "$LIB/helpers.sh"
+log() { :; }
+. "$LIB/warp.sh"
+
+# the API: registration, then the activation answer; PROXY_ONLY makes the direct route fail
+CALLS="/tmp/netshift-warp-calls-$$"; : > "$CALLS"
+WARP_FAIL_MODE=""
+curl() {
+    local proxy="" url="" method=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+        -x) proxy="$2"; shift ;;
+        -X) method="$2"; shift ;;
+        http*) url="$1" ;;
+        esac
+        shift
+    done
+    echo "$method ${url##*/} proxy=${proxy:-none}" >> "$CALLS"
+    case "$WARP_FAIL_MODE" in
+    all) return 7 ;;
+    direct) [ -n "$proxy" ] || return 7 ;;
+    nocfg) case "$method" in PATCH) echo '{"result":{}}'; return 0 ;; esac ;;
+    esac
+    case "$method" in
+    POST) echo '{"result":{"id":"dev-1","token":"tok-1"}}' ;;
+    PATCH) echo '{"result":{"config":{"peers":[{"public_key":"PEERPUBKEY="}],"interface":{"addresses":{"v4":"172.16.0.2","v6":"2606:4700:110:8a36::2"}}}}}' ;;
+    esac
+}
+ifup() { echo "ifup $1" >> "$CALLS"; }
+pidof() { return 1; }
+get_service_proxy_address() { echo "127.0.0.1:4534"; }
+
+cp /etc/config/network /tmp/network.warp.bak 2> /dev/null || : > /etc/config/network
+: > /etc/config/netshift
+mkdir -p /lib/netifd/proto
+rm -f /lib/netifd/proto/amneziawg.sh /lib/netifd/proto/wireguard.sh
+
+uget() { uci -q get "$1" | tr '\n' ' ' | sed 's/ $//'; }
+reset() { uci -q delete network.warp; uci -q delete network.amneziawg_warp; uci -q delete network.wireguard_warp; uci -q delete netshift.warp; uci -q commit network; uci -q commit netshift; : > "$CALLS"; }
+
+echo "endpoint-bad:$(warp_generate 'nohost' | jq -r '.ok')"
+echo "endpoint-port:$(warp_generate 'a.example:0' | jq -r '.ok')"
+echo "name-bad:$(warp_generate '' 'Bad-Name' | jq -r '.ok')"
+echo "no-proto:$(warp_generate | jq -r '[.ok, (.hint | tostring | contains("wireguard-tools"))] | @csv')"
+echo "no-proto-calls:$(wc -l < "$CALLS" | tr -d ' ')"
+
+touch /lib/netifd/proto/amneziawg.sh /lib/netifd/proto/wireguard.sh
+reset
+out="$(warp_generate engage.cloudflareclient.com:2408)"
+echo "ok-json:$(printf '%s' "$out" | jq -c '[.ok, .interface, .proto, .endpoint, .addresses]')"
+echo "no-private-key-in-answer:$(printf '%s' "$out" | grep -c "$(uci -q get network.warp.private_key)")"
+echo "proto:$(uget network.warp.proto)"
+echo "addresses:$(uget network.warp.addresses)"
+echo "mtu:$(uget network.warp.mtu)"
+echo "awg-jc:$(uget network.warp.awg_jc)"
+echo "peer-key:$(uget network.amneziawg_warp.public_key)"
+echo "peer-endpoint:$(uget network.amneziawg_warp.endpoint_host):$(uget network.amneziawg_warp.endpoint_port)"
+echo "peer-allowed:$(uget network.amneziawg_warp.allowed_ips)"
+echo "no-route-allowed:$(uget network.amneziawg_warp.route_allowed_ips)"
+echo "private-key-set:$([ -n "$(uci -q get network.warp.private_key)" ] && echo yes || echo no)"
+echo "section:$(uget netshift.warp.connection_type)/$(uget netshift.warp.interface)/$(uget netshift.warp.domain_resolver_enabled)"
+echo "calls:$(tr '\n' ',' < "$CALLS")"
+
+echo "exists:$(warp_generate | jq -r '.ok')"
+
+reset
+out="$(warp_generate engage.cloudflareclient.com:500 warp wireguard)"
+echo "wg-proto:$(uget network.warp.proto) peer-section:$(uget network.wireguard_warp.public_key) awg:[$(uget network.warp.awg_jc)]"
+
+# an existing NetShift section is not touched
+reset
+uci set netshift.warp=section; uci set netshift.warp.connection_type=proxy; uci commit netshift
+warp_generate > /dev/null
+echo "section-kept:$(uget netshift.warp.connection_type)"
+
+# the direct route fails: the NetShift proxy is used
+reset
+WARP_FAIL_MODE=direct
+echo "via-proxy:$(warp_generate | jq -r '.ok') calls=$(tr '\n' ',' < "$CALLS")"
+
+# nothing works: an error, and nothing is written
+reset
+WARP_FAIL_MODE=all
+out="$(warp_generate)"
+echo "unreachable:$(printf '%s' "$out" | jq -r '[.ok, .error] | @csv')"
+echo "unreachable-nothing-written:[$(uget network.warp.proto)][$(uget netshift.warp.interface)]"
+
+# no configuration in the answer
+reset
+WARP_FAIL_MODE=nocfg
+echo "no-config:$(warp_generate | jq -r '.ok')"
+echo "no-config-nothing-written:[$(uget network.warp.proto)]"
+
+cp /tmp/network.warp.bak /etc/config/network 2> /dev/null
+rm -f /lib/netifd/proto/amneziawg.sh /lib/netifd/proto/wireguard.sh /etc/config/netshift "$CALLS" /tmp/network.warp.bak
+WPEOF
+    sed -i "s|NETSHIFT_LIB|$lib|" "$drv"
+    local out
+    out="$(ash "$drv" 2>&1)"
+    rm -f "$drv"
+
+    _wp() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+    _wp "an endpoint without a port is refused" "endpoint-bad:false"
+    _wp "port 0 is refused" "endpoint-port:false"
+    _wp "a bad interface name is refused" "name-bad:false"
+    _wp "no WireGuard support: an error that names the package" 'no-proto:false,true'
+    _wp "no WireGuard support: the API is not even asked" "no-proto-calls:0"
+    _wp "the answer names the interface, protocol, endpoint and addresses" 'ok-json:[true,"warp","amneziawg","engage.cloudflareclient.com:2408",["172.16.0.2","2606:4700:110:8a36::2"]]'
+    _wp "the private key is not in the answer" "no-private-key-in-answer:0"
+    _wp "AmneziaWG is preferred when installed" "proto:amneziawg"
+    _wp "both addresses are set with host masks" "addresses:172.16.0.2/32 2606:4700:110:8a36::2/128"
+    _wp "the MTU fits WARP" "mtu:1280"
+    _wp "obfuscation parameters are set for AmneziaWG" "awg-jc:4"
+    _wp "the peer key from Cloudflare is used" "peer-key:PEERPUBKEY="
+    _wp "the endpoint is split into host and port" "peer-endpoint:engage.cloudflareclient.com:2408"
+    _wp "everything is allowed through the peer" "peer-allowed:0.0.0.0/0 ::/0"
+    _wp "no default route is installed (NetShift binds its own outbound)" "no-route-allowed:0"
+    _wp "the private key is stored in the interface" "private-key-set:yes"
+    _wp "a VPN section bound to the interface is created" "section:vpn/warp/0"
+    _wp "registration, then activation, direct" "calls:POST reg proxy=none,PATCH dev-1 proxy=none,ifup warp,"
+    _wp "an existing interface is not overwritten" "exists:false"
+    _wp "plain WireGuard can be asked for: no AmneziaWG options" "wg-proto:wireguard peer-section:PEERPUBKEY= awg:[]"
+    _wp "an existing NetShift section is kept" "section-kept:proxy"
+    _wp "when the direct route fails the NetShift proxy is used" "via-proxy:true calls=POST reg proxy=none,POST reg proxy=http://127.0.0.1:4534,PATCH dev-1 proxy=http://127.0.0.1:4534,ifup warp,"
+    _wp "an unreachable API is an error" 'unreachable:false,"Cloudflare did not answer the registration"'
+    _wp "an unreachable API writes nothing" "unreachable-nothing-written:[][]"
+    _wp "an answer without a configuration is an error" "no-config:false"
+    _wp "an answer without a configuration writes nothing" "no-config-nothing-written:[]"
+}
 # ─────────────────────────────────────────────────────────────────
 
 main() {
@@ -18497,9 +18655,10 @@ main() {
         dnsroute)    test_dns_server_route ;;
         urlint)      test_urltest_interval ;;
         dnsforward)  test_dns_forward ;;
+        warp)        test_warp_generate ;;
         *)
             echo "Unknown test: $target"
-echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink mixedauth" routerstats" pinguard" snapshots" updatenotice updatepkg" paramfilters" connections" subinfo" dnsbench" dnsservers" ecsauto" lan" environment" routecheck" domrules dnsroute dnsforward urlint"
+echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink mixedauth" routerstats" pinguard" snapshots" updatenotice updatepkg" paramfilters" connections" subinfo" dnsbench" dnsservers" ecsauto" lan" environment" routecheck" domrules dnsroute dnsforward urlint warp"
             exit 1
             ;;
     esac

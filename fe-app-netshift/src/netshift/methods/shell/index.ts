@@ -11,6 +11,14 @@ import {
 import { parseComponentCheckUpdate } from './parseComponentCheckUpdate';
 
 export const NetShiftShellMethods = {
+  // Registering a device can take a while: Cloudflare is asked twice.
+  warpGenerate: async (endpoint: string) =>
+    callBaseMethod<unknown>(
+      NetShift.AvailableMethods.WARP_GENERATE,
+      [endpoint],
+      undefined,
+      { nobatch: true, timeout: 60000 },
+    ),
   checkDNSAvailable: async () =>
     callBaseMethod<NetShift.DnsCheckResult>(
       NetShift.AvailableMethods.CHECK_DNS_AVAILABLE,

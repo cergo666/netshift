@@ -912,6 +912,73 @@ function createSectionContent(section) {
     return validation.message;
   };
 
+  // A free Cloudflare WARP interface made on the router: the registration needs no
+  // login. It creates a system interface and a VPN section bound to it.
+  o = section.taboption(
+    "connection",
+    form.DummyValue,
+    "_warp_generate",
+    _("Cloudflare WARP"),
+    _(
+      "Registers a free WARP device on this router (no account needed) and creates a network interface and a VPN section for it. AmneziaWG is used when its protocol is installed, otherwise WireGuard; one of them is required. Cloudflare's API may be blocked in your network: route cloudflareclient.com through a NetShift section and try again.",
+    ),
+  );
+  o.depends("connection_type", "vpn");
+  o.rawhtml = true;
+  o.cfgvalue = function () {
+    const select = E(
+      "select",
+      { class: "cbi-input-select" },
+      main.WARP_ENDPOINTS.map((endpoint) => E("option", { value: endpoint }, endpoint)),
+    );
+    const result = E("div", { class: "cbi-value-description" });
+    const button = E(
+      "button",
+      {
+        class: "btn cbi-button cbi-button-add",
+        click: (ev) => {
+          ev.preventDefault();
+          button.disabled = true;
+          result.textContent = _("Registering the device...");
+
+          main.NetShiftShellMethods.warpGenerate(select.value)
+            .then((reply) => {
+              const answer = reply.success
+                ? main.parseWarpResult(reply.data)
+                : { ok: false, error: "" };
+
+              if (!answer.ok) {
+                result.textContent = [
+                  _("Could not create the WARP interface"),
+                  answer.error,
+                  answer.hint,
+                ]
+                  .filter(Boolean)
+                  .join(": ");
+                button.disabled = false;
+                return;
+              }
+
+              result.textContent = _(
+                "Created the interface %s (%s) and a VPN section with the same name. Reloading the page...",
+              ).format(answer.interface, answer.proto);
+              window.setTimeout(() => window.location.reload(), 2500);
+            })
+            .catch(() => {
+              result.textContent = _("Could not create the WARP interface");
+              button.disabled = false;
+            });
+        },
+      },
+      _("Create a WARP interface"),
+    );
+
+    return E("div", {}, [
+      E("div", { style: "display:flex;gap:.5em;flex-wrap:wrap" }, [select, button]),
+      result,
+    ]);
+  };
+
   o = section.taboption(
     "routing",
     form.DynamicList,
