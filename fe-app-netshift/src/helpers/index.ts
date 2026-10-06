@@ -15,3 +15,4 @@ export * from './withCountryFlag';
 export * from './deviceRouting';
 export * from './dashboardView';
 export * from './lanDevices';
+export * from './dnsServers';
