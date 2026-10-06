@@ -118,6 +118,7 @@ test_syntax() {
         "$lib/rulesets.sh" \
         "$lib/sing_box_config_manager.sh" \
         "$lib/sing_box_config_facade.sh" \
+        "$lib/update_notice.sh" \
         "$lib/updater.sh"; do
 
         if [ ! -r "$f" ]; then
@@ -12349,7 +12350,8 @@ JSON
 # Stub the asset download: write a non-empty file only when the marker is set.
 updates_download_to_file() {
     [ -f "$SU_DL_OK" ] || return 1
-    printf 'pkg-bytes\n' > "$2"
+    # a real (if empty) package: the self-update checks that downloads are archives
+    cp "$SU_FIXTURE_PKG" "$2"
     [ -s "$2" ]
 }
 
@@ -12368,6 +12370,9 @@ DRVEOF
     cp -p "$work/init/netshift" "$init_target" 2>/dev/null
     chmod 0755 "$init_target" 2>/dev/null || true
 
+    head -c 4000 /dev/urandom > "$work/fixture-payload"
+    tar -czf "$work/fixture.ipk" -C "$work" fixture-payload
+    export SU_FIXTURE_PKG="$work/fixture.ipk"
     export SU_DNS_OK="$work/dns_ok"
     export SU_HTTP_OK="$work/http_ok"
     export SU_GH_OK="$work/gh_ok"
@@ -12469,6 +12474,32 @@ DRVEOF
         pass "selfupdate-happy-download-dir-cleaned:OK"
     else
         fail "selfupdate-happy-download-dir-cleaned:FAIL" "dl dir remains"
+    fi
+
+    # ── Scenario 3b: the download is an error page, not a package ─────────────
+    # Nothing may be installed and the configuration stays as it was.
+    : > "$SU_DNS_OK"; : > "$SU_HTTP_OK"; : > "$SU_GH_OK"; : > "$SU_DL_OK"; : > "$SU_PKG_OK"
+    printf 'CONFIG-ORIG\n' > "$work/etc-config-netshift"
+    printf 'netshift - 0.8.0-r1\n' > "$work/installed.list"
+    local good_fixture="$SU_FIXTURE_PKG"
+    printf '<html>API rate limit exceeded%s</html>' "$(head -c 3000 /dev/zero | tr '\0' 'x')" > "$work/fixture-page.ipk"
+    export SU_FIXTURE_PKG="$work/fixture-page.ipk"
+    run_scenario
+    export SU_FIXTURE_PKG="$good_fixture"
+    if jq -e '.success == false and (.message | contains("damaged"))' "$out" > /dev/null 2>&1; then
+        pass "selfupdate-damaged-package-refused:OK"
+    else
+        fail "selfupdate-damaged-package-refused:FAIL" "$(cat "$out" 2>/dev/null)"
+    fi
+    if [ ! -f "$work/install.log" ]; then
+        pass "selfupdate-damaged-package-nothing-installed:OK"
+    else
+        fail "selfupdate-damaged-package-nothing-installed:FAIL" "install.log=$(cat "$work/install.log" 2>/dev/null)"
+    fi
+    if [ "$(cat "$work/etc-config-netshift" 2>/dev/null)" = "CONFIG-ORIG" ] && [ ! -d "$work/dl" ]; then
+        pass "selfupdate-damaged-package-config-intact-dir-cleaned:OK"
+    else
+        fail "selfupdate-damaged-package-config-intact-dir-cleaned:FAIL" "$(cat "$work/etc-config-netshift" 2>/dev/null)"
     fi
 
     # ── Scenario 4: already up to date (idempotent) → success:true, no install
@@ -14532,6 +14563,183 @@ DSEOF
     rm -f "$drv" "$ds_out"
 }
 
+test_update_notice() {
+    header "Update notice: cached answer, refresh, stale check (update_notice.sh)"
+
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not installed"
+        return
+    fi
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    if [ ! -r "$lib/update_notice.sh" ] || [ ! -r "$lib/constants.sh" ]; then
+        fail "update_notice.sh / constants.sh not found"
+        return
+    fi
+
+    local work="/tmp/netshift-notice-$$"
+    rm -rf "$work"
+    mkdir -p "$work"
+
+    local out
+    out="$(
+        . "$lib/constants.sh"
+        . "$lib/update_notice.sh"
+        UPDATE_NOTICE_FILE="$work/notice.json"
+
+        NOTICE_ENABLED=1
+        config_get_bool() { eval "$1=\"$NOTICE_ENABLED\""; }
+        NS_JSON='{"success":true,"current_version":"0.9.10","latest_version":"0.9.12","status":"outdated"}'
+        SB_JSON='{"success":true,"current_version":"1.12.0-extended-1","latest_version":"1.12.0-extended-2","status":"outdated"}'
+        VARIANT=extended_lite
+        updates_check_netshift() { printf '%s\n' "$NS_JSON"; }
+        updates_check_sing_box_extended() { echo "EXT-CALLED" >> "$work/calls"; printf '%s\n' "$SB_JSON"; }
+        updates_check_sing_box_lite() { echo "LITE-CALLED" >> "$work/calls"; printf '%s\n' "$SB_JSON"; }
+        get_sing_box_variant() { echo "$VARIANT"; }
+
+        echo "no-file=$(get_update_notice | jq -c '[.enabled, .stale, .checked, .netshift, .sing_box]')"
+
+        update_notice_refresh
+        echo "stored=$(jq -c '[.netshift.latest_version, .sing_box.latest_version, (.checked > 1700000000)]' "$UPDATE_NOTICE_FILE")"
+        echo "lite-asked=$(cat "$work/calls")"
+        echo "fresh=$(get_update_notice | jq -c '[.enabled, .stale, .netshift.status, .sing_box.status]')"
+
+        # an old answer is stale
+        jq -c '.checked = 1000' "$UPDATE_NOTICE_FILE" > "$work/old" && mv "$work/old" "$UPDATE_NOTICE_FILE"
+        echo "stale=$(get_update_notice | jq -c '.stale')"
+
+        NOTICE_ENABLED=0
+        echo "disabled=$(get_update_notice | jq -c '.enabled')"
+        NOTICE_ENABLED=1
+
+        # stock core: no GitHub check for it
+        rm -f "$work/calls"; VARIANT=stock
+        update_notice_refresh
+        echo "stock=$(jq -c '[.netshift.latest_version, .sing_box]' "$UPDATE_NOTICE_FILE")"
+        echo "stock-calls=$(cat "$work/calls" 2> /dev/null | wc -l | tr -d ' ')"
+        VARIANT=extended
+        update_notice_refresh
+        echo "extended-asked=$(cat "$work/calls")"
+
+        # GitHub unreachable: the previous answer stays, only the time moves
+        updates_check_netshift() { echo '{"success":false,"message":"unreachable"}'; return 1; }
+        updates_check_sing_box_extended() { echo '{"success":false}'; return 1; }
+        jq -c '.checked = 1000' "$UPDATE_NOTICE_FILE" > "$work/old" && mv "$work/old" "$UPDATE_NOTICE_FILE"
+        update_notice_refresh
+        echo "offline-kept=$(jq -c '[.netshift.latest_version, (.checked > 1700000000)]' "$UPDATE_NOTICE_FILE")"
+        echo "offline-not-stale=$(get_update_notice | jq -c '.stale')"
+
+        # nothing known and unreachable: an answer with nulls, not a broken file
+        rm -f "$UPDATE_NOTICE_FILE"
+        update_notice_refresh
+        echo "empty=$(jq -c '[.netshift, .sing_box]' "$UPDATE_NOTICE_FILE")"
+
+        # garbage in the file is read as "nothing known"
+        echo 'not json' > "$UPDATE_NOTICE_FILE"
+        echo "garbage=$(get_update_notice | jq -c '[.stale, .netshift]')"
+
+        # the background refresh: starts once, a second call while it runs does nothing
+        rm -f "$UPDATE_NOTICE_FILE" "$UPDATE_NOTICE_FILE.lock"
+        updates_check_netshift() { sleep 2; printf '%s\n' "$NS_JSON"; }
+        echo "async-first=$(update_notice_refresh_async)"
+        echo "async-second=$(update_notice_refresh_async)"
+        sleep 4
+        echo "async-done=$(jq -c '.netshift.latest_version' "$UPDATE_NOTICE_FILE")"
+        echo "async-lock-removed=$([ -e "$UPDATE_NOTICE_FILE.lock" ] && echo no || echo yes)"
+    )"
+
+    _un() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+
+    _un "no answer yet: enabled, stale, nothing known" "no-file=[true,true,null,null,null]"
+    _un "a refresh stores both answers and the time" 'stored=["0.9.12","1.12.0-extended-2",true]'
+    _un "the lite core is asked for lite" "lite-asked=LITE-CALLED"
+    _un "a fresh answer is not stale" 'fresh=[true,false,"outdated","outdated"]'
+    _un "an old answer is stale" "stale=true"
+    _un "the switch is reported" "disabled=false"
+    _un "the stock core is not asked" 'stock=["0.9.12",null]'
+    _un "...no GitHub call for it" "stock-calls=0"
+    _un "the extended core is asked for extended" "extended-asked=EXT-CALLED"
+    _un "an unreachable GitHub keeps the previous answer" 'offline-kept=["0.9.12",true]'
+    _un "...and does not ask again at once" "offline-not-stale=false"
+    _un "nothing known and unreachable gives empty parts" "empty=[null,null]"
+    _un "a broken file reads as nothing known" "garbage=[true,null]"
+    _un "the background refresh starts" 'async-first={"started":true}'
+    _un "...once at a time" 'async-second={"started":false}'
+    _un "...and stores its answer" 'async-done="0.9.12"'
+    _un "...and removes its lock" "async-lock-removed=yes"
+
+    rm -rf "$work"
+}
+
+test_update_package_check() {
+    header "Self-update: downloaded package files are checked before anything is installed"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    local updater="$lib/updater.sh"
+    if [ ! -r "$updater" ] || [ ! -r "$lib/constants.sh" ]; then
+        fail "updater.sh / constants.sh not found"
+        return
+    fi
+
+    local work="/tmp/netshift-pkgcheck-$$"
+    rm -rf "$work"
+    mkdir -p "$work"
+
+    local out
+    out="$(
+        UPDATES_PACKAGE_MIN_SIZE=2048
+        eval "$(awk '/^updates_package_file_looks_valid\(\) \{/{p=1} p{print} p&&/^\}/{exit}' "$updater")"
+
+        # a real gzip archive of a few kilobytes
+        head -c 6000 /dev/urandom > "$work/payload"
+        tar -czf "$work/good.ipk" -C "$work" payload
+        check() { updates_package_file_looks_valid "$1" && echo yes || echo no; }
+
+        echo "ipk-good=$(check "$work/good.ipk")"
+        printf '<html>rate limit exceeded</html>%s' "$(head -c 3000 /dev/zero | tr '\0' 'x')" > "$work/page.ipk"
+        echo "ipk-html=$(check "$work/page.ipk")"
+        head -c 100 "$work/good.ipk" > "$work/small.ipk"
+        echo "ipk-tiny=$(check "$work/small.ipk")"
+        head -c 3000 "$work/good.ipk" > "$work/trunc.ipk"
+        echo "ipk-truncated=$(check "$work/trunc.ipk")"
+        cp "$work/good.ipk" "$work/v2.apk"
+        echo "apk-gzip=$(check "$work/v2.apk")"
+        { printf 'ADB.'; head -c 4000 /dev/urandom; } > "$work/v3.apk"
+        echo "apk-adb=$(check "$work/v3.apk")"
+        printf '<html>%s' "$(head -c 3000 /dev/zero | tr '\0' 'x')" > "$work/page.apk"
+        echo "apk-html=$(check "$work/page.apk")"
+        echo "missing=$(check "$work/none.ipk")"
+        : > "$work/empty.ipk"
+        echo "empty=$(check "$work/empty.ipk")"
+    )"
+
+    _pk() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+
+    _pk "a real .ipk passes" "ipk-good=yes"
+    _pk "an error page named .ipk is refused" "ipk-html=no"
+    _pk "a tiny file is refused" "ipk-tiny=no"
+    _pk "a truncated .ipk is refused" "ipk-truncated=no"
+    _pk "a gzip .apk passes" "apk-gzip=yes"
+    _pk "an ADB .apk passes" "apk-adb=yes"
+    _pk "an error page named .apk is refused" "apk-html=no"
+    _pk "a missing file is refused" "missing=no"
+    _pk "an empty file is refused" "empty=no"
+
+    rm -rf "$work"
+}
+
 # ─────────────────────────────────────────────────────────────────
 # Test: subscription country filters
 # ─────────────────────────────────────────────────────────────────
@@ -16108,6 +16316,8 @@ main() {
             test_hot_reload
             test_domain_separators
             test_cache_persist
+            test_update_package_check
+            test_update_notice
             test_dns_section
             test_section_disabled
             test_ipv6_routing
@@ -16177,12 +16387,14 @@ main() {
         priority)    test_priority_selection ;;
         bypass)      test_bypass ;;
         dnssection)  test_dns_section ;;
+        updatenotice) test_update_notice ;;
+        updatepkg)   test_update_package_check ;;
         utfilters)   test_urltest_filters ;;
         ipv6routing) test_ipv6_routing ;;
         compproxy)   test_components_via_proxy ;;
         *)
             echo "Unknown test: $target"
-echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink"
+echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink updatenotice updatepkg"
             exit 1
             ;;
     esac
