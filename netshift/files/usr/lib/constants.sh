@@ -322,3 +322,8 @@ SUBNETS_OVH="${GITHUB_RAW_URL}/Subnets/IPv4/ovh.lst"
 SUBNETS_DIGITALOCEAN="${GITHUB_RAW_URL}/Subnets/IPv4/digitalocean.lst"
 SUBNETS_CLOUDFRONT="${GITHUB_RAW_URL}/Subnets/IPv4/cloudfront.lst"
 COMMUNITY_SERVICES="russia_inside russia_outside ukraine_inside geoblock block porn news anime youtube hdrezka tiktok google_ai google_play hodca discord meta twitter cloudflare cloudfront digitalocean hetzner ovh telegram roblox"
+
+# Configuration snapshots (snapshots.sh).
+NETSHIFT_CONFIG_FILE="/etc/config/netshift"
+SNAPSHOT_DIR="$NETSHIFT_STATE_DIR/snapshots"
+SNAPSHOT_KEEP=10
