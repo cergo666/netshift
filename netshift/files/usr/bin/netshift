@@ -6393,11 +6393,13 @@ _get_dns_detour_tag() {
 # The outbound tag of the tunnel the DNS servers can be sent through (empty when
 # none is usable), whatever the global switch says: a server marked "tunnel" in
 # dns_server_route uses it even while the switch is off.
+# $1 - a section to use instead of the configured one (a server routed "via:<section>").
 _resolve_dns_outbound_tag() {
     local dns_outbound_section candidate
     local candidate_connection_type
 
-    config_get dns_outbound_section "settings" "dns_outbound_section"
+    dns_outbound_section="$1"
+    [ -n "$dns_outbound_section" ] || config_get dns_outbound_section "settings" "dns_outbound_section"
 
     # Step 2: resolve the candidate section.
     if [ -n "$dns_outbound_section" ] && \
@@ -6437,8 +6439,10 @@ _resolve_dns_outbound_tag() {
     get_outbound_tag_by_section "$candidate"
 }
 
-# Per-server route of the DNS servers: `list dns_server_route '<server> tunnel|direct'`
-# overrides the global "Route main DNS through proxy/VPN" switch for one server
+# Per-server route of the DNS servers: `list dns_server_route '<server> <route>'`, the
+# route being "direct", "via:<section>" (through that section's outbound) or "tunnel"
+# (through the DNS outbound section, the older spelling). It overrides the global
+# "Route main DNS through proxy/VPN" switch for one server
 # (<server> is written exactly as in the server list: scheme://host[:port][/path]).
 # A server without an entry follows the switch.
 _dns_route_match_handler() {
@@ -6448,11 +6452,11 @@ _dns_route_match_handler() {
 
     [ "${entry% *}" = "$wanted" ] || return 0
     case "$mode" in
-    tunnel | direct) DNS_ROUTE_FOUND="$mode" ;;
+    tunnel | direct | via:?*) DNS_ROUTE_FOUND="$mode" ;;
     esac
 }
 
-# Prints "tunnel", "direct", or nothing (follow the global switch).
+# Prints the route ("tunnel", "direct", "via:<section>"), or nothing (follow the switch).
 get_dns_server_route() {
     DNS_ROUTE_FOUND=""
     netshift_config_list_foreach "settings" "dns_server_route" _dns_route_match_handler "$1"
@@ -6480,7 +6484,10 @@ dns_server_detour_tag() {
 
     mode="$(get_dns_server_route "$1")"
     [ -n "$mode" ] || mode="$DNS_ROUTE_DEFAULT"
-    [ "$mode" = "tunnel" ] && printf '%s' "$DNS_ROUTE_TUNNEL_TAG"
+    case "$mode" in
+    tunnel) printf '%s' "$DNS_ROUTE_TUNNEL_TAG" ;;
+    via:*) _resolve_dns_outbound_tag "${mode#via:}" ;;
+    esac
     return 0
 }
 

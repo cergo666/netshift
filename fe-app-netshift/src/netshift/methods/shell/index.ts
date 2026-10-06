@@ -31,10 +31,10 @@ export const NetShiftShellMethods = {
     callBaseMethod<NetShift.EnvironmentCheckResult>(
       NetShift.AvailableMethods.CHECK_ENVIRONMENT,
     ),
-  dnsBenchmark: async () =>
+  dnsBenchmark: async (servers: string[] = []) =>
     callBaseMethod<unknown>(
       NetShift.AvailableMethods.DNS_BENCHMARK,
-      [],
+      servers,
       undefined,
       { nobatch: true },
     ),

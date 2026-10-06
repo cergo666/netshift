@@ -1110,9 +1110,9 @@ var NetShiftShellMethods = {
   checkEnvironment: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_ENVIRONMENT
   ),
-  dnsBenchmark: async () => callBaseMethod(
+  dnsBenchmark: async (servers = []) => callBaseMethod(
     NetShift.AvailableMethods.DNS_BENCHMARK,
-    [],
+    servers,
     void 0,
     { nobatch: true }
   ),
@@ -7960,6 +7960,18 @@ function dnsServersToOptions(list) {
   }
   return { dns_type: scheme, dns_server: server, dns_pool_server: rest };
 }
+var DNS_ROUTE_DIRECT = "direct";
+var DNS_ROUTE_TUNNEL = "tunnel";
+var DNS_ROUTE_VIA_PREFIX = "via:";
+function dnsRouteVia(section) {
+  return `${DNS_ROUTE_VIA_PREFIX}${section}`;
+}
+function dnsRouteSection(route) {
+  return route.startsWith(DNS_ROUTE_VIA_PREFIX) && route.length > 4 ? route.slice(DNS_ROUTE_VIA_PREFIX.length) : null;
+}
+function isKnownRoute(route) {
+  return route === DNS_ROUTE_DIRECT || route === DNS_ROUTE_TUNNEL || dnsRouteSection(route) !== null;
+}
 function dnsRoutesFromOptions(entries) {
   const routes = {};
   entries.forEach((entry) => {
@@ -7969,17 +7981,18 @@ function dnsRoutesFromOptions(entries) {
       return;
     }
     const server = text2.slice(0, split).trim();
-    const mode = text2.slice(split + 1);
-    if (server && (mode === "direct" || mode === "tunnel")) {
-      routes[server] = mode;
+    const route = text2.slice(split + 1);
+    if (server && isKnownRoute(route)) {
+      routes[server] = route;
     }
   });
   return routes;
 }
-function dnsRoutesToOptions(servers, routes) {
-  return servers.map((server) => server.trim()).filter((server, index, all) => server && all.indexOf(server) === index).filter(
-    (server) => routes[server] === "direct" || routes[server] === "tunnel"
-  ).map((server) => `${server} ${routes[server]}`);
+function dnsRoutesToOptions(servers, routes, backendDefault = DNS_ROUTE_DIRECT) {
+  return servers.map((server) => server.trim()).filter((server, index, all) => server && all.indexOf(server) === index).filter((server) => {
+    const route = routes[server];
+    return route && isKnownRoute(route) && route !== backendDefault;
+  }).map((server) => `${server} ${routes[server]}`);
 }
 
 // src/helpers/dnsBenchmark.ts
@@ -8148,6 +8161,9 @@ return baseclass.extend({
   DIAGNOSTICS_INITIAL_DELAY,
   DIAGNOSTICS_UPDATE_INTERVAL,
   DNS_POOL_PRESETS,
+  DNS_ROUTE_DIRECT,
+  DNS_ROUTE_TUNNEL,
+  DNS_ROUTE_VIA_PREFIX,
   DNS_SERVER_OPTIONS,
   DOMAIN_LIST_OPTIONS,
   DashboardTab,
@@ -8179,6 +8195,8 @@ return baseclass.extend({
   coreService,
   describeSubscriptionInfo,
   deviceMatchesQuery,
+  dnsRouteSection,
+  dnsRouteVia,
   dnsRoutesFromOptions,
   dnsRoutesToOptions,
   dnsServersFromOptions,

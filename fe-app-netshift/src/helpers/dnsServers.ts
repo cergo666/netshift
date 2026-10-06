@@ -56,12 +56,36 @@ export function dnsServersToOptions(list: string[]): DnsServerOptions | null {
   return { dns_type: scheme, dns_server: server, dns_pool_server: rest };
 }
 
-// How one DNS server is reached. "default" follows the global "Route main DNS
-// through proxy/VPN" switch; the other two override it for that server.
-export type DnsServerRoute = 'default' | 'direct' | 'tunnel';
+// How one DNS server is reached: "direct", "tunnel" (the DNS outbound section,
+// the older spelling) or "via:<section>" (through that section's outbound).
+export type DnsServerRoute = string;
 
-// dns_server_route holds "<server> direct|tunnel" entries (<server> is written
-// as in the server list); a server without an entry follows the switch.
+export const DNS_ROUTE_DIRECT = 'direct';
+export const DNS_ROUTE_TUNNEL = 'tunnel';
+export const DNS_ROUTE_VIA_PREFIX = 'via:';
+
+export function dnsRouteVia(section: string): DnsServerRoute {
+  return `${DNS_ROUTE_VIA_PREFIX}${section}`;
+}
+
+// The section of a "via:<section>" route, or null for any other route.
+export function dnsRouteSection(route: DnsServerRoute): string | null {
+  return route.startsWith(DNS_ROUTE_VIA_PREFIX) && route.length > 4
+    ? route.slice(DNS_ROUTE_VIA_PREFIX.length)
+    : null;
+}
+
+function isKnownRoute(route: string): boolean {
+  return (
+    route === DNS_ROUTE_DIRECT ||
+    route === DNS_ROUTE_TUNNEL ||
+    dnsRouteSection(route) !== null
+  );
+}
+
+// dns_server_route holds "<server> <route>" entries (<server> is written as in
+// the server list); a server without an entry follows the global switch
+// (dns_via_outbound), which the page turns into an explicit route.
 export function dnsRoutesFromOptions(
   entries: string[],
 ): Record<string, DnsServerRoute> {
@@ -76,28 +100,32 @@ export function dnsRoutesFromOptions(
     }
 
     const server = text.slice(0, split).trim();
-    const mode = text.slice(split + 1);
+    const route = text.slice(split + 1);
 
-    if (server && (mode === 'direct' || mode === 'tunnel')) {
-      routes[server] = mode;
+    if (server && isKnownRoute(route)) {
+      routes[server] = route;
     }
   });
 
   return routes;
 }
 
-// The entries to store for the servers of the list, in list order. Servers
-// that follow the switch have no entry, so a config without overrides stays as
-// it was.
+// The entries to store for the servers of the list, in list order: the ones whose
+// route differs from what the backend assumes without an entry (`backendDefault`:
+// "direct", or "tunnel" while the old global switch is on). A config where every
+// server is direct and the switch is off stays free of entries.
 export function dnsRoutesToOptions(
   servers: string[],
   routes: Record<string, DnsServerRoute>,
+  backendDefault: DnsServerRoute = DNS_ROUTE_DIRECT,
 ): string[] {
   return servers
     .map((server) => server.trim())
     .filter((server, index, all) => server && all.indexOf(server) === index)
-    .filter(
-      (server) => routes[server] === 'direct' || routes[server] === 'tunnel',
-    )
+    .filter((server) => {
+      const route = routes[server];
+
+      return route && isKnownRoute(route) && route !== backendDefault;
+    })
     .map((server) => `${server} ${routes[server]}`);
 }
