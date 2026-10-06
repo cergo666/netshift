@@ -1,6 +1,7 @@
 "use strict";
 "require form";
 "require uci";
+"require ui";
 "require baseclass";
 "require tools.widgets as widgets";
 "require view.netshift.main as main";
@@ -174,6 +175,11 @@ function createSettingsContent(section) {
 
     const presetLabel = (server) => main.DNS_POOL_PRESETS[server] || "";
     const cellStyle = "vertical-align:middle;padding:.3em .5em";
+    const mainMark = E(
+      "span",
+      { class: "cbi-value-description", style: "margin-left:.5em" },
+      `(${_("main")})`,
+    );
 
     const body = E("tbody", {});
     const status = E("span", { class: "cbi-value-description" });
@@ -249,21 +255,23 @@ function createSettingsContent(section) {
         ...widget.rows.map((row, index) =>
           E("tr", { class: "tr" }, [
             E("td", { class: "td", style: cellStyle }, [
+              presetLabel(row.server)
+                ? E("div", {}, [
+                    presetLabel(row.server),
+                    index === 0 ? mainMark : "",
+                  ])
+                : "",
               E(
-                "span",
-                { title: presetLabel(row.server), style: "word-break:break-all" },
+                presetLabel(row.server) ? "div" : "span",
+                {
+                  ...(presetLabel(row.server)
+                    ? { class: "cbi-value-description" }
+                    : {}),
+                  style: "word-break:break-all",
+                },
                 row.server,
               ),
-              index === 0
-                ? E(
-                    "span",
-                    {
-                      class: "cbi-value-description",
-                      style: "margin-left:.5em",
-                    },
-                    `(${_("main")})`,
-                  )
-                : "",
+              !presetLabel(row.server) && index === 0 ? mainMark : "",
             ]),
             E("td", { class: "td", style: cellStyle }, [
               E(
@@ -372,28 +380,9 @@ function createSettingsContent(section) {
         });
     };
 
-    // Add a server: a ready-made one from the list, or any scheme://host.
-    const input = E("input", {
-      class: "cbi-input-text",
-      type: "text",
-      list: `${widget.cbid(section_id)}.presets`,
-      placeholder: "doh://dns.google/dns-query",
-      style: "min-width:16em",
-    });
-    const presets = E(
-      "datalist",
-      { id: `${widget.cbid(section_id)}.presets` },
-      Object.entries(main.DNS_POOL_PRESETS).map(([value, label]) =>
-        E("option", { value }, label),
-      ),
-    );
-    const addServer = () => {
-      const value = input.value.trim();
-
-      if (!value) {
-        return;
-      }
-
+    // Add a server: pick a ready-made one from the list, or type any
+    // scheme://host and press Enter (the same picker the list used to have).
+    const addServer = (value) => {
       const validation = main.validateDnsPoolServer(value);
 
       if (!validation.valid) {
@@ -408,7 +397,6 @@ function createSettingsContent(section) {
 
       problem.textContent = "";
       widget.rows.push({ server: value, route: "direct" });
-      input.value = "";
       redraw();
 
       // A second server is useless in "first server only" mode: switch to priority
@@ -421,10 +409,19 @@ function createSettingsContent(section) {
         }
       }
     };
-    input.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter") {
-        ev.preventDefault();
-        addServer();
+    const picker = new ui.Combobox("", main.DNS_POOL_PRESETS, {
+      placeholder: _("Add a server: pick one or type scheme://host"),
+      custom_placeholder: _("scheme://host[:port][/path], then Enter"),
+      sort: Object.keys(main.DNS_POOL_PRESETS),
+    });
+    const pickerNode = picker.render();
+
+    pickerNode.addEventListener("cbi-dropdown-change", (ev) => {
+      const value = String(ev.detail?.value?.value ?? "").trim();
+
+      if (value) {
+        addServer(value);
+        picker.setValue("");
       }
     });
 
@@ -439,33 +436,18 @@ function createSettingsContent(section) {
               E("th", { class: "th" }, _("Server")),
               E("th", { class: "th" }, _("Route")),
               E("th", { class: "th" }, _("Time")),
-              E("th", { class: "th" }, ""),
+              E(
+                "th",
+                { class: "th", style: "text-align:right;white-space:nowrap" },
+                refreshButton,
+              ),
             ]),
           ]),
           body,
         ]),
       ]),
-      E(
-        "div",
-        { style: "display:flex;gap:.5em;flex-wrap:wrap;align-items:center;margin-top:.5em" },
-        [
-          input,
-          presets,
-          E(
-            "button",
-            {
-              class: "btn cbi-button cbi-button-add",
-              click: (ev) => {
-                ev.preventDefault();
-                addServer();
-              },
-            },
-            _("Add"),
-          ),
-          refreshButton,
-          status,
-        ],
-      ),
+      E("div", { style: "margin-top:.5em" }, [status]),
+      E("div", { style: "margin-top:.5em;max-width:28em" }, [pickerNode]),
       problem,
     ]);
   };
