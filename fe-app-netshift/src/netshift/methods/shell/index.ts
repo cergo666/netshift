@@ -19,6 +19,8 @@ export const NetShiftShellMethods = {
     callBaseMethod<NetShift.FakeIPCheckResult>(
       NetShift.AvailableMethods.CHECK_FAKEIP,
     ),
+  getRouterStats: async () =>
+    callBaseMethod<unknown>(NetShift.AvailableMethods.GET_ROUTER_STATS),
   checkNftRules: async () =>
     callBaseMethod<NetShift.NftRulesCheckResult>(
       NetShift.AvailableMethods.CHECK_NFT_RULES,

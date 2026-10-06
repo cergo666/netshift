@@ -20,19 +20,19 @@ msgstr ""
 msgid "(disabled)"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:414
+#: src/netshift/tabs/dashboard/initController.ts:501
 msgid "✔ Enabled"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:425
+#: src/netshift/tabs/dashboard/initController.ts:512
 msgid "✔ Running"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:415
+#: src/netshift/tabs/dashboard/initController.ts:502
 msgid "✘ Disabled"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:426
+#: src/netshift/tabs/dashboard/initController.ts:513
 msgid "✘ Stopped"
 msgstr ""
 
@@ -52,7 +52,7 @@ msgstr ""
 msgid "Active"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:376
+#: src/netshift/tabs/dashboard/initController.ts:463
 msgid "Active Connections"
 msgstr ""
 
@@ -279,7 +279,7 @@ msgstr ""
 msgid "Copy"
 msgstr ""
 
-#: src/netshift/methods/shell/index.ts:166
+#: src/netshift/methods/shell/index.ts:168
 #: src/netshift/methods/shell/pollSingBoxComponentAction.ts:83
 msgid "Core switch failed"
 msgstr ""
@@ -298,6 +298,10 @@ msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1020
 msgid "Custom subnets"
+msgstr ""
+
+#: src/netshift/tabs/dashboard/initController.ts:93
+msgid "d"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/netshift.js:42
@@ -478,8 +482,8 @@ msgstr ""
 msgid "Dont Touch My DHCP!"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:310
-#: src/netshift/tabs/dashboard/initController.ts:344
+#: src/netshift/tabs/dashboard/initController.ts:397
+#: src/netshift/tabs/dashboard/initController.ts:431
 msgid "Downlink"
 msgstr ""
 
@@ -649,7 +653,7 @@ msgstr ""
 msgid "Extended core with all features (~105 MB)"
 msgstr ""
 
-#: src/netshift/methods/shell/index.ts:262
+#: src/netshift/methods/shell/index.ts:264
 #: src/netshift/tabs/diagnostic/initController.ts:351
 #: src/netshift/tabs/diagnostic/initController.ts:355
 msgid "Failed to clear subscription cache"
@@ -684,6 +688,10 @@ msgstr ""
 msgid "Fastest"
 msgstr ""
 
+#: src/netshift/tabs/dashboard/initController.ts:108
+msgid "Flash free"
+msgstr ""
+
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:623
 msgid "For servers whose name has no flag, look the country up once by the server address and show its flag: in front of the name in a subscription (so grouping and the country filters work for it too), on the dashboard for your own links. The server addresses are sent to api.country.is over HTTPS; results are cached on the router."
 msgstr ""
@@ -706,6 +714,10 @@ msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:312
 msgid "Group subscription proxies into URLTest groups. 'By country flag' uses the flag emoji at the start of each name; 'By name prefix' groups by the first N characters."
+msgstr ""
+
+#: src/netshift/tabs/dashboard/initController.ts:94
+msgid "h"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:149
@@ -1033,6 +1045,10 @@ msgstr ""
 msgid "Lists & Updates"
 msgstr ""
 
+#: src/netshift/tabs/dashboard/initController.ts:100
+msgid "Load"
+msgstr ""
+
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1104
 msgid "Local Domain Lists"
 msgstr ""
@@ -1061,8 +1077,24 @@ msgstr ""
 msgid "Main server only"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:380
+#: src/netshift/tabs/dashboard/initController.ts:109
+msgid "MB"
+msgstr ""
+
+#: src/netshift/tabs/dashboard/initController.ts:105
+msgid "MB free"
+msgstr ""
+
+#: src/netshift/tabs/dashboard/initController.ts:104
+msgid "Memory"
+msgstr ""
+
+#: src/netshift/tabs/dashboard/initController.ts:467
 msgid "Memory Usage"
+msgstr ""
+
+#: src/netshift/tabs/dashboard/initController.ts:95
+msgid "min"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:32
@@ -1085,7 +1117,7 @@ msgstr ""
 msgid "Must be a number in the range of 50 - 1000"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:412
+#: src/netshift/tabs/dashboard/initController.ts:499
 msgid "NetShift"
 msgstr ""
 
@@ -1287,6 +1319,10 @@ msgstr ""
 msgid "Route main DNS through proxy/VPN"
 msgstr ""
 
+#: src/netshift/tabs/dashboard/initController.ts:88
+msgid "Router"
+msgstr ""
+
 #: src/netshift/tabs/diagnostic/checks/runFakeIPCheck.ts:51
 msgid "Router DNS is not routed through sing-box"
 msgstr ""
@@ -1330,6 +1366,10 @@ msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:890
 msgid "Russia inside restrictions"
+msgstr ""
+
+#: src/netshift/tabs/dashboard/initController.ts:96
+msgid "s"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:553
@@ -1413,7 +1453,7 @@ msgstr ""
 msgid "Selector Proxy Links (one per line)"
 msgstr ""
 
-#: src/netshift/methods/shell/index.ts:311
+#: src/netshift/methods/shell/index.ts:313
 msgid "Self-update failed"
 msgstr ""
 
@@ -1429,7 +1469,7 @@ msgstr ""
 msgid "Send upstream DNS queries through a proxy/VPN outbound instead of directly. Bootstrap DNS always stays direct."
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:409
+#: src/netshift/tabs/dashboard/initController.ts:496
 msgid "Services info"
 msgstr ""
 
@@ -1443,7 +1483,7 @@ msgid "Show sing-box config"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:238
-#: src/netshift/tabs/dashboard/initController.ts:423
+#: src/netshift/tabs/dashboard/initController.ts:510
 msgid "Sing-box"
 msgstr ""
 
@@ -1565,7 +1605,7 @@ msgstr ""
 msgid "Switching sing-box core, this may take a few minutes…"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:373
+#: src/netshift/tabs/dashboard/initController.ts:460
 msgid "System info"
 msgstr ""
 
@@ -1579,6 +1619,10 @@ msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:56
 msgid "TCP"
+msgstr ""
+
+#: src/netshift/tabs/dashboard/initController.ts:114
+msgid "Temperature"
 msgstr ""
 
 #: src/netshift/tabs/dashboard/partials/renderSections.ts:198
@@ -1642,7 +1686,7 @@ msgstr ""
 msgid "Time of the daily update, HH:MM (00:00-23:59) in the router's local time. Avoid minutes shared with other update intervals, such as :00 and :30 if a 30-minute section exists"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:307
+#: src/netshift/tabs/dashboard/initController.ts:394
 msgid "Traffic"
 msgstr ""
 
@@ -1650,7 +1694,7 @@ msgstr ""
 msgid "Traffic of the IP addresses listed above never enters sing-box: the router sends it out directly, which saves CPU (a streaming TV, a game console). They also skip Fully Routed IPs and Global Proxy."
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:337
+#: src/netshift/tabs/dashboard/initController.ts:424
 msgid "Traffic Total"
 msgstr ""
 
@@ -1722,13 +1766,17 @@ msgstr ""
 msgid "Updating NetShift, this may take a few minutes; the page will reload…"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:309
-#: src/netshift/tabs/dashboard/initController.ts:340
+#: src/netshift/tabs/dashboard/initController.ts:396
+#: src/netshift/tabs/dashboard/initController.ts:427
 msgid "Uplink"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:17
 msgid "Upstream and bootstrap DNS resolvers, and optional DNS-over-proxy"
+msgstr ""
+
+#: src/netshift/tabs/dashboard/initController.ts:91
+msgid "Uptime"
 msgstr ""
 
 #: src/netshift/tabs/manager/cards.ts:357

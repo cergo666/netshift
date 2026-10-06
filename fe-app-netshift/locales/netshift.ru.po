@@ -221,6 +221,9 @@ msgstr "Свои домены"
 msgid "Custom subnets"
 msgstr "Свои подсети"
 
+msgid "d"
+msgstr "д"
+
 msgid "Dashboard"
 msgstr "Дашборд"
 
@@ -485,6 +488,9 @@ msgstr "Не удалось выполнить!"
 msgid "Fastest"
 msgstr "Самый быстрый"
 
+msgid "Flash free"
+msgstr "Свободно во флеш"
+
 msgid "For servers whose name has no flag, look the country up once by the server address and show its flag: in front of the name in a subscription (so grouping and the country filters work for it too), on the dashboard for your own links. The server addresses are sent to api.country.is over HTTPS; results are cached on the router."
 msgstr "Для серверов, в имени которых нет флага, страна один раз определяется по адресу сервера и показывается флагом: впереди имени в подписке (чтобы для неё работали группировка и фильтры по странам), на дашборде — для ваших собственных ссылок. Адреса серверов отправляются на api.country.is по HTTPS; результаты кешируются на роутере."
 
@@ -502,6 +508,9 @@ msgstr "Глобальный прокси"
 
 msgid "Group subscription proxies into URLTest groups. 'By country flag' uses the flag emoji at the start of each name; 'By name prefix' groups by the first N characters."
 msgstr "Группировать прокси из подписки в группы URLTest. «По флагу страны» использует эмодзи флага в начале каждого имени; «По префиксу имени» группирует по первым N символам."
+
+msgid "h"
+msgstr "ч"
 
 msgid "How long one DNS server may take before the next one is tried (priority) or its answer is dropped (parallel). Examples: 500ms, 2s"
 msgstr "Сколько времени может занимать один DNS-сервер, прежде чем будет опрошен следующий (приоритет) или его ответ отброшен (параллельно). Примеры: 500ms, 2s"
@@ -740,6 +749,9 @@ msgstr "Расписание обновления списков, маршрут
 msgid "Lists & Updates"
 msgstr "Списки и обновления"
 
+msgid "Load"
+msgstr "Нагрузка"
+
 msgid "Local Domain Lists"
 msgstr "Локальные списки доменов"
 
@@ -761,8 +773,20 @@ msgstr "Основной DNS через outbound"
 msgid "Main server only"
 msgstr "Только основной сервер"
 
+msgid "MB"
+msgstr "МБ"
+
+msgid "MB free"
+msgstr "МБ свободно"
+
+msgid "Memory"
+msgstr "Память"
+
 msgid "Memory Usage"
 msgstr "Использование памяти"
+
+msgid "min"
+msgstr "мин"
 
 msgid "Mixed proxy and DNS resolution tuning"
 msgstr "Настройка смешанного прокси и разрешения DNS"
@@ -920,6 +944,9 @@ msgstr "Направлять трафик BitTorrent напрямую, мину�
 msgid "Route main DNS through proxy/VPN"
 msgstr "Основной DNS через прокси/VPN"
 
+msgid "Router"
+msgstr "Роутер"
+
 msgid "Router DNS is not routed through sing-box"
 msgstr "DNS роутера не проходит через sing-box"
 
@@ -952,6 +979,9 @@ msgstr "Запустить диагностику"
 
 msgid "Russia inside restrictions"
 msgstr "Ограничения Russia inside"
+
+msgid "s"
+msgstr "с"
 
 msgid "Secret key for authenticating remote access to YACD when WAN access is enabled."
 msgstr "Секретный ключ для аутентификации удаленного доступа к YACD при включенном доступе через WAN."
@@ -1136,6 +1166,9 @@ msgstr "Таблица существует"
 msgid "TCP"
 msgstr "TCP"
 
+msgid "Temperature"
+msgstr "Температура"
+
 msgid "Test latency"
 msgstr "Тестирование задержки"
 
@@ -1234,6 +1267,9 @@ msgstr "Исходящий"
 
 msgid "Upstream and bootstrap DNS resolvers, and optional DNS-over-proxy"
 msgstr "Вышестоящий и начальный (bootstrap) DNS-резолверы и опциональный DNS через прокси"
+
+msgid "Uptime"
+msgstr "Работает"
 
 msgid "UPX"
 msgstr "UPX"

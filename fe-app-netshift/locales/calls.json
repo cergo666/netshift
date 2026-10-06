@@ -10,28 +10,28 @@
     "call": "✔ Enabled",
     "key": "✔ Enabled",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:414"
+      "src/netshift/tabs/dashboard/initController.ts:501"
     ]
   },
   {
     "call": "✔ Running",
     "key": "✔ Running",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:425"
+      "src/netshift/tabs/dashboard/initController.ts:512"
     ]
   },
   {
     "call": "✘ Disabled",
     "key": "✘ Disabled",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:415"
+      "src/netshift/tabs/dashboard/initController.ts:502"
     ]
   },
   {
     "call": "✘ Stopped",
     "key": "✘ Stopped",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:426"
+      "src/netshift/tabs/dashboard/initController.ts:513"
     ]
   },
   {
@@ -66,7 +66,7 @@
     "call": "Active Connections",
     "key": "Active Connections",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:376"
+      "src/netshift/tabs/dashboard/initController.ts:463"
     ]
   },
   {
@@ -455,7 +455,7 @@
     "call": "Core switch failed",
     "key": "Core switch failed",
     "places": [
-      "src/netshift/methods/shell/index.ts:166",
+      "src/netshift/methods/shell/index.ts:168",
       "src/netshift/methods/shell/pollSingBoxComponentAction.ts:83"
     ]
   },
@@ -485,6 +485,13 @@
     "key": "Custom subnets",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1020"
+    ]
+  },
+  {
+    "call": "d",
+    "key": "d",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:93"
     ]
   },
   {
@@ -795,8 +802,8 @@
     "call": "Downlink",
     "key": "Downlink",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:310",
-      "src/netshift/tabs/dashboard/initController.ts:344"
+      "src/netshift/tabs/dashboard/initController.ts:397",
+      "src/netshift/tabs/dashboard/initController.ts:431"
     ]
   },
   {
@@ -1092,7 +1099,7 @@
     "call": "Failed to clear subscription cache",
     "key": "Failed to clear subscription cache",
     "places": [
-      "src/netshift/methods/shell/index.ts:262",
+      "src/netshift/methods/shell/index.ts:264",
       "src/netshift/tabs/diagnostic/initController.ts:351",
       "src/netshift/tabs/diagnostic/initController.ts:355"
     ]
@@ -1136,6 +1143,13 @@
     ]
   },
   {
+    "call": "Flash free",
+    "key": "Flash free",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:108"
+    ]
+  },
+  {
     "call": "For servers whose name has no flag, look the country up once by the server address and show its flag: in front of the name in a subscription (so grouping and the country filters work for it too), on the dashboard for your own links. The server addresses are sent to api.country.is over HTTPS; results are cached on the router.",
     "key": "For servers whose name has no flag, look the country up once by the server address and show its flag: in front of the name in a subscription (so grouping and the country filters work for it too), on the dashboard for your own links. The server addresses are sent to api.country.is over HTTPS; results are cached on the router.",
     "places": [
@@ -1175,6 +1189,13 @@
     "key": "Group subscription proxies into URLTest groups. 'By country flag' uses the flag emoji at the start of each name; 'By name prefix' groups by the first N characters.",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:312"
+    ]
+  },
+  {
+    "call": "h",
+    "key": "h",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:94"
     ]
   },
   {
@@ -1740,6 +1761,13 @@
     ]
   },
   {
+    "call": "Load",
+    "key": "Load",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:100"
+    ]
+  },
+  {
     "call": "Local Domain Lists",
     "key": "Local Domain Lists",
     "places": [
@@ -1789,10 +1817,38 @@
     ]
   },
   {
+    "call": "MB",
+    "key": "MB",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:109"
+    ]
+  },
+  {
+    "call": "MB free",
+    "key": "MB free",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:105"
+    ]
+  },
+  {
+    "call": "Memory",
+    "key": "Memory",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:104"
+    ]
+  },
+  {
     "call": "Memory Usage",
     "key": "Memory Usage",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:380"
+      "src/netshift/tabs/dashboard/initController.ts:467"
+    ]
+  },
+  {
+    "call": "min",
+    "key": "min",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:95"
     ]
   },
   {
@@ -1834,7 +1890,7 @@
     "call": "NetShift",
     "key": "NetShift",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:412"
+      "src/netshift/tabs/dashboard/initController.ts:499"
     ]
   },
   {
@@ -2174,6 +2230,13 @@
     ]
   },
   {
+    "call": "Router",
+    "key": "Router",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:88"
+    ]
+  },
+  {
     "call": "Router DNS is not routed through sing-box",
     "key": "Router DNS is not routed through sing-box",
     "places": [
@@ -2249,6 +2312,13 @@
     "key": "Russia inside restrictions",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:890"
+    ]
+  },
+  {
+    "call": "s",
+    "key": "s",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:96"
     ]
   },
   {
@@ -2396,7 +2466,7 @@
     "call": "Self-update failed",
     "key": "Self-update failed",
     "places": [
-      "src/netshift/methods/shell/index.ts:311"
+      "src/netshift/methods/shell/index.ts:313"
     ]
   },
   {
@@ -2424,7 +2494,7 @@
     "call": "Services info",
     "key": "Services info",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:409"
+      "src/netshift/tabs/dashboard/initController.ts:496"
     ]
   },
   {
@@ -2447,7 +2517,7 @@
     "key": "Sing-box",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:238",
-      "src/netshift/tabs/dashboard/initController.ts:423"
+      "src/netshift/tabs/dashboard/initController.ts:510"
     ]
   },
   {
@@ -2659,7 +2729,7 @@
     "call": "System info",
     "key": "System info",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:373"
+      "src/netshift/tabs/dashboard/initController.ts:460"
     ]
   },
   {
@@ -2681,6 +2751,13 @@
     "key": "TCP",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:56"
+    ]
+  },
+  {
+    "call": "Temperature",
+    "key": "Temperature",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:114"
     ]
   },
   {
@@ -2793,7 +2870,7 @@
     "call": "Traffic",
     "key": "Traffic",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:307"
+      "src/netshift/tabs/dashboard/initController.ts:394"
     ]
   },
   {
@@ -2807,7 +2884,7 @@
     "call": "Traffic Total",
     "key": "Traffic Total",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:337"
+      "src/netshift/tabs/dashboard/initController.ts:424"
     ]
   },
   {
@@ -2921,8 +2998,8 @@
     "call": "Uplink",
     "key": "Uplink",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:309",
-      "src/netshift/tabs/dashboard/initController.ts:340"
+      "src/netshift/tabs/dashboard/initController.ts:396",
+      "src/netshift/tabs/dashboard/initController.ts:427"
     ]
   },
   {
@@ -2930,6 +3007,13 @@
     "key": "Upstream and bootstrap DNS resolvers, and optional DNS-over-proxy",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:17"
+    ]
+  },
+  {
+    "call": "Uptime",
+    "key": "Uptime",
+    "places": [
+      "src/netshift/tabs/dashboard/initController.ts:91"
     ]
   },
   {
