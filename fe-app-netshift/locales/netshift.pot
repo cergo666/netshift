@@ -20,19 +20,19 @@ msgstr ""
 msgid "(disabled)"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:414
+#: src/netshift/tabs/dashboard/initController.ts:439
 msgid "✔ Enabled"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:425
+#: src/netshift/tabs/dashboard/initController.ts:450
 msgid "✔ Running"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:415
+#: src/netshift/tabs/dashboard/initController.ts:440
 msgid "✘ Disabled"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:426
+#: src/netshift/tabs/dashboard/initController.ts:451
 msgid "✘ Stopped"
 msgstr ""
 
@@ -48,11 +48,11 @@ msgstr ""
 msgid "A section cannot be chained through itself"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/partials/renderSections.ts:145
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:210
 msgid "Active"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:376
+#: src/netshift/tabs/dashboard/initController.ts:401
 msgid "Active Connections"
 msgstr ""
 
@@ -279,7 +279,7 @@ msgstr ""
 msgid "Copy"
 msgstr ""
 
-#: src/netshift/methods/shell/index.ts:166
+#: src/netshift/methods/shell/index.ts:168
 #: src/netshift/methods/shell/pollSingBoxComponentAction.ts:83
 msgid "Core switch failed"
 msgstr ""
@@ -305,8 +305,12 @@ msgstr ""
 msgid "Dashboard"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/partials/renderSections.ts:46
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:53
 msgid "Dashboard currently unavailable"
+msgstr ""
+
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:100
+msgid "days left"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/devices.js:145
@@ -478,8 +482,8 @@ msgstr ""
 msgid "Dont Touch My DHCP!"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:310
-#: src/netshift/tabs/dashboard/initController.ts:344
+#: src/netshift/tabs/dashboard/initController.ts:335
+#: src/netshift/tabs/dashboard/initController.ts:369
 msgid "Downlink"
 msgstr ""
 
@@ -645,11 +649,19 @@ msgstr ""
 msgid "Exclude servers by keyword"
 msgstr ""
 
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:99
+msgid "Expired"
+msgstr ""
+
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:100
+msgid "Expires"
+msgstr ""
+
 #: src/netshift/tabs/manager/cards.ts:295
 msgid "Extended core with all features (~105 MB)"
 msgstr ""
 
-#: src/netshift/methods/shell/index.ts:262
+#: src/netshift/methods/shell/index.ts:264
 #: src/netshift/tabs/diagnostic/initController.ts:351
 #: src/netshift/tabs/diagnostic/initController.ts:355
 msgid "Failed to clear subscription cache"
@@ -1017,7 +1029,7 @@ msgstr ""
 msgid "Line"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/partials/renderSections.ts:187
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:252
 msgid "List"
 msgstr ""
 
@@ -1061,7 +1073,7 @@ msgstr ""
 msgid "Main server only"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:380
+#: src/netshift/tabs/dashboard/initController.ts:405
 msgid "Memory Usage"
 msgstr ""
 
@@ -1085,7 +1097,7 @@ msgstr ""
 msgid "Must be a number in the range of 50 - 1000"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:412
+#: src/netshift/tabs/dashboard/initController.ts:437
 msgid "NetShift"
 msgstr ""
 
@@ -1413,7 +1425,7 @@ msgstr ""
 msgid "Selector Proxy Links (one per line)"
 msgstr ""
 
-#: src/netshift/methods/shell/index.ts:311
+#: src/netshift/methods/shell/index.ts:313
 msgid "Self-update failed"
 msgstr ""
 
@@ -1429,7 +1441,7 @@ msgstr ""
 msgid "Send upstream DNS queries through a proxy/VPN outbound instead of directly. Bootstrap DNS always stays direct."
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:409
+#: src/netshift/tabs/dashboard/initController.ts:434
 msgid "Services info"
 msgstr ""
 
@@ -1443,7 +1455,7 @@ msgid "Show sing-box config"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:238
-#: src/netshift/tabs/dashboard/initController.ts:423
+#: src/netshift/tabs/dashboard/initController.ts:448
 msgid "Sing-box"
 msgstr ""
 
@@ -1475,7 +1487,7 @@ msgstr ""
 msgid "Sing-box version is compatible (newer than 1.12.4)"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/partials/renderSections.ts:191
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:256
 msgid "Sort by ping"
 msgstr ""
 
@@ -1565,7 +1577,7 @@ msgstr ""
 msgid "Switching sing-box core, this may take a few minutes…"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:373
+#: src/netshift/tabs/dashboard/initController.ts:398
 msgid "System info"
 msgstr ""
 
@@ -1581,7 +1593,7 @@ msgstr ""
 msgid "TCP"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/partials/renderSections.ts:198
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:263
 msgid "Test latency"
 msgstr ""
 
@@ -1626,7 +1638,7 @@ msgstr ""
 msgid "This is a security trade-off: an attacker could intercept the fetch."
 msgstr ""
 
-#: src/netshift/tabs/dashboard/partials/renderSections.ts:187
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:252
 msgid "Tiles"
 msgstr ""
 
@@ -1642,7 +1654,9 @@ msgstr ""
 msgid "Time of the daily update, HH:MM (00:00-23:59) in the router's local time. Avoid minutes shared with other update intervals, such as :00 and :30 if a 30-minute section exists"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:307
+#: src/netshift/tabs/dashboard/initController.ts:332
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:91
+#: src/netshift/tabs/dashboard/partials/renderSections.ts:92
 msgid "Traffic"
 msgstr ""
 
@@ -1650,7 +1664,7 @@ msgstr ""
 msgid "Traffic of the IP addresses listed above never enters sing-box: the router sends it out directly, which saves CPU (a streaming TV, a game console). They also skip Fully Routed IPs and Global Proxy."
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:337
+#: src/netshift/tabs/dashboard/initController.ts:362
 msgid "Traffic Total"
 msgstr ""
 
@@ -1722,8 +1736,8 @@ msgstr ""
 msgid "Updating NetShift, this may take a few minutes; the page will reload…"
 msgstr ""
 
-#: src/netshift/tabs/dashboard/initController.ts:309
-#: src/netshift/tabs/dashboard/initController.ts:340
+#: src/netshift/tabs/dashboard/initController.ts:334
+#: src/netshift/tabs/dashboard/initController.ts:365
 msgid "Uplink"
 msgstr ""
 

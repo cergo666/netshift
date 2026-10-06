@@ -10,28 +10,28 @@
     "call": "✔ Enabled",
     "key": "✔ Enabled",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:414"
+      "src/netshift/tabs/dashboard/initController.ts:439"
     ]
   },
   {
     "call": "✔ Running",
     "key": "✔ Running",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:425"
+      "src/netshift/tabs/dashboard/initController.ts:450"
     ]
   },
   {
     "call": "✘ Disabled",
     "key": "✘ Disabled",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:415"
+      "src/netshift/tabs/dashboard/initController.ts:440"
     ]
   },
   {
     "call": "✘ Stopped",
     "key": "✘ Stopped",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:426"
+      "src/netshift/tabs/dashboard/initController.ts:451"
     ]
   },
   {
@@ -59,14 +59,14 @@
     "call": "Active",
     "key": "Active",
     "places": [
-      "src/netshift/tabs/dashboard/partials/renderSections.ts:145"
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:210"
     ]
   },
   {
     "call": "Active Connections",
     "key": "Active Connections",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:376"
+      "src/netshift/tabs/dashboard/initController.ts:401"
     ]
   },
   {
@@ -455,7 +455,7 @@
     "call": "Core switch failed",
     "key": "Core switch failed",
     "places": [
-      "src/netshift/methods/shell/index.ts:166",
+      "src/netshift/methods/shell/index.ts:168",
       "src/netshift/methods/shell/pollSingBoxComponentAction.ts:83"
     ]
   },
@@ -499,7 +499,14 @@
     "call": "Dashboard currently unavailable",
     "key": "Dashboard currently unavailable",
     "places": [
-      "src/netshift/tabs/dashboard/partials/renderSections.ts:46"
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:53"
+    ]
+  },
+  {
+    "call": "days left",
+    "key": "days left",
+    "places": [
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:100"
     ]
   },
   {
@@ -795,8 +802,8 @@
     "call": "Downlink",
     "key": "Downlink",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:310",
-      "src/netshift/tabs/dashboard/initController.ts:344"
+      "src/netshift/tabs/dashboard/initController.ts:335",
+      "src/netshift/tabs/dashboard/initController.ts:369"
     ]
   },
   {
@@ -1082,6 +1089,20 @@
     ]
   },
   {
+    "call": "Expired",
+    "key": "Expired",
+    "places": [
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:99"
+    ]
+  },
+  {
+    "call": "Expires",
+    "key": "Expires",
+    "places": [
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:100"
+    ]
+  },
+  {
     "call": "Extended core with all features (~105 MB)",
     "key": "Extended core with all features (~105 MB)",
     "places": [
@@ -1092,7 +1113,7 @@
     "call": "Failed to clear subscription cache",
     "key": "Failed to clear subscription cache",
     "places": [
-      "src/netshift/methods/shell/index.ts:262",
+      "src/netshift/methods/shell/index.ts:264",
       "src/netshift/tabs/diagnostic/initController.ts:351",
       "src/netshift/tabs/diagnostic/initController.ts:355"
     ]
@@ -1715,7 +1736,7 @@
     "call": "List",
     "key": "List",
     "places": [
-      "src/netshift/tabs/dashboard/partials/renderSections.ts:187"
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:252"
     ]
   },
   {
@@ -1792,7 +1813,7 @@
     "call": "Memory Usage",
     "key": "Memory Usage",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:380"
+      "src/netshift/tabs/dashboard/initController.ts:405"
     ]
   },
   {
@@ -1834,7 +1855,7 @@
     "call": "NetShift",
     "key": "NetShift",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:412"
+      "src/netshift/tabs/dashboard/initController.ts:437"
     ]
   },
   {
@@ -2396,7 +2417,7 @@
     "call": "Self-update failed",
     "key": "Self-update failed",
     "places": [
-      "src/netshift/methods/shell/index.ts:311"
+      "src/netshift/methods/shell/index.ts:313"
     ]
   },
   {
@@ -2424,7 +2445,7 @@
     "call": "Services info",
     "key": "Services info",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:409"
+      "src/netshift/tabs/dashboard/initController.ts:434"
     ]
   },
   {
@@ -2447,7 +2468,7 @@
     "key": "Sing-box",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:238",
-      "src/netshift/tabs/dashboard/initController.ts:423"
+      "src/netshift/tabs/dashboard/initController.ts:448"
     ]
   },
   {
@@ -2503,7 +2524,7 @@
     "call": "Sort by ping",
     "key": "Sort by ping",
     "places": [
-      "src/netshift/tabs/dashboard/partials/renderSections.ts:191"
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:256"
     ]
   },
   {
@@ -2659,7 +2680,7 @@
     "call": "System info",
     "key": "System info",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:373"
+      "src/netshift/tabs/dashboard/initController.ts:398"
     ]
   },
   {
@@ -2687,7 +2708,7 @@
     "call": "Test latency",
     "key": "Test latency",
     "places": [
-      "src/netshift/tabs/dashboard/partials/renderSections.ts:198"
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:263"
     ]
   },
   {
@@ -2765,7 +2786,7 @@
     "call": "Tiles",
     "key": "Tiles",
     "places": [
-      "src/netshift/tabs/dashboard/partials/renderSections.ts:187"
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:252"
     ]
   },
   {
@@ -2793,7 +2814,9 @@
     "call": "Traffic",
     "key": "Traffic",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:307"
+      "src/netshift/tabs/dashboard/initController.ts:332",
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:91",
+      "src/netshift/tabs/dashboard/partials/renderSections.ts:92"
     ]
   },
   {
@@ -2807,7 +2830,7 @@
     "call": "Traffic Total",
     "key": "Traffic Total",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:337"
+      "src/netshift/tabs/dashboard/initController.ts:362"
     ]
   },
   {
@@ -2921,8 +2944,8 @@
     "call": "Uplink",
     "key": "Uplink",
     "places": [
-      "src/netshift/tabs/dashboard/initController.ts:309",
-      "src/netshift/tabs/dashboard/initController.ts:340"
+      "src/netshift/tabs/dashboard/initController.ts:334",
+      "src/netshift/tabs/dashboard/initController.ts:365"
     ]
   },
   {

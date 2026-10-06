@@ -900,6 +900,7 @@ var NetShift;
   ((AvailableMethods2) => {
     AvailableMethods2["CHECK_DNS_AVAILABLE"] = "check_dns_available";
     AvailableMethods2["CHECK_FAKEIP"] = "check_fakeip";
+    AvailableMethods2["GET_SUBSCRIPTION_INFO"] = "get_subscription_info";
     AvailableMethods2["CHECK_NFT_RULES"] = "check_nft_rules";
     AvailableMethods2["GET_STATUS"] = "get_status";
     AvailableMethods2["CHECK_SING_BOX"] = "check_sing_box";
@@ -1009,6 +1010,7 @@ var NetShiftShellMethods = {
   checkFakeIP: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_FAKEIP
   ),
+  getSubscriptionInfo: async () => callBaseMethod(NetShift.AvailableMethods.GET_SUBSCRIPTION_INFO),
   checkNftRules: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_NFT_RULES
   ),
@@ -2138,6 +2140,7 @@ var initialStore = {
     latencyTestingSections: [],
     latencyPendingOutbounds: [],
     ...loadDashboardViewPrefs(),
+    subscriptionInfo: {},
     data: []
   },
   ...initialDiagnosticStore,
@@ -3235,6 +3238,73 @@ function sortOutboundsByLatency(outbounds) {
   return [...groups, ...servers];
 }
 
+// src/helpers/subscriptionInfo.ts
+var asNumberOrNull = (value) => typeof value === "number" && Number.isFinite(value) ? value : null;
+function parseSubscriptionInfo(stdout) {
+  let data = stdout;
+  if (typeof stdout === "string") {
+    try {
+      data = JSON.parse(stdout);
+    } catch {
+      return {};
+    }
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return {};
+  }
+  const result = {};
+  for (const [section, entries] of Object.entries(data)) {
+    if (!Array.isArray(entries)) {
+      continue;
+    }
+    result[section] = entries.filter((entry) => entry && typeof entry === "object").map((entry) => ({
+      upload: asNumberOrNull(entry.upload),
+      download: asNumberOrNull(entry.download),
+      total: asNumberOrNull(entry.total),
+      expire: asNumberOrNull(entry.expire),
+      title: typeof entry.title === "string" ? entry.title : null,
+      web_page: typeof entry.web_page === "string" && /^https?:\/\//.test(entry.web_page) ? entry.web_page : null,
+      updated: asNumberOrNull(entry.updated) ?? 0
+    }));
+  }
+  return result;
+}
+var DAY_SECONDS = 86400;
+function describeSubscriptionInfo(info, now) {
+  const hasUsage = info.upload !== null || info.download !== null;
+  const used = hasUsage ? (info.upload ?? 0) + (info.download ?? 0) : null;
+  const total = info.total !== null && info.total > 0 ? info.total : null;
+  const percent = total !== null && used !== null ? Math.min(100, Math.round(used / total * 100)) : null;
+  let expireDate = null;
+  let daysLeft = null;
+  if (info.expire !== null && info.expire > 0) {
+    expireDate = new Date(info.expire * 1e3).toISOString().slice(0, 10);
+    daysLeft = Math.ceil((info.expire - now) / DAY_SECONDS);
+  }
+  return {
+    used,
+    total,
+    percent,
+    expireDate,
+    daysLeft,
+    exhausted: daysLeft !== null && daysLeft < 0 || percent === 100,
+    title: info.title,
+    webPage: info.web_page
+  };
+}
+
+// src/helpers/prettyBytes.ts
+function prettyBytes(n) {
+  const UNITS = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+  if (n < 1e3) {
+    return n + " B";
+  }
+  const exponent = Math.min(Math.floor(Math.log10(n) / 3), UNITS.length - 1);
+  n = Number((n / Math.pow(1e3, exponent)).toPrecision(3));
+  const unit = UNITS[exponent];
+  return n + " " + unit;
+}
+
 // src/netshift/tabs/dashboard/partials/renderSections.ts
 function getLatencyClassName(latency) {
   if (!latency) {
@@ -3272,6 +3342,50 @@ function renderSkeleton(style) {
     style: `${style}; --skeleton-phase: -${phase}ms`
   });
 }
+function renderSubscriptionInfo(infos) {
+  const now = Math.floor(Date.now() / 1e3);
+  return E(
+    "div",
+    { class: "pdk_dashboard-page__subscription-info" },
+    infos.map((info) => {
+      const line = describeSubscriptionInfo(info, now);
+      const parts = [];
+      if (line.used !== null) {
+        parts.push(
+          line.total !== null ? `${_("Traffic")}: ${prettyBytes(line.used)} / ${prettyBytes(line.total)}` : `${_("Traffic")}: ${prettyBytes(line.used)}`
+        );
+      }
+      if (line.expireDate !== null && line.daysLeft !== null) {
+        parts.push(
+          line.daysLeft < 0 ? `${_("Expired")}: ${line.expireDate}` : `${_("Expires")}: ${line.expireDate} (${line.daysLeft} ${_("days left")})`
+        );
+      }
+      const name = infos.length > 1 && line.title ? `${line.title}: ` : "";
+      const text = E(
+        "span",
+        {
+          class: `pdk_dashboard-page__subscription-info__text${line.exhausted ? " pdk_dashboard-page__subscription-info__text--exhausted" : ""}`
+        },
+        name + parts.join(" \xB7 ")
+      );
+      return E("div", { class: "pdk_dashboard-page__subscription-info__row" }, [
+        text,
+        ...line.percent !== null ? [
+          E(
+            "div",
+            { class: "pdk_dashboard-page__subscription-info__bar" },
+            [
+              E("div", {
+                class: `pdk_dashboard-page__subscription-info__bar__fill${line.percent >= 90 ? " pdk_dashboard-page__subscription-info__bar__fill--high" : ""}`,
+                style: `width: ${line.percent}%`
+              })
+            ]
+          )
+        ] : []
+      ]);
+    })
+  );
+}
 function renderDefaultState({
   section,
   onChooseOutbound,
@@ -3281,7 +3395,8 @@ function renderDefaultState({
   viewMode,
   sortByPing,
   onToggleViewMode,
-  onToggleSortByPing
+  onToggleSortByPing,
+  subscriptionInfo
 }) {
   function renderOutbound(outbound) {
     const getLatencyClass = () => getLatencyClassName(outbound.latency);
@@ -3387,6 +3502,7 @@ function renderDefaultState({
         })
       ])
     ]),
+    ...subscriptionInfo.length > 0 ? [renderSubscriptionInfo(subscriptionInfo)] : [],
     renderOutbounds(section.outbounds, section.code),
     ...(section.subgroups ?? []).map(
       (subgroup) => E("div", { class: "pdk_dashboard-page__outbound-subgroup" }, [
@@ -3528,23 +3644,12 @@ function render() {
           onToggleViewMode: () => {
           },
           onToggleSortByPing: () => {
-          }
+          },
+          subscriptionInfo: []
         })
       )
     ]
   );
-}
-
-// src/helpers/prettyBytes.ts
-function prettyBytes(n) {
-  const UNITS = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-  if (n < 1e3) {
-    return n + " B";
-  }
-  const exponent = Math.min(Math.floor(Math.log10(n) / 3), UNITS.length - 1);
-  n = Number((n / Math.pow(1e3, exponent)).toPrecision(3));
-  const unit = UNITS[exponent];
-  return n + " " + unit;
 }
 
 // src/netshift/fetchers/fetchServicesInfo.ts
@@ -3598,6 +3703,21 @@ async function fetchDashboardSections() {
       data
     }
   });
+  void fetchSubscriptionInfo();
+}
+async function fetchSubscriptionInfo() {
+  try {
+    const response = await NetShiftShellMethods.getSubscriptionInfo();
+    const subscriptionInfo = response.success ? parseSubscriptionInfo(response.data) : {};
+    store.set({
+      sectionsWidget: {
+        ...store.get().sectionsWidget,
+        subscriptionInfo
+      }
+    });
+  } catch (e) {
+    logger.error("[DASHBOARD]", "fetchSubscriptionInfo: failed", e);
+  }
 }
 async function connectToClashSockets() {
   const clashApiSecret = await getClashApiSecret();
@@ -3752,7 +3872,8 @@ async function renderSectionsWidget() {
       onToggleViewMode: () => {
       },
       onToggleSortByPing: () => {
-      }
+      },
+      subscriptionInfo: []
     });
     return preserveScrollForPage(() => {
       container.replaceChildren(renderedWidget);
@@ -3774,7 +3895,8 @@ async function renderSectionsWidget() {
       viewMode: sectionsWidget.viewMode,
       sortByPing: sectionsWidget.sortByPing,
       onToggleViewMode: handleToggleViewMode,
-      onToggleSortByPing: handleToggleSortByPing
+      onToggleSortByPing: handleToggleSortByPing,
+      subscriptionInfo: sectionsWidget.subscriptionInfo[section.code] ?? []
     })
   );
   const listScroll = /* @__PURE__ */ new Map();
@@ -4185,6 +4307,44 @@ var styles3 = `
     color: var(--error-color-medium, red);
 }
 
+
+.pdk_dashboard-page__subscription-info {
+    margin-top: 6px;
+    display: grid;
+    grid-row-gap: 4px;
+    font-size: 0.9em;
+}
+
+.pdk_dashboard-page__subscription-info__row {
+    display: grid;
+    grid-row-gap: 3px;
+}
+
+.pdk_dashboard-page__subscription-info__text {
+    opacity: 0.85;
+    overflow-wrap: anywhere;
+}
+
+.pdk_dashboard-page__subscription-info__text--exhausted {
+    color: var(--error-color-medium, red);
+    opacity: 1;
+}
+
+.pdk_dashboard-page__subscription-info__bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--ns-card-border, rgba(128, 128, 128, 0.3));
+    overflow: hidden;
+}
+
+.pdk_dashboard-page__subscription-info__bar__fill {
+    height: 100%;
+    background: var(--success-color-medium, green);
+}
+
+.pdk_dashboard-page__subscription-info__bar__fill--high {
+    background: var(--warn-color-medium, orange);
+}
 `;
 
 // src/netshift/tabs/dashboard/index.ts
@@ -6826,6 +6986,7 @@ return baseclass.extend({
   UPDATE_INTERVAL_OPTIONS,
   bulkValidate,
   coreService,
+  describeSubscriptionInfo,
   executeShellCommand,
   getClashUIUrl,
   getClashWsUrl,
@@ -6840,6 +7001,7 @@ return baseclass.extend({
   maskIP,
   onMount,
   parseQueryString,
+  parseSubscriptionInfo,
   parseValueList,
   preserveScrollForPage,
   saveDashboardViewPrefs,
