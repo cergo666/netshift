@@ -18540,6 +18540,79 @@ WARP_FAIL_MODE=nocfg
 echo "no-config:$(warp_generate | jq -r '.ok')"
 echo "no-config-nothing-written:[$(uget network.warp.proto)]"
 
+# ── import of a pasted config ──
+K1="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+K2="BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="
+K3="CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC="
+AWGCONF="# made elsewhere
+[Interface]
+PrivateKey = $K1
+Address = 172.16.0.2/32, 2606:4700:110:8a6f::1
+MTU = 1280
+S1 = 0
+Jc = 4
+Jmin = 40
+Jmax = 70
+H1 = 1
+I1 = <b 0xce0000>
+DNS = 1.1.1.1
+
+[Peer]
+PublicKey = $K2
+PresharedKey = $K3
+AllowedIPs = 0.0.0.0/0, ::/0
+Endpoint = 8.39.125.32:4500
+PersistentKeepalive = 20
+
+[Peer]
+PublicKey = $K3
+Endpoint = 9.9.9.9:1"
+imp() { warp_import "$1" "${2:-}"; }
+reset
+: > /lib/netifd/proto/amneziawg.sh
+out="$(imp "$AWGCONF")"
+echo "imp-awg:$(printf '%s' "$out" | jq -c '[.ok, .proto, .endpoint, .skipped]')"
+echo "imp-addresses:$(uget network.warp.addresses)"
+echo "imp-awg-opts:$(uget network.warp.awg_jc)/$(uget network.warp.awg_jmax)/$(uget network.warp.awg_h1)/$(uget network.warp.awg_s1)"
+echo "imp-mtu:$(uget network.warp.mtu)"
+echo "imp-peer:$(uget network.amneziawg_warp.public_key)/$(uget network.amneziawg_warp.preshared_key | cut -c1-3)/$(uget network.amneziawg_warp.endpoint_host):$(uget network.amneziawg_warp.endpoint_port)/$(uget network.amneziawg_warp.persistent_keepalive)"
+echo "imp-allowed:$(uget network.amneziawg_warp.allowed_ips)"
+echo "imp-no-route:$(uget network.amneziawg_warp.route_allowed_ips)"
+echo "imp-one-peer:$(uci show network | grep -c "=amneziawg_warp")"
+echo "imp-section:$(uget netshift.warp.connection_type)/$(uget netshift.warp.interface)"
+echo "imp-private-not-in-answer:$(printf '%s' "$out" | grep -c "$K1")"
+
+# a handler that knows awg_i1 gets it
+reset
+echo "awg_i1" > /lib/netifd/proto/amneziawg.sh
+out="$(imp "$AWGCONF")"
+echo "imp-i1:$(printf '%s' "$out" | jq -c '.skipped') $(uget network.warp.awg_i1)"
+: > /lib/netifd/proto/amneziawg.sh
+
+# plain WireGuard config, CRLF line ends, IPv6 endpoint, no keepalive given
+reset
+WGCONF="$(printf '[Interface]\r\nPrivateKey = %s\r\nAddress = 10.0.0.2\r\n\r\n[Peer]\r\nPublicKey = %s\r\nAllowedIPs = 10.0.0.0/24\r\nEndpoint = [2001:db8::1]:51820\r\n' "$K1" "$K2")"
+out="$(imp "$WGCONF" wgx)"
+echo "imp-wg:$(printf '%s' "$out" | jq -c '[.ok, .proto, .endpoint, .interface]')"
+echo "imp-wg-peer:$(uget network.wireguard_wgx.endpoint_host)/$(uget network.wireguard_wgx.endpoint_port)/$(uget network.wireguard_wgx.allowed_ips)/$(uget network.wireguard_wgx.persistent_keepalive)"
+echo "imp-wg-addr:$(uget network.wgx.addresses) awg:[$(uget network.wgx.awg_jc)]"
+uci -q delete network.wgx; uci -q delete network.wireguard_wgx; uci -q delete netshift.wgx; uci -q commit network; uci -q commit netshift
+
+# errors, nothing written
+reset
+rm -f /lib/netifd/proto/amneziawg.sh
+echo "imp-awg-no-proto:$(imp "$AWGCONF" | jq -r '.ok')"
+touch /lib/netifd/proto/amneziawg.sh
+echo "imp-no-key:$(imp "$(printf '%s' "$AWGCONF" | grep -v PrivateKey)" | jq -r '.ok')"
+echo "imp-bad-address:$(imp "$(printf '%s' "$AWGCONF" | sed 's|172.16.0.2/32|nonsense|')" | jq -r '.ok')"
+echo "imp-bad-endpoint:$(imp "$(printf '%s' "$AWGCONF" | sed 's|Endpoint = 8.39.125.32:4500|Endpoint = nohost|')" | jq -r '.ok')"
+echo "imp-bad-port:$(imp "$(printf '%s' "$AWGCONF" | sed 's|8.39.125.32:4500|8.39.125.32:99999|')" | jq -r '.ok')"
+echo "imp-bad-peer-key:$(imp "$(printf '%s' "$AWGCONF" | sed "s|PublicKey = $K2|PublicKey = short|")" | jq -r '.ok')"
+echo "imp-empty:$(imp "" | jq -r '.ok')"
+echo "imp-nothing-written:[$(uget network.warp.proto)][$(uget netshift.warp.interface)]"
+imp "$AWGCONF" > /dev/null
+echo "imp-exists:$(imp "$AWGCONF" | jq -r '.ok')"
+
 cp /tmp/network.warp.bak /etc/config/network 2> /dev/null
 rm -f /lib/netifd/proto/amneziawg.sh /lib/netifd/proto/wireguard.sh /etc/config/netshift "$CALLS" /tmp/network.warp.bak
 WPEOF
@@ -18578,6 +18651,29 @@ WPEOF
     _wp "auto picks an address of the ranges, from a data centre that is not the Moscow one" "auto-endpoint:yes/even/4500"
     _wp "the picked address goes into the peer" "auto-peer-host:same"
     _wp "auto falls back to the usual name when nothing answers" "auto-fallback:engage.cloudflareclient.com:4500"
+    _wp "a pasted AmneziaWG config makes the interface (first peer only), without the key in the answer" 'imp-awg:[true,"amneziawg","8.39.125.32:4500",["i1"]]'
+    _wp "the key is not echoed" "imp-private-not-in-answer:0"
+    _wp "addresses get host masks" "imp-addresses:172.16.0.2/32 2606:4700:110:8a6f::1/128"
+    _wp "the obfuscation options are carried over" "imp-awg-opts:4/70/1/0"
+    _wp "the MTU is carried over" "imp-mtu:1280"
+    _wp "peer key, pre-shared key, endpoint and keepalive are carried over" "imp-peer:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=/CCC/8.39.125.32:4500/20"
+    _wp "allowed IPs are carried over" "imp-allowed:0.0.0.0/0 ::/0"
+    _wp "no default route through the tunnel" "imp-no-route:0"
+    _wp "a second peer is ignored" "imp-one-peer:1"
+    _wp "a VPN section is made" "imp-section:vpn/warp"
+    _wp "an option the handler does not know is skipped and reported, else it is set" 'imp-i1:[] <b 0xce0000>'
+    _wp "a plain WireGuard config (CRLF, IPv6 endpoint) becomes a wireguard interface" 'imp-wg:[true,"wireguard","[2001:db8::1]:51820","wgx"]'
+    _wp "its peer: host, port, allowed IPs, default keepalive" "imp-wg-peer:2001:db8::1/51820/10.0.0.0/24/25"
+    _wp "its address and no obfuscation options" "imp-wg-addr:10.0.0.2/32 awg:[]"
+    _wp "AmneziaWG options without the protocol are refused" "imp-awg-no-proto:false"
+    _wp "a config without a private key is refused" "imp-no-key:false"
+    _wp "a bad address is refused" "imp-bad-address:false"
+    _wp "a bad endpoint is refused" "imp-bad-endpoint:false"
+    _wp "a bad port is refused" "imp-bad-port:false"
+    _wp "a bad peer key is refused" "imp-bad-peer-key:false"
+    _wp "an empty config is refused" "imp-empty:false"
+    _wp "refused configs write nothing" "imp-nothing-written:[][]"
+    _wp "an existing interface is not overwritten by an import" "imp-exists:false"
     _wp "an existing interface is not overwritten" "exists:false"
     _wp "plain WireGuard can be asked for: no AmneziaWG options" "wg-proto:wireguard peer-section:PEERPUBKEY= awg:[]"
     _wp "an existing NetShift section is kept" "section-kept:proxy"

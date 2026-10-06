@@ -272,6 +272,9 @@ msgstr "Истекло время ожидания переключения яд
 msgid "Could not create the WARP interface"
 msgstr "Не удалось создать интерфейс WARP"
 
+msgid "Could not import the config"
+msgstr "Не удалось импортировать конфиг"
+
 msgid "Create a WARP interface"
 msgstr "Создать интерфейс WARP"
 
@@ -677,6 +680,12 @@ msgstr "Как серверы списка используются вместе
 msgid "HTTP error"
 msgstr "Ошибка HTTP"
 
+msgid "Import the config"
+msgstr "Импортировать конфиг"
+
+msgid "Importing the config..."
+msgstr "Импортируем конфиг..."
+
 msgid "Include servers by country"
 msgstr "Оставить серверы по стране"
 
@@ -1049,6 +1058,9 @@ msgstr "Сетевой интерфейс"
 msgid "Newest first"
 msgstr "Сначала новые"
 
+msgid "No access to Cloudflare from here? Make a WARP config elsewhere (a cloud shell or a generator site) and paste it:"
+msgstr "Нет доступа к Cloudflare отсюда? Сделайте конфиг WARP в другом месте (облачная консоль или сайт-генератор) и вставьте его сюда:"
+
 msgid "no address"
 msgstr "нет адреса"
 
@@ -1114,6 +1126,9 @@ msgstr "Необязательно"
 
 msgid "Optional: query this DNS server through the outbound of another section. If that outbound is not usable the queries go out directly."
 msgstr "Необязательно: опрашивать этот DNS-сервер через outbound другой секции. Если этот outbound недоступен, запросы уходят напрямую."
+
+msgid "Options the protocol does not know were left out"
+msgstr "Параметры, которых протокол не знает, пропущены"
 
 msgid "Outbound Config"
 msgstr "Конфигурация Outbound"

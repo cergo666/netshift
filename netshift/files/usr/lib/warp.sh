@@ -226,57 +226,86 @@ warp_register() {
     printf '%s\n%s\n%s\n%s\n' "$private" "$peer" "$v4" "$v6"
 }
 
-# Writes the interface (and its peer) into /etc/config/network.
-# $1 name, $2 proto, $3 private key, $4 peer key, $5 IPv4, $6 IPv6, $7 endpoint host, $8 port
-warp_write_interface() {
+# Writes an interface and its peer into /etc/config/network (replacing both).
+# $1 name, $2 proto, $3 private key, $4 addresses (CIDR, blank separated), $5 MTU,
+# $6 peer key, $7 pre-shared key (or empty), $8 endpoint host, $9 endpoint port,
+# $10 allowed IPs (blank separated), $11 keepalive, $12 AmneziaWG options, one
+# "<name> <value>" per line (the part after the first blank is the value).
+warp_write_profile() {
     local name="$1"
     local proto="$2"
     local private="$3"
-    local peer_key="$4"
-    local v4="$5"
-    local v6="$6"
-    local host="$7"
-    local port="$8"
+    local addresses="$4"
+    local mtu="$5"
+    local peer_key="$6"
+    local psk="$7"
+    local host="$8"
+    local port="$9"
+    local allowed="${10}"
+    local keepalive="${11}"
+    local awg="${12}"
     local peer_section="${proto}_${name}"
+    local address line key
 
     uci -q delete "network.$name"
-    uci -q delete "network.$peer_section"
+    uci -q delete "network.amneziawg_$name"
+    uci -q delete "network.wireguard_$name"
 
     uci set "network.$name=interface"
     uci set "network.$name.proto=$proto"
     uci set "network.$name.private_key=$private"
-    uci add_list "network.$name.addresses=$v4/32"
-    [ -z "$v6" ] || uci add_list "network.$name.addresses=$v6/128"
-    uci set "network.$name.mtu=1280"
+    for address in $addresses; do
+        uci add_list "network.$name.addresses=$address"
+    done
+    [ -z "$mtu" ] || uci set "network.$name.mtu=$mtu"
 
     if [ "$proto" = "amneziawg" ]; then
-        uci set "network.$name.awg_jc=4"
-        uci set "network.$name.awg_jmin=40"
-        uci set "network.$name.awg_jmax=70"
-        uci set "network.$name.awg_s1=0"
-        uci set "network.$name.awg_s2=0"
-        uci set "network.$name.awg_h1=1"
-        uci set "network.$name.awg_h2=2"
-        uci set "network.$name.awg_h3=3"
-        uci set "network.$name.awg_h4=4"
-        # the signature packet only where the protocol handler knows the option
-        if grep -q awg_i1 /lib/netifd/proto/amneziawg.sh 2> /dev/null; then
-            uci set "network.$name.awg_i1=$WARP_AWG_I1"
-        fi
+        printf '%s\n' "$awg" | while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            key="${line%% *}"
+            uci set "network.$name.awg_$key=${line#* }"
+        done
     fi
 
     uci set "network.$peer_section=$peer_section"
     uci set "network.$peer_section.interface=$name"
     uci set "network.$peer_section.public_key=$peer_key"
+    [ -z "$psk" ] || uci set "network.$peer_section.preshared_key=$psk"
     uci set "network.$peer_section.endpoint_host=$host"
     uci set "network.$peer_section.endpoint_port=$port"
-    uci add_list "network.$peer_section.allowed_ips=0.0.0.0/0"
-    uci add_list "network.$peer_section.allowed_ips=::/0"
+    for address in $allowed; do
+        uci add_list "network.$peer_section.allowed_ips=$address"
+    done
     # NetShift binds its own outbound to the interface; a default route through
-    # WARP would send the whole router there
+    # the tunnel would send the whole router there
     uci set "network.$peer_section.route_allowed_ips=0"
-    uci set "network.$peer_section.persistent_keepalive=25"
+    [ -z "$keepalive" ] || uci set "network.$peer_section.persistent_keepalive=$keepalive"
     uci commit network
+}
+
+# The WARP interface: $1 name, $2 proto, $3 private key, $4 peer key, $5 IPv4,
+# $6 IPv6, $7 endpoint host, $8 port.
+warp_write_interface() {
+    local awg=""
+
+    if [ "$2" = "amneziawg" ]; then
+        awg="jc 4
+jmin 40
+jmax 70
+s1 0
+s2 0
+h1 1
+h2 2
+h3 3
+h4 4"
+        # the signature packet only where the protocol handler knows the option
+        if grep -q awg_i1 /lib/netifd/proto/amneziawg.sh 2> /dev/null; then
+            awg="$awg
+i1 $WARP_AWG_I1"
+        fi
+    fi
+
+    warp_write_profile "$1" "$2" "$3" "$5/32${6:+ $6/128}" 1280 "$4" "" "$7" "$8" "0.0.0.0/0 ::/0" 25 "$awg"
 }
 
 # Adds a NetShift VPN section bound to the interface (kept as it is when it exists).
@@ -415,4 +444,239 @@ warp_generate() {
 
     jq -n -c --arg interface "$name" --arg proto "$proto" --arg endpoint "$endpoint" --arg v4 "$v4" --arg v6 "$v6" \
         '{ok: true, interface: $interface, section: $interface, proto: $proto, endpoint: $endpoint, addresses: ([$v4, $v6] | map(select(. != "")))}'
+}
+
+# ── Import of a ready WireGuard / AmneziaWG config ──────────────────────────────
+# For the places where the registration cannot be made from the router at all: the
+# config is made elsewhere (a cloud shell, a generator site) and pasted here.
+
+# Reads a config on stdin and prints "<section>.<key><TAB><value>" lines, the section
+# and the key in lower case ("interface.privatekey", "peer.endpoint", ...).
+warp_conf_lines() {
+    awk '
+        function trim(s) { gsub(/^[ \t\r]+|[ \t\r]+$/, "", s); return s }
+        {
+            line = trim($0)
+            if (line == "" || line ~ /^[#;]/) next
+            if (line ~ /^\[.*\]$/) {
+                section = tolower(substr(line, 2, length(line) - 2))
+                # only the first peer is used: the others get their own names
+                if (section == "peer" && ++peers > 1) section = "peer" peers
+                next
+            }
+            i = index(line, "=")
+            if (!i) next
+            print section "." tolower(trim(substr(line, 1, i - 1))) "\t" trim(substr(line, i + 1))
+        }'
+}
+
+warp_valid_key() {
+    printf '%s' "$1" | grep -Eq '^[A-Za-z0-9+/]{43}=$'
+}
+
+# "172.16.0.2" -> "172.16.0.2/32", "2606::1" -> "2606::1/128"; fails for anything else
+warp_cidr() {
+    local address="${1%%/*}"
+    local mask=""
+
+    case "$1" in
+    */*) mask="${1#*/}" ;;
+    esac
+    case "$mask" in
+    *[!0-9]*) return 1 ;;
+    esac
+
+    if is_ipv4 "$address"; then
+        printf '%s/%s\n' "$address" "${mask:-32}"
+    elif is_ipv6 "$address"; then
+        printf '%s/%s\n' "$address" "${mask:-128}"
+    else
+        return 1
+    fi
+}
+
+# warp_import <config text> [interface]
+# Makes the interface and the VPN section from a pasted config. Prints
+# {"ok":true,...} or {"ok":false,"error":...}.
+warp_import() {
+    local text="$1"
+    local name="${2:-}"
+    local lines key value private mtu peer_key psk endpoint host port keepalive
+    local addresses="" allowed="" awg="" skipped="" proto cidr item option wanted_awg=""
+
+    [ -n "$name" ] || name="$WARP_INTERFACE_DEFAULT"
+    warp_valid_interface_name "$name" || {
+        warp_error "invalid interface name" ""
+        return 1
+    }
+    if [ -n "$(uci -q get "network.$name")" ]; then
+        warp_error "the interface '$name' already exists" "remove it or choose another name"
+        return 1
+    fi
+
+    lines="$(printf '%s\n' "$text" | warp_conf_lines)"
+    private=""
+    mtu=""
+    peer_key=""
+    psk=""
+    endpoint=""
+    keepalive=""
+
+    while IFS="$(printf '\t')" read -r key value; do
+        [ -n "$key" ] || continue
+        case "$key" in
+        peer.publickey) peer_key="$value" ;;
+        interface.privatekey) private="$value" ;;
+        interface.address)
+            for item in $(printf '%s' "$value" | tr ',' ' '); do
+                cidr="$(warp_cidr "$item")" || {
+                    warp_error "invalid address '$item'" ""
+                    return 1
+                }
+                addresses="$addresses $cidr"
+            done
+            ;;
+        interface.mtu) mtu="$value" ;;
+        interface.jc | interface.jmin | interface.jmax | interface.s1 | interface.s2 | interface.s3 | interface.s4 | \
+            interface.h1 | interface.h2 | interface.h3 | interface.h4 | interface.i1 | interface.i2 | interface.i3 | interface.i4 | interface.i5)
+            option="${key#interface.}"
+            wanted_awg="$wanted_awg
+$option $value"
+            ;;
+        peer.presharedkey) psk="$value" ;;
+        peer.endpoint) endpoint="$value" ;;
+        peer.persistentkeepalive) keepalive="$value" ;;
+        peer.allowedips)
+            for item in $(printf '%s' "$value" | tr ',' ' '); do
+                cidr="$(warp_cidr "$item")" || {
+                    warp_error "invalid allowed address '$item'" ""
+                    return 1
+                }
+                allowed="$allowed $cidr"
+            done
+            ;;
+        esac
+    done << EOF
+$lines
+EOF
+
+    warp_valid_key "$private" || {
+        warp_error "the config has no valid PrivateKey" ""
+        return 1
+    }
+    warp_valid_key "$peer_key" || {
+        warp_error "the config has no valid peer PublicKey" ""
+        return 1
+    }
+    [ -z "$psk" ] || warp_valid_key "$psk" || {
+        warp_error "invalid PresharedKey" ""
+        return 1
+    }
+    [ -n "$addresses" ] || {
+        warp_error "the config has no Address" ""
+        return 1
+    }
+
+    # endpoint: host:port, [v6]:port
+    case "$endpoint" in
+    \[*\]:*)
+        host="${endpoint%\]:*}"
+        host="${host#\[}"
+        port="${endpoint##*:}"
+        ;;
+    *:*)
+        host="${endpoint%:*}"
+        port="${endpoint##*:}"
+        ;;
+    *)
+        warp_error "the config has no valid Endpoint (host:port)" ""
+        return 1
+        ;;
+    esac
+    case "$port" in
+    '' | *[!0-9]*)
+        warp_error "invalid Endpoint port" ""
+        return 1
+        ;;
+    esac
+    { [ "$port" -ge 1 ] && [ "$port" -le 65535 ]; } || {
+        warp_error "invalid Endpoint port" ""
+        return 1
+    }
+    is_domain "$host" || is_ipv4 "$host" || is_ipv6 "$host" || {
+        warp_error "invalid Endpoint host" ""
+        return 1
+    }
+    case "$mtu" in
+    '' | *[!0-9]*) [ -z "$mtu" ] || {
+        warp_error "invalid MTU" ""
+        return 1
+    } ;;
+    esac
+    case "$keepalive" in
+    *[!0-9]*)
+        warp_error "invalid PersistentKeepalive" ""
+        return 1
+        ;;
+    esac
+    [ -n "$allowed" ] || allowed="0.0.0.0/0 ::/0"
+
+    # the protocol: AmneziaWG options need the AmneziaWG handler
+    if [ -n "$wanted_awg" ]; then
+        if [ -f /lib/netifd/proto/amneziawg.sh ]; then
+            proto="amneziawg"
+        else
+            warp_error "the config has AmneziaWG options but the amneziawg protocol is not installed" "install amneziawg-tools with luci-proto-amneziawg"
+            return 1
+        fi
+    else
+        proto="$(warp_detect_proto_plain)"
+        [ -n "$proto" ] || {
+            warp_error "no WireGuard support for the network interfaces" "install the wireguard-tools package"
+            return 1
+        }
+    fi
+
+    # options the protocol handler does not know are left out and reported
+    if [ "$proto" = "amneziawg" ]; then
+        while IFS= read -r item; do
+            [ -n "$item" ] || continue
+            option="${item%% *}"
+            case "$option" in
+            s3 | s4 | i1 | i2 | i3 | i4 | i5)
+                if grep -q "awg_$option" /lib/netifd/proto/amneziawg.sh 2> /dev/null; then
+                    awg="$awg
+$item"
+                else
+                    skipped="$skipped $option"
+                fi
+                ;;
+            *) awg="$awg
+$item" ;;
+            esac
+        done << EOF
+$wanted_awg
+EOF
+    fi
+
+    warp_write_profile "$name" "$proto" "$private" "${addresses# }" "$mtu" "$peer_key" "$psk" "$host" "$port" "${allowed# }" "${keepalive:-25}" "$awg"
+    warp_write_section "$name"
+    warp_reload_services "$name"
+
+    case "$host" in
+    *:*) host="[$host]" ;;
+    esac
+    jq -n -c --arg interface "$name" --arg proto "$proto" --arg endpoint "$host:$port" --arg skipped "${skipped# }" \
+        '{ok: true, interface: $interface, section: $interface, proto: $proto, endpoint: $endpoint,
+          skipped: ($skipped | split(" ") | map(select(length > 0)))}'
+}
+
+# The protocol for a config without AmneziaWG options: plain WireGuard, else AmneziaWG
+# (it carries a plain config too).
+warp_detect_proto_plain() {
+    if [ -f /lib/netifd/proto/wireguard.sh ]; then
+        echo "wireguard"
+    elif [ -f /lib/netifd/proto/amneziawg.sh ]; then
+        echo "amneziawg"
+    fi
 }

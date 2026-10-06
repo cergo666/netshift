@@ -979,6 +979,7 @@ var NetShift;
   ((AvailableMethods2) => {
     AvailableMethods2["CHECK_DNS_AVAILABLE"] = "check_dns_available";
     AvailableMethods2["WARP_GENERATE"] = "warp_generate";
+    AvailableMethods2["WARP_IMPORT"] = "warp_import";
     AvailableMethods2["CHECK_FAKEIP"] = "check_fakeip";
     AvailableMethods2["CHECK_ROUTE"] = "check_route";
     AvailableMethods2["CHECK_ENVIRONMENT"] = "check_environment";
@@ -1095,6 +1096,13 @@ function parseComponentCheckUpdate(stdout) {
 
 // src/netshift/methods/shell/index.ts
 var NetShiftShellMethods = {
+  // A ready WireGuard / AmneziaWG config pasted by the user.
+  warpImport: async (config) => callBaseMethod(
+    NetShift.AvailableMethods.WARP_IMPORT,
+    [config],
+    void 0,
+    { nobatch: true }
+  ),
   // Registering a device can take a while: Cloudflare is asked twice.
   warpGenerate: async (endpoint, relay = "") => callBaseMethod(
     NetShift.AvailableMethods.WARP_GENERATE,
@@ -8175,7 +8183,8 @@ function parseWarpResult(input) {
       ok: true,
       interface: text2(value.interface),
       proto: text2(value.proto),
-      endpoint: text2(value.endpoint)
+      endpoint: text2(value.endpoint),
+      ...Array.isArray(value.skipped) && value.skipped.length ? { skipped: value.skipped.map(String) } : {}
     };
   }
   const attempts = Array.isArray(value.attempts) ? value.attempts.filter(

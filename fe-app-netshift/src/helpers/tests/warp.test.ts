@@ -21,6 +21,16 @@ describe('parseWarpResult', () => {
     });
   });
 
+  it('reads the options that an import skipped', () => {
+    expect(
+      parseWarpResult({ ok: true, interface: 'warp', skipped: ['i1', 'i2'] })
+        .skipped,
+    ).toEqual(['i1', 'i2']);
+    expect(
+      parseWarpResult({ ok: true, interface: 'warp', skipped: [] }).skipped,
+    ).toBeUndefined();
+  });
+
   it('reads an error with a hint', () => {
     expect(
       parseWarpResult({ ok: false, error: 'no answer', hint: 'use a proxy' }),

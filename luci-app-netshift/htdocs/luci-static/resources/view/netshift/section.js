@@ -990,6 +990,65 @@ function createSectionContent(section) {
       _("Create a WARP interface"),
     );
 
+    // Where the router cannot reach Cloudflare at all: make the config elsewhere (a
+    // cloud shell, a generator site) and paste it here.
+    const pasted = E("textarea", {
+      class: "cbi-input-textarea",
+      rows: 6,
+      style: "width:100%;font-family:monospace",
+      placeholder: "[Interface]\nPrivateKey = ...\nAddress = ...\n\n[Peer]\nPublicKey = ...\nEndpoint = host:port",
+    });
+    const importResult = E("div", { class: "cbi-value-description" });
+    const importButton = E(
+      "button",
+      {
+        class: "btn cbi-button cbi-button-add",
+        click: (ev) => {
+          ev.preventDefault();
+
+          if (!pasted.value.trim()) {
+            return;
+          }
+
+          importButton.disabled = true;
+          importResult.textContent = _("Importing the config...");
+
+          main.NetShiftShellMethods.warpImport(pasted.value)
+            .then((reply) => {
+              const answer = reply.success
+                ? main.parseWarpResult(reply.data)
+                : { ok: false, error: "" };
+
+              if (!answer.ok) {
+                importResult.textContent = [
+                  _("Could not import the config"),
+                  answer.error,
+                  answer.hint,
+                ]
+                  .filter(Boolean)
+                  .join(": ");
+                importButton.disabled = false;
+                return;
+              }
+
+              importResult.textContent =
+                _(
+                  "Created the interface %s (%s) and a VPN section with the same name. Reloading the page...",
+                ).format(answer.interface, answer.proto) +
+                (answer.skipped && answer.skipped.length
+                  ? ` ${_("Options the protocol does not know were left out")}: ${answer.skipped.join(", ")}.`
+                  : "");
+              window.setTimeout(() => window.location.reload(), 3500);
+            })
+            .catch(() => {
+              importResult.textContent = _("Could not import the config");
+              importButton.disabled = false;
+            });
+        },
+      },
+      _("Import the config"),
+    );
+
     return E("div", {}, [
       E("div", { style: "display:flex;gap:.5em;flex-wrap:wrap" }, [
         select,
@@ -997,6 +1056,12 @@ function createSectionContent(section) {
         button,
       ]),
       result,
+      E("div", { style: "margin-top:1em" }, [
+        E("div", { class: "cbi-value-description" }, _("No access to Cloudflare from here? Make a WARP config elsewhere (a cloud shell or a generator site) and paste it:")),
+        pasted,
+        importButton,
+        importResult,
+      ]),
     ]);
   };
 

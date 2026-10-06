@@ -18,6 +18,8 @@ export interface WarpResult {
   interface?: string;
   proto?: string;
   endpoint?: string;
+  // Options of an imported config that the protocol handler does not know.
+  skipped?: string[];
   error?: string;
   hint?: string;
   // The ways to reach Cloudflare that were tried, when none worked.
@@ -49,6 +51,9 @@ export function parseWarpResult(input: unknown): WarpResult {
       interface: text(value.interface),
       proto: text(value.proto),
       endpoint: text(value.endpoint),
+      ...(Array.isArray(value.skipped) && value.skipped.length
+        ? { skipped: value.skipped.map(String) }
+        : {}),
     };
   }
 
