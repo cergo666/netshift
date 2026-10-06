@@ -32,6 +32,24 @@ export function parseDnsBenchmark(input: unknown): DnsBenchmarkResult[] {
     }));
 }
 
+// Where the servers were asked from: through the tunnel (when DNS goes through an
+// outbound) or from the router itself.
+export function parseDnsBenchmarkVia(input: unknown): 'tunnel' | 'direct' {
+  let data: unknown = input;
+
+  if (typeof input === 'string') {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return 'direct';
+    }
+  }
+
+  return (data as { via?: unknown } | null)?.via === 'tunnel'
+    ? 'tunnel'
+    : 'direct';
+}
+
 // Fastest first; servers without a time go last, keeping their order.
 export function sortBySpeed(
   results: DnsBenchmarkResult[],

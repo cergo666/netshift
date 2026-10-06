@@ -129,7 +129,7 @@ function createSettingsContent(section) {
     "_dns_speed",
     _("DNS speed test"),
     _(
-      "Times every configured DNS server from this router (UDP, TCP, DoT and DoH; DoH3 and DoQ cannot be timed). Nothing is changed: use it to decide the order of the servers.",
+      "Times every configured DNS server (UDP, TCP, DoT and DoH; DoH3 and DoQ cannot be timed). With \"Route main DNS through proxy/VPN\" the servers are reached through the tunnel, so a resolver inside it can be timed too. Nothing is changed: use it to decide the order of the servers.",
     ),
   );
   o.rawhtml = true;
@@ -150,7 +150,22 @@ function createSettingsContent(section) {
                 reply.success ? main.parseDnsBenchmark(reply.data) : [],
               );
 
+              const via = reply.success
+                ? main.parseDnsBenchmarkVia(reply.data)
+                : "direct";
+
               result.replaceChildren(
+                ...(rows.length
+                  ? [
+                      E(
+                        "div",
+                        {},
+                        via === "tunnel"
+                          ? _("Measured through the tunnel, the way real queries go")
+                          : _("Measured from the router"),
+                      ),
+                    ]
+                  : []),
                 ...(rows.length
                   ? rows.map((row) =>
                       E("div", {}, [

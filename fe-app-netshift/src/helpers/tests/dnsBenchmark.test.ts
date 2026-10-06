@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseDnsBenchmark, sortBySpeed } from '../dnsBenchmark';
+import {
+  parseDnsBenchmark,
+  parseDnsBenchmarkVia,
+  sortBySpeed,
+} from '../dnsBenchmark';
 
 describe('parseDnsBenchmark', () => {
   it('reads the backend answer', () => {
@@ -69,5 +73,20 @@ describe('sortBySpeed', () => {
 
     sortBySpeed(list);
     expect(list[0].server).toBe('b');
+  });
+});
+
+describe('parseDnsBenchmarkVia', () => {
+  it('knows where the servers were asked from', () => {
+    expect(
+      parseDnsBenchmarkVia(JSON.stringify({ via: 'tunnel', results: [] })),
+    ).toBe('tunnel');
+    expect(parseDnsBenchmarkVia({ via: 'direct', results: [] })).toBe('direct');
+  });
+
+  it('says direct for an older backend and for garbage', () => {
+    expect(parseDnsBenchmarkVia({ results: [] })).toBe('direct');
+    expect(parseDnsBenchmarkVia('Usage: netshift')).toBe('direct');
+    expect(parseDnsBenchmarkVia(null)).toBe('direct');
   });
 });

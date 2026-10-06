@@ -956,6 +956,12 @@ msgstr "МБ свободно"
 msgid "Memory"
 msgstr "Память"
 
+msgid "Measured from the router"
+msgstr "Замер с самого роутера"
+
+msgid "Measured through the tunnel, the way real queries go"
+msgstr "Замер через туннель, так же, как идут настоящие запросы"
+
 msgid "Memory Usage"
 msgstr "Использование памяти"
 
@@ -1559,8 +1565,8 @@ msgstr "Время в секундах для кэширования DNS зап�
 msgid "Time of the daily update, HH:MM (00:00-23:59) in the router's local time. Avoid minutes shared with other update intervals, such as :00 and :30 if a 30-minute section exists"
 msgstr "Время ежедневного обновления, ЧЧ:ММ (00:00–23:59) по местному времени роутера. Избегайте минут, совпадающих с другими интервалами обновления, например :00 и :30, если есть секция с интервалом 30 минут."
 
-msgid "Times every configured DNS server from this router (UDP, TCP, DoT and DoH; DoH3 and DoQ cannot be timed). Nothing is changed: use it to decide the order of the servers."
-msgstr "Замеряет каждый настроенный DNS-сервер с этого роутера (UDP, TCP, DoT и DoH; DoH3 и DoQ замерить нельзя). Ничего не меняется: результат поможет выбрать порядок серверов."
+msgid "Times every configured DNS server (UDP, TCP, DoT and DoH; DoH3 and DoQ cannot be timed). With \"Route main DNS through proxy/VPN\" the servers are reached through the tunnel, so a resolver inside it can be timed too. Nothing is changed: use it to decide the order of the servers."
+msgstr ""
 
 msgid "TLS and Reality fail with a wrong time: check NTP"
 msgstr "С неверным временем не работают TLS и Reality: проверьте NTP"
