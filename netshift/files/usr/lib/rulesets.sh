@@ -57,7 +57,52 @@ patch_source_ruleset_rules() {
     mv "$tmpfile" "$filepath"
 }
 
-# Imports a plain domain list into a ruleset in chunks, validating domains and appending them as domain_suffix rules.
+# Drops the regular expressions that the core would refuse: one broken pattern
+# would fail the whole configuration check and the service would not start.
+# $1 - file with one pattern per line; prints the valid ones, one per line.
+validate_domain_regex_file() {
+    local input="$1"
+    local probe line
+
+    [ -s "$input" ] || return 0
+
+    probe="$(mktemp)"
+    jq -R -s '{version: 3, rules: [{domain_regex: (split("\n") | map(select(length > 0)))}]}' "$input" > "$probe"
+    if sing-box rule-set match "$probe" "netshift-probe.invalid" > /dev/null 2>&1; then
+        rm -f "$probe"
+        cat "$input"
+        return 0
+    fi
+
+    # Something is wrong: find the culprits one by one.
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        jq -n --arg re "$line" '{version: 3, rules: [{domain_regex: [$re]}]}' > "$probe"
+        if sing-box rule-set match "$probe" "netshift-probe.invalid" > /dev/null 2>&1; then
+            printf '%s\n' "$line"
+        else
+            log "Ignoring domain regex '$line': it is not a valid regular expression" "warn" >&2
+        fi
+    done < "$input"
+    rm -f "$probe"
+}
+
+# Appends the lines of a file (one JSON-string-safe value per line) to a source
+# ruleset as the given key, in one jq call.
+patch_source_ruleset_rules_from_file() {
+    local ruleset_filepath="$1"
+    local key="$2"
+    local values_file="$3"
+    local json_array
+
+    [ -s "$values_file" ] || return 0
+    json_array="$(jq -R -s -c 'split("\n") | map(select(length > 0))' "$values_file")"
+    patch_source_ruleset_rules "$ruleset_filepath" "$key" "$json_array"
+}
+
+# Imports a plain domain list into a ruleset in chunks, validating entries. A bare
+# domain becomes a domain_suffix rule; full:, keyword: and regex: entries (see
+# domain_rule_normalize) become domain, domain_keyword and domain_regex rules.
 # Domains are lowercased before validation (issue #52), so a mixed-case entry
 # such as "Example.COM" becomes "example.com" instead of being dropped.
 import_plain_domain_list_to_local_source_ruleset_chunked() {
@@ -65,19 +110,37 @@ import_plain_domain_list_to_local_source_ruleset_chunked() {
     local ruleset_filepath="$2"
     local chunk_size="${3:-1000}"
 
-    local array count json_array
+    local array count json_array entry
+    local full_file keyword_file regex_file valid_regex_file
+    full_file="$(mktemp)"
+    keyword_file="$(mktemp)"
+    regex_file="$(mktemp)"
     count=0
     while IFS= read -r line; do
-        line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        line=$(printf '%s\n' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
         [ -z "$line" ] && continue
 
-        line="$(normalize_domain_case "$line")"
-
-        if ! is_domain_suffix "$line"; then
+        if ! entry="$(domain_rule_normalize "$line")"; then
             log "'$line' is not a valid domain" "debug"
             continue
         fi
+
+        case "$entry" in
+        full:*)
+            printf '%s\n' "${entry#full:}" >> "$full_file"
+            continue
+            ;;
+        keyword:*)
+            printf '%s\n' "${entry#keyword:}" >> "$keyword_file"
+            continue
+            ;;
+        regex:*)
+            printf '%s\n' "${entry#regex:}" >> "$regex_file"
+            continue
+            ;;
+        esac
+        line="$entry"
 
         if [ -z "$array" ]; then
             array="$line"
@@ -101,6 +164,13 @@ import_plain_domain_list_to_local_source_ruleset_chunked() {
         json_array="$(comma_string_to_json_array "$array")"
         patch_source_ruleset_rules "$ruleset_filepath" "domain_suffix" "$json_array"
     fi
+
+    patch_source_ruleset_rules_from_file "$ruleset_filepath" "domain" "$full_file"
+    patch_source_ruleset_rules_from_file "$ruleset_filepath" "domain_keyword" "$keyword_file"
+    valid_regex_file="$(mktemp)"
+    validate_domain_regex_file "$regex_file" > "$valid_regex_file"
+    patch_source_ruleset_rules_from_file "$ruleset_filepath" "domain_regex" "$valid_regex_file"
+    rm -f "$full_file" "$keyword_file" "$regex_file" "$valid_regex_file"
 }
 
 # Imports a plain IPv4/CIDR list into a ruleset in chunks, validating entries and appending them as ip_cidr rules
@@ -112,7 +182,7 @@ import_plain_subnet_list_to_local_source_ruleset_chunked() {
     local array count json_array
     count=0
     while IFS= read -r line; do
-        line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        line=$(printf '%s\n' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
         [ -z "$line" ] && continue
 
