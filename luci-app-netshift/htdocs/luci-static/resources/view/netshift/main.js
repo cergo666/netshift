@@ -950,7 +950,7 @@ async function callBaseMethod(method, args = [], command = "/usr/bin/netshift", 
   const response = await executeShellCommand({
     command,
     args: [method, ...args],
-    timeout: 15e3,
+    timeout: options.timeout ?? 15e3,
     nobatch: options.nobatch
   });
   if (response.stdout) {
@@ -978,6 +978,7 @@ var NetShift;
   let AvailableMethods;
   ((AvailableMethods2) => {
     AvailableMethods2["CHECK_DNS_AVAILABLE"] = "check_dns_available";
+    AvailableMethods2["WARP_GENERATE"] = "warp_generate";
     AvailableMethods2["CHECK_FAKEIP"] = "check_fakeip";
     AvailableMethods2["CHECK_ROUTE"] = "check_route";
     AvailableMethods2["CHECK_ENVIRONMENT"] = "check_environment";
@@ -1094,6 +1095,13 @@ function parseComponentCheckUpdate(stdout) {
 
 // src/netshift/methods/shell/index.ts
 var NetShiftShellMethods = {
+  // Registering a device can take a while: Cloudflare is asked twice.
+  warpGenerate: async (endpoint) => callBaseMethod(
+    NetShift.AvailableMethods.WARP_GENERATE,
+    [endpoint],
+    void 0,
+    { nobatch: true, timeout: 6e4 }
+  ),
   checkDNSAvailable: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_DNS_AVAILABLE
   ),
@@ -8142,6 +8150,37 @@ function connectionAge(start, now) {
   return { value: Math.floor(seconds / 86400), unit: "d" };
 }
 
+// src/helpers/warp.ts
+var WARP_ENDPOINTS = [
+  "engage.cloudflareclient.com:4500",
+  "engage.cloudflareclient.com:2408",
+  "engage.cloudflareclient.com:500"
+];
+function parseWarpResult(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return { ok: false, error: "" };
+    }
+  }
+  if (!data || typeof data !== "object") {
+    return { ok: false, error: "" };
+  }
+  const value = data;
+  const text2 = (item) => typeof item === "string" && item ? item : void 0;
+  if (value.ok === true) {
+    return {
+      ok: true,
+      interface: text2(value.interface),
+      proto: text2(value.proto),
+      endpoint: text2(value.endpoint)
+    };
+  }
+  return { ok: false, error: text2(value.error) ?? "", hint: text2(value.hint) };
+}
+
 // src/main.ts
 if (typeof structuredClone !== "function")
   globalThis.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -8188,6 +8227,7 @@ return baseclass.extend({
   TabService,
   TabServiceInstance,
   UPDATE_INTERVAL_OPTIONS,
+  WARP_ENDPOINTS,
   bulkValidate,
   connectionAge,
   connectionRoute,
@@ -8234,6 +8274,7 @@ return baseclass.extend({
   parseSubscriptionInfo,
   parseUpdateNotice,
   parseValueList,
+  parseWarpResult,
   preserveScrollForPage,
   prettyBytes,
   ramUsedPercent,

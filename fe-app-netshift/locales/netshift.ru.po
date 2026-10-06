@@ -203,6 +203,9 @@ msgstr "Закрыть все"
 msgid "Close all connections? Active downloads and calls will be interrupted."
 msgstr "Закрыть все соединения? Идущие загрузки и звонки прервутся."
 
+msgid "Cloudflare WARP"
+msgstr "Cloudflare WARP"
+
 msgid "cloudflare-dns.com/dns-query (Cloudflare DoH)"
 msgstr "cloudflare-dns.com/dns-query (Cloudflare DoH)"
 
@@ -262,6 +265,15 @@ msgstr "Не удалось переключить ядро"
 
 msgid "Core switch timed out"
 msgstr "Истекло время ожидания переключения ядра"
+
+msgid "Could not create the WARP interface"
+msgstr "Не удалось создать интерфейс WARP"
+
+msgid "Create a WARP interface"
+msgstr "Создать интерфейс WARP"
+
+msgid "Created the interface %s (%s) and a VPN section with the same name. Reloading the page..."
+msgstr "Создан интерфейс %s (%s) и VPN-секция с тем же именем. Страница перезагружается..."
 
 msgid "Currently unavailable"
 msgstr "Временно недоступно"
@@ -1171,6 +1183,12 @@ msgstr "Обновить"
 
 msgid "Regional options cannot be used together"
 msgstr "Нельзя использовать несколько региональных опций одновременно"
+
+msgid "Registering the device..."
+msgstr "Регистрируем устройство..."
+
+msgid "Registers a free WARP device on this router (no account needed) and creates a network interface and a VPN section for it. AmneziaWG is used when its protocol is installed, otherwise WireGuard; one of them is required. Cloudflare's API may be blocked in your network: route cloudflareclient.com through a NetShift section and try again."
+msgstr "Регистрирует бесплатное устройство WARP на этом роутере (аккаунт не нужен) и создаёт для него сетевой интерфейс и VPN-секцию. Используется AmneziaWG, если установлен его протокол, иначе WireGuard; нужен один из них. API Cloudflare может быть заблокирован в вашей сети: направьте cloudflareclient.com через секцию NetShift и повторите попытку."
 
 msgid "Regular expression must not contain spaces or commas"
 msgstr "Регулярное выражение не должно содержать пробелов и запятых"
