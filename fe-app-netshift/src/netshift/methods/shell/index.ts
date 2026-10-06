@@ -19,6 +19,22 @@ export const NetShiftShellMethods = {
     callBaseMethod<NetShift.FakeIPCheckResult>(
       NetShift.AvailableMethods.CHECK_FAKEIP,
     ),
+  getConnections: async () =>
+    callBaseMethod<unknown>(
+      NetShift.AvailableMethods.CLASH_API,
+      [NetShift.AvailableClashAPIMethods.GET_CONNECTIONS],
+      undefined,
+      { nobatch: true },
+    ),
+  closeConnection: async (id: string) =>
+    callBaseMethod<unknown>(NetShift.AvailableMethods.CLASH_API, [
+      NetShift.AvailableClashAPIMethods.CLOSE_CONNECTION,
+      id,
+    ]),
+  closeAllConnections: async () =>
+    callBaseMethod<unknown>(NetShift.AvailableMethods.CLASH_API, [
+      NetShift.AvailableClashAPIMethods.CLOSE_CONNECTIONS,
+    ]),
   checkNftRules: async () =>
     callBaseMethod<NetShift.NftRulesCheckResult>(
       NetShift.AvailableMethods.CHECK_NFT_RULES,
