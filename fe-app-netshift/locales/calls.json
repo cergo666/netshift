@@ -183,6 +183,13 @@
     ]
   },
   {
+    "call": "Blocked by a rule",
+    "key": "Blocked by a rule",
+    "places": [
+      "src/netshift/tabs/diagnostic/helpers/describeRouteCheck.ts:22"
+    ]
+  },
+  {
     "call": "Bootsrap DNS",
     "key": "Bootsrap DNS",
     "places": [
@@ -270,6 +277,13 @@
     ]
   },
   {
+    "call": "Check",
+    "key": "Check",
+    "places": [
+      "src/netshift/tabs/diagnostic/partials/renderRouteCheck.ts:68"
+    ]
+  },
+  {
     "call": "Check update",
     "key": "Check update",
     "places": [
@@ -288,6 +302,13 @@
       "src/netshift/tabs/diagnostic/checks/runNftCheck.ts:13",
       "src/netshift/tabs/diagnostic/checks/runSectionsCheck.ts:28",
       "src/netshift/tabs/diagnostic/checks/runSingBoxCheck.ts:13"
+    ]
+  },
+  {
+    "call": "Checking...",
+    "key": "Checking...",
+    "places": [
+      "src/netshift/tabs/diagnostic/partials/renderRouteCheck.ts:34"
     ]
   },
   {
@@ -336,7 +357,7 @@
     "call": "Clearing subscription cache and re-downloading… this may take a minute",
     "key": "Clearing subscription cache and re-downloading… this may take a minute",
     "places": [
-      "src/netshift/tabs/diagnostic/initController.ts:336"
+      "src/netshift/tabs/diagnostic/initController.ts:337"
     ]
   },
   {
@@ -455,7 +476,7 @@
     "call": "Core switch failed",
     "key": "Core switch failed",
     "places": [
-      "src/netshift/methods/shell/index.ts:166",
+      "src/netshift/methods/shell/index.ts:174",
       "src/netshift/methods/shell/pollSingBoxComponentAction.ts:83"
     ]
   },
@@ -706,6 +727,13 @@
     ]
   },
   {
+    "call": "DNS server",
+    "key": "DNS server",
+    "places": [
+      "src/netshift/tabs/diagnostic/helpers/describeRouteCheck.ts:41"
+    ]
+  },
+  {
     "call": "DNS Server",
     "key": "DNS Server",
     "places": [
@@ -740,6 +768,13 @@
     "key": "DNS server timeout",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:148"
+    ]
+  },
+  {
+    "call": "DNS: answered with a FakeIP address, the traffic enters the tunnel path",
+    "key": "DNS: answered with a FakeIP address, the traffic enters the tunnel path",
+    "places": [
+      "src/netshift/tabs/diagnostic/helpers/describeRouteCheck.ts:36"
     ]
   },
   {
@@ -942,6 +977,13 @@
     ]
   },
   {
+    "call": "Enter a domain or an IP address to see which section, DNS server or block handles it.",
+    "key": "Enter a domain or an IP address to see which section, DNS server or block handles it.",
+    "places": [
+      "src/netshift/tabs/diagnostic/partials/renderRouteCheck.ts:75"
+    ]
+  },
+  {
     "call": "Enter complete outbound configuration in JSON format",
     "key": "Enter complete outbound configuration in JSON format",
     "places": [
@@ -1092,9 +1134,9 @@
     "call": "Failed to clear subscription cache",
     "key": "Failed to clear subscription cache",
     "places": [
-      "src/netshift/methods/shell/index.ts:262",
-      "src/netshift/tabs/diagnostic/initController.ts:351",
-      "src/netshift/tabs/diagnostic/initController.ts:355"
+      "src/netshift/methods/shell/index.ts:270",
+      "src/netshift/tabs/diagnostic/initController.ts:352",
+      "src/netshift/tabs/diagnostic/initController.ts:356"
     ]
   },
   {
@@ -1108,12 +1150,12 @@
     "call": "Failed to execute!",
     "key": "Failed to execute!",
     "places": [
-      "src/netshift/tabs/diagnostic/initController.ts:236",
-      "src/netshift/tabs/diagnostic/initController.ts:240",
-      "src/netshift/tabs/diagnostic/initController.ts:270",
-      "src/netshift/tabs/diagnostic/initController.ts:274",
-      "src/netshift/tabs/diagnostic/initController.ts:311",
-      "src/netshift/tabs/diagnostic/initController.ts:315",
+      "src/netshift/tabs/diagnostic/initController.ts:237",
+      "src/netshift/tabs/diagnostic/initController.ts:241",
+      "src/netshift/tabs/diagnostic/initController.ts:271",
+      "src/netshift/tabs/diagnostic/initController.ts:275",
+      "src/netshift/tabs/diagnostic/initController.ts:312",
+      "src/netshift/tabs/diagnostic/initController.ts:316",
       "src/netshift/tabs/manager/initController.ts:135",
       "src/netshift/tabs/manager/initController.ts:145",
       "src/netshift/tabs/manager/initController.ts:163",
@@ -1143,6 +1185,13 @@
     ]
   },
   {
+    "call": "From the device (optional)",
+    "key": "From the device (optional)",
+    "places": [
+      "src/netshift/tabs/diagnostic/partials/renderRouteCheck.ts:83"
+    ]
+  },
+  {
     "call": "Fully Routed IPs",
     "key": "Fully Routed IPs",
     "places": [
@@ -1160,7 +1209,7 @@
     "call": "Global check",
     "key": "Global check",
     "places": [
-      "src/netshift/tabs/diagnostic/initController.ts:231"
+      "src/netshift/tabs/diagnostic/initController.ts:232"
     ]
   },
   {
@@ -1168,6 +1217,20 @@
     "key": "Global Proxy",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:682"
+    ]
+  },
+  {
+    "call": "Goes directly, not through any section",
+    "key": "Goes directly, not through any section",
+    "places": [
+      "src/netshift/tabs/diagnostic/helpers/describeRouteCheck.ts:24"
+    ]
+  },
+  {
+    "call": "Goes through the section",
+    "key": "Goes through the section",
+    "places": [
+      "src/netshift/tabs/diagnostic/helpers/describeRouteCheck.ts:18"
     ]
   },
   {
@@ -1803,6 +1866,20 @@
     ]
   },
   {
+    "call": "Matched list",
+    "key": "Matched list",
+    "places": [
+      "src/netshift/tabs/diagnostic/helpers/describeRouteCheck.ts:28"
+    ]
+  },
+  {
+    "call": "Matches no list, goes through the global proxy section",
+    "key": "Matches no list, goes through the global proxy section",
+    "places": [
+      "src/netshift/tabs/diagnostic/helpers/describeRouteCheck.ts:17"
+    ]
+  },
+  {
     "call": "Memory Usage",
     "key": "Memory Usage",
     "places": [
@@ -2417,7 +2494,7 @@
     "call": "Self-update failed",
     "key": "Self-update failed",
     "places": [
-      "src/netshift/methods/shell/index.ts:311"
+      "src/netshift/methods/shell/index.ts:319"
     ]
   },
   {
@@ -2459,7 +2536,7 @@
     "call": "Show sing-box config",
     "key": "Show sing-box config",
     "places": [
-      "src/netshift/tabs/diagnostic/initController.ts:299",
+      "src/netshift/tabs/diagnostic/initController.ts:300",
       "src/netshift/tabs/diagnostic/partials/renderAvailableActions.ts:118"
     ]
   },
@@ -2518,6 +2595,13 @@
     "key": "Sing-box version is compatible (newer than 1.12.4)",
     "places": [
       "src/netshift/tabs/diagnostic/checks/runSingBoxCheck.ts:67"
+    ]
+  },
+  {
+    "call": "Some rules depend on the client address, traffic type or lists that are not available here and were skipped. Enter the address of the device for a precise answer.",
+    "key": "Some rules depend on the client address, traffic type or lists that are not available here and were skipped. Enter the address of the device for a precise answer.",
+    "places": [
+      "src/netshift/tabs/diagnostic/helpers/describeRouteCheck.ts:47"
     ]
   },
   {
@@ -2603,7 +2687,7 @@
     "call": "Subscription cache cleared and re-downloaded",
     "key": "Subscription cache cleared and re-downloaded",
     "places": [
-      "src/netshift/tabs/diagnostic/initController.ts:344"
+      "src/netshift/tabs/diagnostic/initController.ts:345"
     ]
   },
   {
@@ -2717,6 +2801,22 @@
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:937",
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:1027"
+    ]
+  },
+  {
+    "call": "The check could not be completed",
+    "key": "The check could not be completed",
+    "places": [
+      "src/netshift/tabs/diagnostic/partials/renderRouteCheck.ts:43",
+      "src/netshift/tabs/diagnostic/partials/renderRouteCheck.ts:47",
+      "src/netshift/tabs/diagnostic/partials/renderRouteCheck.ts:55"
+    ]
+  },
+  {
+    "call": "The DNS query is blocked",
+    "key": "The DNS query is blocked",
+    "places": [
+      "src/netshift/tabs/diagnostic/helpers/describeRouteCheck.ts:33"
     ]
   },
   {
@@ -2872,12 +2972,12 @@
     "call": "unknown",
     "key": "unknown",
     "places": [
-      "src/netshift/tabs/diagnostic/initController.ts:43",
       "src/netshift/tabs/diagnostic/initController.ts:44",
       "src/netshift/tabs/diagnostic/initController.ts:45",
       "src/netshift/tabs/diagnostic/initController.ts:46",
       "src/netshift/tabs/diagnostic/initController.ts:47",
       "src/netshift/tabs/diagnostic/initController.ts:48",
+      "src/netshift/tabs/diagnostic/initController.ts:49",
       "src/netshift/tabs/manager/initController.ts:43",
       "src/netshift/tabs/manager/initController.ts:44",
       "src/netshift/tabs/manager/initController.ts:45",
@@ -3150,7 +3250,7 @@
     "call": "View logs",
     "key": "View logs",
     "places": [
-      "src/netshift/tabs/diagnostic/initController.ts:265",
+      "src/netshift/tabs/diagnostic/initController.ts:266",
       "src/netshift/tabs/diagnostic/partials/renderAvailableActions.ts:109"
     ]
   },
@@ -3197,6 +3297,13 @@
     "key": "When enabled, traffic not matching any other section's lists will go through this proxy.",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:685"
+    ]
+  },
+  {
+    "call": "Where will a request go",
+    "key": "Where will a request go",
+    "places": [
+      "src/netshift/tabs/diagnostic/partials/renderRouteCheck.ts:71"
     ]
   },
   {
