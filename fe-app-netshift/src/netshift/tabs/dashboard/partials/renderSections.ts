@@ -3,6 +3,11 @@ import { NetShift } from '../../../types';
 import { SKELETON_SHIMMER_DURATION } from '../../../../constants';
 import type { DashboardViewMode } from '../../../../helpers/dashboardView';
 import { sortOutboundsByLatency } from '../sortOutbounds';
+import {
+  describeSubscriptionInfo,
+  type SubscriptionInfo,
+} from '../../../../helpers/subscriptionInfo';
+import { prettyBytes } from '../../../../helpers/prettyBytes';
 
 // The color class of a delay: the same thresholds for tiles and list rows.
 function getLatencyClassName(latency: number) {
@@ -34,6 +39,8 @@ interface IRenderSectionsProps {
   sortByPing: boolean;
   onToggleViewMode: () => void;
   onToggleSortByPing: () => void;
+  // Traffic and expiry the panels of this section's subscriptions report.
+  subscriptionInfo: SubscriptionInfo[];
 }
 
 function renderFailedState() {
@@ -67,6 +74,63 @@ function renderSkeleton(style: string) {
   });
 }
 
+// One line per feed: traffic used of the quota, and when the account ends.
+function renderSubscriptionInfo(infos: SubscriptionInfo[]) {
+  const now = Math.floor(Date.now() / 1000);
+
+  return E(
+    'div',
+    { class: 'pdk_dashboard-page__subscription-info' },
+    infos.map((info) => {
+      const line = describeSubscriptionInfo(info, now);
+      const parts: string[] = [];
+
+      if (line.used !== null) {
+        parts.push(
+          line.total !== null
+            ? `${_('Traffic')}: ${prettyBytes(line.used)} / ${prettyBytes(line.total)}`
+            : `${_('Traffic')}: ${prettyBytes(line.used)}`,
+        );
+      }
+
+      if (line.expireDate !== null && line.daysLeft !== null) {
+        parts.push(
+          line.daysLeft < 0
+            ? `${_('Expired')}: ${line.expireDate}`
+            : `${_('Expires')}: ${line.expireDate} (${line.daysLeft} ${_('days left')})`,
+        );
+      }
+
+      const name = infos.length > 1 && line.title ? `${line.title}: ` : '';
+      const text = E(
+        'span',
+        {
+          class: `pdk_dashboard-page__subscription-info__text${line.exhausted ? ' pdk_dashboard-page__subscription-info__text--exhausted' : ''}`,
+        },
+        name + parts.join(' · '),
+      );
+
+      return E('div', { class: 'pdk_dashboard-page__subscription-info__row' }, [
+        text,
+        ...(line.percent !== null
+          ? [
+              E(
+                'div',
+                { class: 'pdk_dashboard-page__subscription-info__bar' },
+                [
+                  E('div', {
+                    class: `pdk_dashboard-page__subscription-info__bar__fill${line.percent >= 90 ? ' pdk_dashboard-page__subscription-info__bar__fill--high' : ''}`,
+                    style: `width: ${line.percent}%`,
+                  }),
+                ],
+              ),
+            ]
+          : []),
+      ]);
+    }),
+  );
+}
+
 export function renderDefaultState({
   section,
   onChooseOutbound,
@@ -77,6 +141,7 @@ export function renderDefaultState({
   sortByPing,
   onToggleViewMode,
   onToggleSortByPing,
+  subscriptionInfo,
 }: IRenderSectionsProps) {
   function renderOutbound(outbound: NetShift.Outbound) {
     const getLatencyClass = () => getLatencyClassName(outbound.latency);
@@ -201,6 +266,9 @@ export function renderDefaultState({
             }),
       ]),
     ]),
+    ...(subscriptionInfo.length > 0
+      ? [renderSubscriptionInfo(subscriptionInfo)]
+      : []),
     renderOutbounds(section.outbounds, section.code),
     ...(section.subgroups ?? []).map((subgroup) =>
       E('div', { class: 'pdk_dashboard-page__outbound-subgroup' }, [
