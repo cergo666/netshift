@@ -7933,6 +7933,17 @@ function parseDnsBenchmark(input) {
     ms: typeof item.ms === "number" && item.ms >= 0 ? item.ms : null
   }));
 }
+function parseDnsBenchmarkVia(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return "direct";
+    }
+  }
+  return data?.via === "tunnel" ? "tunnel" : "direct";
+}
 function sortBySpeed(results) {
   return results.map((result, index) => ({ result, index })).sort((a, b) => {
     if (a.result.ms === null && b.result.ms === null) {
@@ -8124,6 +8135,7 @@ return baseclass.extend({
   onMount,
   parseConnections,
   parseDnsBenchmark,
+  parseDnsBenchmarkVia,
   parseLanInfo,
   parsePinGuardEvents,
   parseQueryString,

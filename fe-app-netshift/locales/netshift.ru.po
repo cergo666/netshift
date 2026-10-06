@@ -953,14 +953,14 @@ msgstr "МБ"
 msgid "MB free"
 msgstr "МБ свободно"
 
-msgid "Memory"
-msgstr "Память"
-
 msgid "Measured from the router"
 msgstr "Замер с самого роутера"
 
 msgid "Measured through the tunnel, the way real queries go"
 msgstr "Замер через туннель, так же, как идут настоящие запросы"
+
+msgid "Memory"
+msgstr "Память"
 
 msgid "Memory Usage"
 msgstr "Использование памяти"
