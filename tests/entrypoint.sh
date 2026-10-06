@@ -121,6 +121,7 @@ test_syntax() {
         "$lib/ecs.sh" \
         "$lib/sing_box_config_manager.sh" \
         "$lib/sing_box_config_facade.sh" \
+        "$lib/dnsbench.sh" \
         "$lib/updater.sh"; do
 
         if [ ! -r "$f" ]; then
@@ -15256,6 +15257,109 @@ test_dns_servers_check() {
     rm -rf "$work"
 }
 
+test_dns_benchmark() {
+    header "DNS benchmark: time every upstream from the router (dnsbench.sh)"
+
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not installed"
+        return
+    fi
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    if [ ! -r "$lib/dnsbench.sh" ] || [ ! -r "$lib/helpers.sh" ] || [ ! -r "$lib/constants.sh" ]; then
+        fail "dnsbench.sh / helpers.sh / constants.sh not found"
+        return
+    fi
+
+    local work="/tmp/netshift-bench-$$"
+    rm -rf "$work"
+    mkdir -p "$work"
+
+    local out
+    out="$(
+        . "$lib/constants.sh"
+        . "$lib/helpers.sh"
+        . "$lib/dnsbench.sh"
+        log() { :; }
+        config_get() { eval "$1=\"\${UCI_$3:-$4}\""; }
+        config_list_foreach() { local i; for i in $UCI_POOL; do "$3" "$i"; done; }
+
+        # dig: records its arguments; answers by address
+        : > "$work/dig.log"
+        dig() {
+            local args="$*"
+            echo "$args" >> "$work/dig.log"
+            case "$args" in
+            *"+short"*)
+                # bootstrap lookups
+                case "$args" in
+                *dns.google*) echo "8.8.4.4" ;;
+                *cloudflare-dns.com*) echo "104.16.249.249" ;;
+                *dead.example*) ;;
+                esac
+                return 0
+                ;;
+            *@10.9.9.9*) return 9 ;;                                   # does not answer
+            *@192.0.2.1*) printf ';; ->>HEADER<<- status: SERVFAIL\n;; Query time: 5 msec\n' ;;
+            *@1.1.1.1*) printf ';; ->>HEADER<<- status: NOERROR\n;; Query time: 17 msec\n' ;;
+            *@8.8.4.4*) printf ';; ->>HEADER<<- status: NOERROR\n;; Query time: 41 msec\n' ;;
+            *) printf ';; ->>HEADER<<- status: NOERROR\n;; Query time: 99 msec\n' ;;
+            esac
+        }
+
+        args() { dns_bench_dig_args "$1" 77.88.8.8 || echo REFUSED; }
+        echo "udp=$(args udp://1.1.1.1)"
+        echo "tcp=$(args tcp://1.1.1.1)"
+        echo "dot-ip=$(args dot://1.1.1.1)"
+        echo "dot-name=$(args dot://dns.google)"
+        echo "doh-name=$(args doh://cloudflare-dns.com/dns-query)"
+        echo "doh-default-path=$(args doh://dns.google)"
+        echo "doh3=$(args doh3://dns.google/dns-query)"
+        echo "doq=$(args doq://dns.google)"
+        echo "unresolvable=$(args udp://dead.example)"
+        echo "bootstrap-used=$(grep -c '^@77.88.8.8 dns.google +short' "$work/dig.log")"
+
+        echo "one=$(dns_bench_one udp://1.1.1.1 77.88.8.8)"
+        echo "one-servfail=$(dns_bench_one udp://192.0.2.1 77.88.8.8 || echo none)"
+        echo "one-timeout=$(dns_bench_one udp://10.9.9.9 77.88.8.8 || echo none)"
+
+        echo "given=$(dns_benchmark udp://1.1.1.1 dot://dns.google udp://10.9.9.9 doh3://dns.google/dns-query 'evil;rm' | jq -c '[.results[] | [.server, .ms]]')"
+
+        UCI_dns_type=dot UCI_dns_server=dns.google UCI_bootstrap_dns_server=77.88.8.8 UCI_POOL="udp://1.1.1.1 doh://cloudflare-dns.com/dns-query"
+        echo "configured=$(dns_benchmark | jq -c '[.results[] | [.server, .ms]]')"
+
+        UCI_POOL="udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1 udp://1.1.1.1"
+        echo "capped=$(dns_benchmark | jq -c '.results | length')"
+    )"
+
+    _db() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+
+    _db "udp is asked directly" "udp=@1.1.1.1"
+    _db "tcp is asked over TCP" "tcp=@1.1.1.1 +tcp"
+    _db "dot is asked over TLS, named by its host" "dot-ip=@1.1.1.1 +tls +tls-hostname=1.1.1.1"
+    _db "a name is looked up through the bootstrap resolver" "dot-name=@8.8.4.4 +tls +tls-hostname=dns.google"
+    _db "doh keeps its path" "doh-name=@104.16.249.249 +https=/dns-query +tls-hostname=cloudflare-dns.com"
+    _db "doh without a path uses /dns-query" "doh-default-path=@8.8.4.4 +https=/dns-query +tls-hostname=dns.google"
+    _db "doh3 cannot be asked with dig" "doh3=REFUSED"
+    _db "doq cannot be asked with dig" "doq=REFUSED"
+    _db "a name that does not resolve is refused" "unresolvable=REFUSED"
+    _db "the bootstrap resolver is the one asked" "bootstrap-used=2"
+    _db "the time dig reports is the result" "one=17"
+    _db "an error answer is no result" "one-servfail=none"
+    _db "no answer is no result" "one-timeout=none"
+    _db "servers given are timed, in order, the odd ones skipped" 'given=[["udp://1.1.1.1",17],["dot://dns.google",41],["udp://10.9.9.9",null],["doh3://dns.google/dns-query",null]]'
+    _db "with no arguments the configured servers are timed" 'configured=[["dot://dns.google",41],["udp://1.1.1.1",17],["doh://cloudflare-dns.com/dns-query",99]]'
+    _db "the number of servers is capped" "capped=12"
+
+    rm -rf "$work"
+}
+
 # ─────────────────────────────────────────────────────────────────
 # Test: subscription country filters
 # ─────────────────────────────────────────────────────────────────
@@ -16838,6 +16942,7 @@ main() {
             test_lan_devices
             test_ecs_auto
             test_dns_servers_check
+            test_dns_benchmark
             test_dns_section
             test_section_disabled
             test_ipv6_routing
@@ -16913,12 +17018,13 @@ main() {
         lan)         test_lan_devices ;;
         ecsauto)     test_ecs_auto ;;
         dnsservers)  test_dns_servers_check ;;
+        dnsbench)    test_dns_benchmark ;;
         utfilters)   test_urltest_filters ;;
         ipv6routing) test_ipv6_routing ;;
         compproxy)   test_components_via_proxy ;;
         *)
             echo "Unknown test: $target"
-echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink dnsservers" ecsauto" lan" environment" routecheck" domrules"
+echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink dnsbench" dnsservers" ecsauto" lan" environment" routecheck" domrules"
             exit 1
             ;;
     esac
