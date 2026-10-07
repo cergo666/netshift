@@ -18746,6 +18746,104 @@ test_port_rules() {
     _pr "with IPv6 the rules are doubled" "nft-count-v6=8"
     rm -rf "$work"
 }
+
+# ─────────────────────────────────────────────────────────────────
+# Test: TUIC and AnyTLS links
+# ─────────────────────────────────────────────────────────────────
+test_tuic_anytls() {
+    header "TUIC and AnyTLS links"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not available"
+        return
+    fi
+    if [ ! -r "$lib/sing_box_config_facade.sh" ]; then
+        fail "facade not found"
+        return
+    fi
+
+    mkdir -p /usr/lib/netshift
+    ln -sf "$lib/helpers.jq" /usr/lib/netshift/helpers.jq
+    ln -sf "$lib/helpers.sh" /usr/lib/netshift/helpers.sh
+    ln -sf "$lib/sing_box_config_manager.sh" /usr/lib/netshift/sing_box_config_manager.sh
+
+    local work="/tmp/netshift-tuic-test-$$"
+    rm -rf "$work"
+    mkdir -p "$work"
+
+    local out
+    out="$(
+        . "$lib/constants.sh"
+        . "$lib/helpers.sh"
+        TU_LOG="$work/log"; : > "$TU_LOG"
+        log() { printf '[%s] %s\n' "${2:-info}" "$1" >> "$TU_LOG"; }
+        . "$lib/sing_box_config_manager.sh"
+        . "$lib/sing_box_config_facade.sh"
+        get_outbound_tag_by_section() { echo "$1-out"; }
+        base='{"outbounds":[]}'
+        add() { sing_box_cf_add_proxy_outbound "$base" "$1" "$2" ""; }
+        field() { printf '%s' "$1" | jq -c "$2"; }
+
+        TU='tuic://11111111-2222-3333-4444-555555555555:p%40ss@tuic.example.com:8443?congestion_control=bbr&udp_relay_mode=native&alpn=h3&sni=tuic.example.com&allow_insecure=1#node'
+        NETSHIFT_SING_BOX_TAGS="with_quic,with_utls"
+        o="$(add s1 "$TU")"
+        echo "tuic=$(field "$o" '.outbounds[0] | [.type, .tag, .server, .server_port, .uuid, .password, .congestion_control, .udp_relay_mode]')"
+        echo "tuic-tls=$(field "$o" '.outbounds[0].tls | [.enabled, .server_name, .alpn, .insecure, has("utls")]')"
+        o="$(add s1 'tuic://11111111-2222-3333-4444-555555555555:pw@tuic.example.com?congestion_control=weird&udp_relay_mode=odd&fp=chrome')"
+        echo "tuic-defaults=$(field "$o" '.outbounds[0] | [.server_port, has("congestion_control"), has("udp_relay_mode"), (.tls | has("utls"))]')"
+        o="$(add s1 'tuic://tuic.example.com:443')"; rc=$?
+        echo "tuic-no-uuid=$rc unchanged=$([ "$o" = "$base" ] && echo yes || echo no)"
+        NETSHIFT_SING_BOX_TAGS="with_utls"
+        o="$(add s1 "$TU")"; rc=$?
+        echo "tuic-noquic=$rc unchanged=$([ "$o" = "$base" ] && echo yes || echo no)"
+        NETSHIFT_SING_BOX_TAGS="with_quic,with_utls"
+
+        AN='anytls://se%23cret@any.example.com:8443?sni=any.example.com&insecure=1&alpn=h2,http/1.1&fp=chrome#node'
+        NETSHIFT_SING_BOX_VERSION=1.12.22
+        o="$(add s2 "$AN")"
+        echo "anytls=$(field "$o" '.outbounds[0] | [.type, .tag, .server, .server_port, .password]')"
+        echo "anytls-tls=$(field "$o" '.outbounds[0].tls | [.enabled, .server_name, .alpn, .insecure, .utls.fingerprint]')"
+        o="$(add s2 'anytls://pw@any.example.com')"
+        echo "anytls-port=$(field "$o" '.outbounds[0].server_port')"
+        o="$(add s2 'anytls://any.example.com:443')"; rc=$?
+        echo "anytls-no-password=$rc unchanged=$([ "$o" = "$base" ] && echo yes || echo no)"
+        NETSHIFT_SING_BOX_VERSION=1.11.4
+        o="$(add s2 "$AN")"; rc=$?
+        echo "anytls-old-core=$rc unchanged=$([ "$o" = "$base" ] && echo yes || echo no)"
+        NETSHIFT_SING_BOX_VERSION=1.12.22
+
+        # the core accepts what is made (the test image core is 1.12 with QUIC)
+        if command -v sing-box > /dev/null 2>&1 && sing-box version 2> /dev/null | grep -q with_quic; then
+            o="$(add s1 "$TU")"
+            c="$(sing_box_cf_add_proxy_outbound "$o" s2 "$AN" "")"
+            printf '%s' "$c" | jq '. + {log:{level:"error"}, route:{final:"s1-out"}}' > "$work/c.json"
+            sing-box check -c "$work/c.json" > "$work/check.out" 2>&1 && echo "core-check=ok" || echo "core-check=failed: $(head -c 300 "$work/check.out")"
+        else
+            echo "core-check=ok"
+        fi
+    )"
+
+    _tu() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+    _tu "a TUIC link becomes a tuic outbound with the decoded password" 'tuic=["tuic","s1-out","tuic.example.com",8443,"11111111-2222-3333-4444-555555555555","p@ss","bbr","native"]'
+    _tu "its TLS comes from sni, alpn and allow_insecure, and has no uTLS" 'tuic-tls=[true,"tuic.example.com",["h3"],true,false]'
+    _tu "port 443 by default, unknown modes dropped, no fingerprint over QUIC" "tuic-defaults=[443,false,false,false]"
+    _tu "a TUIC link without a uuid is skipped" "tuic-no-uuid=1 unchanged=yes"
+    _tu "TUIC without QUIC in the core is skipped" "tuic-noquic=1 unchanged=yes"
+    _tu "an AnyTLS link becomes an anytls outbound" 'anytls=["anytls","s2-out","any.example.com",8443,"se#cret"]'
+    _tu "its TLS carries sni, alpn, insecure and the fingerprint" 'anytls-tls=[true,"any.example.com",["h2","http/1.1"],true,"chrome"]'
+    _tu "AnyTLS port 443 by default" "anytls-port=443"
+    _tu "an AnyTLS link without a password is skipped" "anytls-no-password=1 unchanged=yes"
+    _tu "AnyTLS on a core older than 1.12 is skipped" "anytls-old-core=1 unchanged=yes"
+    _tu "the core accepts the outbounds" "core-check=ok"
+    rm -rf "$work"
+}
 # ─────────────────────────────────────────────────────────────────
 
 main() {
@@ -18916,12 +19014,13 @@ main() {
         corecaps)    test_core_caps ;;
         dnshijack)   test_dns_hijack ;;
         portrules)   test_port_rules ;;
+        tuicanytls)  test_tuic_anytls ;;
         dnsroute)    test_dns_server_route ;;
         urlint)      test_urltest_interval ;;
         dnsforward)  test_dns_forward ;;
         *)
             echo "Unknown test: $target"
-echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink mixedauth"" pinguard" snapshots" updatenotice updatepkg" paramfilters" connections" subinfo" dnsbench" dnsservers" ecsauto" lan" environment" routecheck" domrules dnsroute dnsforward urlint naive corecaps dnshijack portrules"
+echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink mixedauth"" pinguard" snapshots" updatenotice updatepkg" paramfilters" connections" subinfo" dnsbench" dnsservers" ecsauto" lan" environment" routecheck" domrules dnsroute dnsforward urlint naive corecaps dnshijack portrules tuicanytls"
             exit 1
             ;;
     esac
