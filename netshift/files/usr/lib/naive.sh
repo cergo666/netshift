@@ -20,8 +20,7 @@ NAIVE_INIT="/etc/init.d/netshift-naive"
 
 # Does the running core carry the naive outbound?
 naive_core_supported() {
-    command -v sing-box > /dev/null 2>&1 || return 1
-    sing-box version 2> /dev/null | sed -n 's/^Tags: //p' | tr ',' '\n' | grep -qx 'with_naive_outbound'
+    core_has_tag_strict with_naive_outbound
 }
 
 # The path of the naive client, nothing when it is not installed.
