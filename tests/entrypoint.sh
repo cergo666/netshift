@@ -19261,6 +19261,8 @@ test_bulk_links() {
         . /usr/lib/netshift/sing_box_config_facade.sh
         CL_LOG="$work/log"; : > "$CL_LOG"
         log() { printf '[%s] %s\n' "${2:-info}" "$1" >> "$CL_LOG"; }
+        # VMess needs the extended core: pretend to have it, as both paths read the version
+        get_sing_box_version() { echo "1.13.14-extended-2.5.0"; }
         : > /etc/config/netshift
         uci -q set netshift.bk=section
         uci -q commit netshift
@@ -19289,6 +19291,21 @@ socks5://onlyuser@r.example.com:1080#socks-nocolon
 vless://$U@s.example.com:443?security=tls&type=xhttp&path=%2Fx&sni=s.example.com#xhttp
 vless://broken#x
 vless://$U@t.example.com:99999?security=tls#bad-port
+vmess://eyJ2IjogIjIiLCAicHMiOiAieCIsICJhZGQiOiAiYS5leGFtcGxlLmNvbSIsICJwb3J0IjogIjQ0MyIsICJpZCI6ICIyZjM1OTY1YS05YTliLTQ1ZmQtYmEzMi05ODcyOTZkZmI2YmUiLCAiYWlkIjogIjAiLCAic2N5IjogImF1dG8iLCAibmV0IjogInRjcCIsICJ0bHMiOiAiIn0=#vm-tcp
+vmess://eyJ2IjogIjIiLCAicHMiOiAieCIsICJhZGQiOiAiYS5leGFtcGxlLmNvbSIsICJwb3J0IjogIjQ0MyIsICJpZCI6ICIyZjM1OTY1YS05YTliLTQ1ZmQtYmEzMi05ODcyOTZkZmI2YmUiLCAiYWlkIjogIjAiLCAic2N5IjogImF1dG8iLCAibmV0IjogIndzIiwgInRscyI6ICJ0bHMiLCAiaG9zdCI6ICJoLmV4YW1wbGUuY29tIiwgInBhdGgiOiAiL3dzIiwgInNuaSI6ICJzLmV4YW1wbGUuY29tIiwgImFscG4iOiAiaDIsaHR0cC8xLjEiLCAiZnAiOiAiY2hyb21lIn0=#vm-ws-tls
+vmess://eyJ2IjogIjIiLCAicHMiOiAieCIsICJhZGQiOiAiYS5leGFtcGxlLmNvbSIsICJwb3J0IjogIjQ0MyIsICJpZCI6ICIyZjM1OTY1YS05YTliLTQ1ZmQtYmEzMi05ODcyOTZkZmI2YmUiLCAiYWlkIjogIjAiLCAic2N5IjogImF1dG8iLCAibmV0IjogImdycGMiLCAidGxzIjogInRscyIsICJwYXRoIjogInN2YyJ9#vm-grpc
+vmess://eyJ2IjogIjIiLCAicHMiOiAieCIsICJhZGQiOiAiYS5leGFtcGxlLmNvbSIsICJwb3J0IjogIjQ0MyIsICJpZCI6ICIyZjM1OTY1YS05YTliLTQ1ZmQtYmEzMi05ODcyOTZkZmI2YmUiLCAiYWlkIjogIjAiLCAic2N5IjogImF1dG8iLCAibmV0IjogImgyIiwgInRscyI6ICIiLCAiaG9zdCI6ICJoLmV4YW1wbGUuY29tIiwgInBhdGgiOiAiL2gyIn0=#vm-h2
+vmess://eyJ2IjogIjIiLCAicHMiOiAieCIsICJhZGQiOiAiYS5leGFtcGxlLmNvbSIsICJwb3J0IjogIjQ0MyIsICJpZCI6ICIyZjM1OTY1YS05YTliLTQ1ZmQtYmEzMi05ODcyOTZkZmI2YmUiLCAiYWlkIjogIjAiLCAic2N5IjogImF1dG8iLCAibmV0IjogImh0dHB1cGdyYWRlIiwgInRscyI6ICIiLCAicGF0aCI6ICIvaHUiLCAic25pIjogInMuZXhhbXBsZS5jb20ifQ==#vm-httpupgrade
+vmess://eyJ2IjogIjIiLCAicHMiOiAieCIsICJhZGQiOiAiYS5leGFtcGxlLmNvbSIsICJwb3J0IjogODQ0MywgImlkIjogIjJmMzU5NjVhLTlhOWItNDVmZC1iYTMyLTk4NzI5NmRmYjZiZSIsICJhaWQiOiA2NCwgInNjeSI6ICJhZXMtMTI4LWdjbSIsICJuZXQiOiAidGNwIiwgInRscyI6ICIifQ==#vm-aid
+vmess://eyJ2IjogIjIiLCAicHMiOiAieCIsICJhZGQiOiAiYS5leGFtcGxlLmNvbSIsICJwb3J0IjogIjQ0MyIsICJpZCI6ICIyZjM1OTY1YS05YTliLTQ1ZmQtYmEzMi05ODcyOTZkZmI2YmUiLCAiYWlkIjogIjAiLCAic2N5IjogImF1dG8iLCAibmV0IjogIndzIiwgInRscyI6ICIifQ#vm-unpadded
+vmess://eyJ2IjogIjIiLCAicHMiOiAieCIsICJhZGQiOiAiYS5leGFtcGxlLmNvbSIsICJwb3J0IjogIjQ0MyIsICJpZCI6ICIyZjM1OTY1YS05YTliLTQ1ZmQtYmEzMi05ODcyOTZkZmI2YmUiLCAiYWlkIjogIjAiLCAic2N5IjogImF1dG8iLCAibmV0IjogInJhdyIsICJ0bHMiOiAiIn0=#vm-raw
+vmess://eyJ2IjogIjIiLCAicHMiOiAieCIsICJhZGQiOiAiYS5leGFtcGxlLmNvbSIsICJwb3J0IjogIngiLCAiaWQiOiAiMmYzNTk2NWEtOWE5Yi00NWZkLWJhMzItOTg3Mjk2ZGZiNmJlIiwgImFpZCI6ICIwIiwgInNjeSI6ICJhdXRvIiwgIm5ldCI6ICJ0Y3AiLCAidGxzIjogIiJ9#vm-badport
+vmess://bm90IGpzb24=#vm-notjson
+ss://YWVzLTI1Ni1nY206cHc=@s1.example.com:8388#ss-sip002
+ss://aes-128-gcm:pw@s2.example.com:8388#ss-plain
+ss://YWVzLTEyOC1nY206cHdAczMuZXhhbXBsZS5jb206ODM4OA==#ss-legacy
+ss://a:b:c@s4.example.com:8388#ss-three
+ss://YWVzLTI1Ni1nY206cHc=@[2001:db8::2]:8388/?plugin=v2ray-plugin#ss-plugin
 LIST
         n_fast="$work/fast.json"; n_slow="$work/slow.json"
         ln -sf "$lib/linkfast.jq" /usr/lib/netshift/linkfast.jq
@@ -19304,6 +19321,7 @@ LIST
             jq -S . "$n_fast" > "$work/f.pretty"; jq -S . "$n_slow" > "$work/s.pretty"
             diff "$work/f.pretty" "$work/s.pretty" | head -20 > "$work/diff" || true
         fi
+        echo "vmess-ss=$(jq -c '([.outbounds[] | select(.type == "vmess")] | length >= 6) and ([.outbounds[] | select(.type == "shadowsocks")] | length >= 3) | if . then "yes" else "no" end' -r "$n_fast")"
         echo "tags-unique=$(jq -c '[.outbounds[].tag] | (length == (unique | length))' "$n_fast")"
         echo "utf8=$(jq -c '[.outbounds[].tag | select(contains("Berlin"))] | length' "$n_fast")"
 
@@ -19337,6 +19355,7 @@ LIST
     }
     _bk "the same number of servers on both paths" "count-fast=$(printf '%s\n' "$out" | sed -n 's/^count-slow=//p')"
     _bk "both paths give the very same configuration" "same=yes"
+    _bk "vmess and ss links are converted" "vmess-ss=yes"
     _bk "tags stay unique" "tags-unique=true"
     _bk "percent-encoded UTF-8 names are decoded" "utf8=1"
     _bk "the cap counts converted links too" "cap=4 warned=1"

@@ -2167,7 +2167,7 @@ normalize_subscription_to_singbox() {
     [ -n "${NETSHIFT_SING_BOX_TAGS+x}" ] || NETSHIFT_SING_BOX_TAGS="$(get_sing_box_tags)"
 
     # Pass 1 (builtins only, no process per line): the links worth trying, trimmed.
-    local cand_file fast_file entries_file fast_opt res name_out fast_ok quic_ok utls_ok
+    local cand_file fast_file entries_file fast_opt res name_out fast_ok quic_ok utls_ok ext_ok
     cand_file="$lines_file.cand"
     fast_file="$lines_file.fast"
     entries_file="$lines_file.entries"
@@ -2200,8 +2200,10 @@ normalize_subscription_to_singbox() {
         core_has_tag with_quic && quic_ok=true
         utls_ok=false
         core_has_tag with_utls && utls_ok=true
-        fast_opt="$(jq -n -c --argjson quic "$quic_ok" --argjson utls "$utls_ok" --arg uot "$udp_over_tcp" \
-            '{quic: $quic, utls: $utls, udp_over_tcp: $uot}')"
+        ext_ok=false
+        is_sing_box_extended "$NETSHIFT_SING_BOX_VERSION" && ext_ok=true
+        fast_opt="$(jq -n -c --argjson quic "$quic_ok" --argjson utls "$utls_ok" --argjson ext "$ext_ok" --arg uot "$udp_over_tcp" \
+            '{quic: $quic, utls: $utls, extended: $ext, udp_over_tcp: $uot}')"
         jq -R -n -c --argjson opt "$fast_opt" -f "$NETSHIFT_LIB/linkfast.jq" < "$cand_file" > "$fast_file" 2> /dev/null || : > "$fast_file"
     fi
 

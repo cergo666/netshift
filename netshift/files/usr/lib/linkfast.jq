@@ -9,7 +9,8 @@
 # has none); tests/entrypoint.sh compares it with the slow path on real lists.
 #
 # Input: one link per line (raw, trimmed, no comments). Arguments:
-#   $opt = {quic: bool, utls: bool, udp_over_tcp: "1"|"", section: "name"}
+#   $opt = {quic: bool, utls: bool, extended: bool, udp_over_tcp: "1"|""}
+# (udp_over_tcp is not used: the slow path never applies it to socks and ss links either)
 # Output, one object per link: {"i": n, "s": "ok", "name": "...", "ob": {...}} or
 # {"i": n, "s": "slow"}.
 
@@ -166,7 +167,82 @@ def parse_link:
     end
   end;
 
+# standard base64 text -> the decoded text; null when it is not clean (an alphabet of its own,
+# a wrong padding, bytes that are not UTF-8, a NUL or a line break in the result)
+def b64text:
+  . as $s
+  | ($s | until(endswith("=") | not; rtrimstr("="))) as $t
+  | (($s | length) - ($t | length)) as $eq
+  | ($t | explode) as $c
+  | ($c | length) as $m
+  | if $m == 0 or $eq > 2 or ($m % 4) == 1 or ($eq > 0 and (($m + $eq) % 4) != 0) then null
+    elif ($c | all((. >= 65 and . <= 90) or (. >= 97 and . <= 122) or (. >= 48 and . <= 57) or . == 43 or . == 47) | not) then null
+    else
+      (try ($t | @base64d) catch null) as $d
+      | if $d == null then null
+        elif ($d | explode | any(. == 65533 or . == 0 or . == 10 or . == 13)) then null
+        else $d end
+    end;
+
+# a field of the VMess JSON as the slow path reads it (`.x // "" | tostring`); null when it
+# is something else than a string, a number or a flag, or has a line break
+def fld($o; $k):
+  $o[$k] as $v
+  | (if $v == null or $v == false then ""
+     elif ($v | type) == "string" then $v
+     elif ($v | type) == "number" then ($v | tostring)
+     elif $v == true then "true"
+     else null end) as $r
+  | if $r != null and ($r | contains("\n")) then null else $r end;
+
+def vmess_convert($line; $opt):
+  ($line | ltrimstr("vmess://") | split("#")[0]) as $payload
+  | ($line | split("#")) as $hashes
+  | ((if ($hashes | length) > 1 then $hashes[-1] else "" end) | if contains("+") then (split("+") | join(" ")) else . end | pdecode) as $name
+  | if ($opt.extended | not) or $name == null then {s: "slow"} else
+    ($payload | b64text) as $txt
+    | (if $txt == null then null else ($txt | try fromjson catch null) end) as $o
+    | if ($o | type) != "object" then {s: "slow"} else
+      fld($o; "add") as $server | fld($o; "port") as $port | fld($o; "id") as $uuid
+      | fld($o; "scy") as $scy | fld($o; "aid") as $aid | fld($o; "net") as $net
+      | fld($o; "host") as $host | fld($o; "path") as $path | fld($o; "tls") as $tls
+      | fld($o; "sni") as $sni | fld($o; "alpn") as $alpn | fld($o; "fp") as $fp
+      | if [$server, $port, $uuid, $scy, $aid, $net, $host, $path, $tls, $sni, $alpn, $fp] | any(. == null) then {s: "slow"}
+        elif ($port | is_digits | not) or ($port | length) > 5 or ($port | startswith("0")) then {s: "slow"}
+        elif $aid != "" and $aid != "0" and ($aid | is_digits | not) then {s: "slow"}
+        elif ($alpn | explode | any(. < 32 or . == 34 or . == 92)) then {s: "slow"}
+        else
+          (if $net == "ws" then {transport: ({type: "ws", path: $path} + (if $host != "" then {headers: {Host: $host}} else {} end))}
+           elif $net == "grpc" then
+             (if $path != "" then $path else $host end) as $sn
+             | {transport: ({type: "grpc"} + (if $sn != "" then {service_name: $sn} else {} end))}
+           elif $net == "h2" then
+             {transport: ({type: "http"} + (if $path != "" then {path: $path} else {} end) + (if $host != "" then {host: [$host]} else {} end))}
+           elif $net == "httpupgrade" then
+             (if $host != "" then $host else $sni end) as $h
+             | {transport: ({type: "httpupgrade", path: (if $path == "" then "/" else $path end)} + (if $h != "" then {host: $h} else {} end))}
+           elif ($net == "tcp" or $net == "") then {}
+           else null end) as $tr
+          | if $tr == null then {s: "slow"} else
+            (if ($tls == "tls" or $tls == "1" or $tls == "true" or $net == "h2") then
+               (if $sni != "" then $sni else $server end) as $sn
+               | {enabled: true}
+                 + (if $sn != "" then {server_name: $sn} else {} end)
+                 + (if $alpn != "" then {alpn: ($alpn | split(","))} else {} end)
+                 + (if $fp != "" then {utls: {enabled: true, fingerprint: $fp}} else {} end)
+             else {} end) as $tlsb
+            | {s: "ok", name: $name,
+               ob: ({type: "vmess", server: $server, server_port: ($port | tonumber), uuid: $uuid, security: (if $scy != "" then $scy else "auto" end)}
+                    + (if $aid != "" and $aid != "0" then {alter_id: ($aid | tonumber)} else {} end)
+                    + (if ($tlsb | length) > 0 then {tls: $tlsb} else {} end)
+                    + $tr)}
+          end
+      end
+    end
+  end;
+
 def convert($opt):
+  if startswith("vmess://") then vmess_convert(.; $opt) else
   parse_link as $l
   | if $l == null or ($l.host | contains("%")) then {s: "slow"} else
     ($l.ui | pdecode) as $userinfo
@@ -215,6 +291,16 @@ def convert($opt):
                        + (if $up != "" then {up_mbps: ($up | tonumber)} else {} end)
                        + (if $down != "" then {down_mbps: ($down | tonumber)} else {} end)
                        + (if ($tls | length) > 0 then {tls: $tls} else {} end))} end
+      elif $scheme == "ss" then
+        # "method:password" as it is, or the base64 of it; the method is before the first ":"
+        ($userinfo | split(":")) as $up
+        | (if $userinfo == "" or ($userinfo | contains("\n")) then null
+           elif (($up | length) == 2 or ($up | length) == 3) and ($up | all(. != "")) then $userinfo
+           else ($userinfo | b64text) end) as $mp
+        | if $mp == null or ($mp | contains(":") | not) then {s: "slow"}
+          else {s: "ok", name: $name,
+                ob: {type: "shadowsocks", server: $host, server_port: ($port | tonumber),
+                     method: ($mp | split(":")[0]), password: ($mp | split(":")[1:] | join(":"))}} end
       elif $scheme == "socks5" then
         # as the slow path cuts it: the user before the first ":" (all of it without one),
         # the password after it (all of it without a ":" too)
@@ -224,9 +310,9 @@ def convert($opt):
         | {s: "ok", name: $name,
            ob: ({type: "socks", server: $host, server_port: ($port | tonumber), version: "5"}
                 + (if $user != "" then {username: $user} else {} end)
-                + (if $pass != "" then {password: $pass} else {} end)
-                + (if $opt.udp_over_tcp == "1" then {udp_over_tcp: {enabled: true, version: 2}} else {} end))}
+                + (if $pass != "" then {password: $pass} else {} end))}
       else {s: "slow"} end
+  end
   end;
 
 [inputs] as $lines
