@@ -16,3 +16,4 @@ export * from './validateSocksUrl';
 export * from './validateDnsPool';
 export * from './validateDnsForward';
 export * from './validateNaiveUrl';
+export * from './validatePortList';
