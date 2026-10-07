@@ -177,12 +177,12 @@ function createSettingsContent(section) {
     const cellStyle = "vertical-align:middle;padding:.3em .5em";
     const mainMark = E(
       "span",
-      { class: "cbi-value-description", style: "margin-left:.5em" },
+      { class: "ns-muted", style: "margin-left:.5em" },
       `(${_("main")})`,
     );
 
     const body = E("tbody", {});
-    const status = E("span", { class: "cbi-value-description" });
+    const status = E("span", { class: "ns-muted" });
     const refreshButton = E(
       "button",
       {
@@ -254,7 +254,10 @@ function createSettingsContent(section) {
       body.replaceChildren(
         ...widget.rows.map((row, index) =>
           E("tr", { class: "tr" }, [
-            E("td", { class: "td", style: cellStyle }, [
+            E(
+              "td",
+              { class: "td", style: cellStyle, "data-title": _("Server") },
+              [
               presetLabel(row.server)
                 ? E("div", {}, [
                     presetLabel(row.server),
@@ -264,16 +267,14 @@ function createSettingsContent(section) {
               E(
                 presetLabel(row.server) ? "div" : "span",
                 {
-                  ...(presetLabel(row.server)
-                    ? { class: "cbi-value-description" }
-                    : {}),
+                  ...(presetLabel(row.server) ? { class: "ns-muted" } : {}),
                   style: "word-break:break-all",
                 },
                 row.server,
               ),
               !presetLabel(row.server) && index === 0 ? mainMark : "",
             ]),
-            E("td", { class: "td", style: cellStyle }, [
+            E("td", { class: "td", style: cellStyle, "data-title": _("Route") }, [
               E(
                 "select",
                 {
@@ -289,7 +290,11 @@ function createSettingsContent(section) {
             ]),
             E(
               "td",
-              { class: "td", style: `${cellStyle};white-space:nowrap` },
+              {
+                class: "td",
+                style: `${cellStyle};white-space:nowrap`,
+                "data-title": _("Time"),
+              },
               timeCell(row),
             ),
             E("td", { class: "td", style: `${cellStyle};white-space:nowrap` }, [
@@ -429,24 +434,26 @@ function createSettingsContent(section) {
     window.setTimeout(measure, 0);
 
     return E("div", {}, [
-      E("div", { style: "overflow-x:auto" }, [
-        E("table", { class: "table cbi-section-table" }, [
-          E("thead", {}, [
-            E("tr", { class: "tr table-titles" }, [
-              E("th", { class: "th" }, _("Server")),
-              E("th", { class: "th" }, _("Route")),
-              E("th", { class: "th" }, _("Time")),
-              E(
-                "th",
-                { class: "th", style: "text-align:right;white-space:nowrap" },
-                refreshButton,
-              ),
-            ]),
+      E("table", { class: "table ns-table" }, [
+        E("thead", {}, [
+          E("tr", { class: "tr table-titles" }, [
+            E("th", { class: "th" }, _("Server")),
+            E("th", { class: "th" }, _("Route")),
+            E("th", { class: "th" }, _("Time")),
+            E("th", { class: "th" }, ""),
           ]),
-          body,
         ]),
+        body,
       ]),
-      E("div", { style: "margin-top:.5em" }, [status]),
+      // not in the table header: on a phone the header is not shown
+      E(
+        "div",
+        {
+          style:
+            "margin-top:.5em;display:flex;gap:.75em;align-items:center;flex-wrap:wrap",
+        },
+        [refreshButton, status],
+      ),
       E("div", { style: "margin-top:.5em;max-width:28em" }, [pickerNode]),
       problem,
     ]);
