@@ -1161,6 +1161,7 @@ var NetShift;
   ((AvailableMethods2) => {
     AvailableMethods2["CHECK_DNS_AVAILABLE"] = "check_dns_available";
     AvailableMethods2["GET_CORE_CAPABILITIES"] = "get_core_capabilities";
+    AvailableMethods2["FETCH_FEED_LIST"] = "fetch_feed_list";
     AvailableMethods2["CHECK_FAKEIP"] = "check_fakeip";
     AvailableMethods2["CHECK_ROUTE"] = "check_route";
     AvailableMethods2["CHECK_ENVIRONMENT"] = "check_environment";
@@ -1276,6 +1277,12 @@ function parseComponentCheckUpdate(stdout) {
 
 // src/netshift/methods/shell/index.ts
 var NetShiftShellMethods = {
+  fetchFeedList: async (url) => callBaseMethod(
+    NetShift.AvailableMethods.FETCH_FEED_LIST,
+    [url],
+    void 0,
+    { nobatch: true }
+  ),
   getCoreCapabilities: async () => callBaseMethod(NetShift.AvailableMethods.GET_CORE_CAPABILITIES),
   checkDNSAvailable: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_DNS_AVAILABLE
@@ -2708,7 +2715,34 @@ var NetShiftLogWatcher = class _NetShiftLogWatcher {
   }
 };
 
+// src/helpers/summarizeLogErrors.ts
+function logLineMessage(line) {
+  const marker = line.indexOf("netshift: ");
+  return (marker >= 0 ? line.slice(marker + "netshift: ".length) : line).trim();
+}
+function summarizeLogErrors(lines, maxShown = 3) {
+  const groups = /* @__PURE__ */ new Map();
+  lines.forEach((line) => {
+    const message = logLineMessage(line);
+    const group = groups.get(message);
+    if (group) {
+      group.count += 1;
+    } else {
+      groups.set(message, { message, count: 1 });
+    }
+  });
+  const all = Array.from(groups.values());
+  const shown = all.slice(0, maxShown);
+  const hidden = all.slice(maxShown);
+  return {
+    shown,
+    hiddenMessages: hidden.length,
+    hiddenLines: hidden.reduce((sum, item) => sum + item.count, 0)
+  };
+}
+
 // src/netshift/services/core.service.ts
+var ERROR_BATCH_DELAY_MS = 800;
 function coreService() {
   TabServiceInstance.onChange((activeId, tabs) => {
     logger.info("[TAB]", activeId);
@@ -2720,6 +2754,35 @@ function coreService() {
     });
   });
   const watcher = NetShiftLogWatcher.getInstance();
+  let pendingErrors = [];
+  let flushTimer;
+  const flushErrors = () => {
+    flushTimer = void 0;
+    const batch = summarizeLogErrors(pendingErrors);
+    pendingErrors = [];
+    batch.shown.forEach((item) => {
+      ui.addNotification(
+        "NetShift Error",
+        E(
+          "div",
+          {},
+          item.count > 1 ? `${item.message} (\xD7${item.count})` : item.message
+        ),
+        "error"
+      );
+    });
+    if (batch.hiddenLines > 0) {
+      ui.addNotification(
+        "NetShift Error",
+        E(
+          "div",
+          {},
+          `${_("And more errors")}: ${batch.hiddenLines}. ${_("See the log")}`
+        ),
+        "error"
+      );
+    }
+  };
   watcher.init(
     async () => {
       const logs = await NetShiftShellMethods.checkLogs();
@@ -2732,7 +2795,10 @@ function coreService() {
       intervalMs: 3e3,
       onNewLog: (line) => {
         if (line.toLowerCase().includes("[error]") || line.toLowerCase().includes("[fatal]")) {
-          ui.addNotification("NetShift Error", E("div", {}, line), "error");
+          pendingErrors.push(line);
+          if (flushTimer === void 0) {
+            flushTimer = setTimeout(flushErrors, ERROR_BATCH_DELAY_MS);
+          }
         }
       }
     }
@@ -8466,6 +8532,44 @@ function connectionAge(start, now) {
   return { value: Math.floor(seconds / 86400), unit: "d" };
 }
 
+// src/helpers/feedList.ts
+function parseFeedList(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return { ok: false, urls: [], error: "" };
+    }
+  }
+  if (!data || typeof data !== "object") {
+    return { ok: false, urls: [], error: "" };
+  }
+  const value = data;
+  if (value.ok !== true || !Array.isArray(value.urls)) {
+    return {
+      ok: false,
+      urls: [],
+      error: typeof value.error === "string" ? value.error : ""
+    };
+  }
+  return {
+    ok: true,
+    urls: value.urls.filter(
+      (item) => typeof item === "string" && /^https?:\/\/\S+$/.test(item)
+    )
+  };
+}
+function newFeeds(existing, found) {
+  const known = new Set(existing.map((item) => item.trim()));
+  return found.filter((item, index) => {
+    if (known.has(item) || found.indexOf(item) !== index) {
+      return false;
+    }
+    return true;
+  });
+}
+
 // src/main.ts
 if (typeof structuredClone !== "function")
   globalThis.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -8546,13 +8650,16 @@ return baseclass.extend({
   listedDeviceIps,
   loadCoreCapabilities,
   loadDashboardViewPrefs,
+  logLineMessage,
   logger,
   maskIP,
+  newFeeds,
   onMount,
   parseConnections,
   parseCoreCapabilities,
   parseDnsBenchmark,
   parseDnsBenchmarkVia,
+  parseFeedList,
   parseLanInfo,
   parsePinGuardEvents,
   parseQueryString,
@@ -8573,6 +8680,7 @@ return baseclass.extend({
   splitDnsForward,
   splitProxyString,
   store,
+  summarizeLogErrors,
   svgEl,
   toIpList,
   validateAnytlsUrl,

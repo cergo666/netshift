@@ -24,3 +24,5 @@ export * from './updateNotice';
 export * from './configSnapshots';
 export * from './pinGuardEvents';
 export * from './coreCapabilities';
+export * from './summarizeLogErrors';
+export * from './feedList';
