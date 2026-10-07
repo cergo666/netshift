@@ -10,7 +10,6 @@
 #
 # Input: one link per line (raw, trimmed, no comments). Arguments:
 #   $opt = {quic: bool, utls: bool, extended: bool, udp_over_tcp: "1"|""}
-# (udp_over_tcp is not used: the slow path never applies it to socks and ss links either)
 # Output, one object per link: {"i": n, "s": "ok", "name": "...", "ob": {...}} or
 # {"i": n, "s": "slow"}.
 
@@ -300,7 +299,8 @@ def convert($opt):
         | if $mp == null or ($mp | contains(":") | not) then {s: "slow"}
           else {s: "ok", name: $name,
                 ob: {type: "shadowsocks", server: $host, server_port: ($port | tonumber),
-                     method: ($mp | split(":")[0]), password: ($mp | split(":")[1:] | join(":"))}} end
+                     method: ($mp | split(":")[0]), password: ($mp | split(":")[1:] | join(":"))}
+                     + (if $opt.udp_over_tcp == "1" then {udp_over_tcp: {enabled: true, version: 2}} else {} end)} end
       elif $scheme == "socks5" then
         # as the slow path cuts it: the user before the first ":" (all of it without one),
         # the password after it (all of it without a ":" too)
@@ -310,7 +310,8 @@ def convert($opt):
         | {s: "ok", name: $name,
            ob: ({type: "socks", server: $host, server_port: ($port | tonumber), version: "5"}
                 + (if $user != "" then {username: $user} else {} end)
-                + (if $pass != "" then {password: $pass} else {} end))}
+                + (if $pass != "" then {password: $pass} else {} end)
+                + (if $opt.udp_over_tcp == "1" then {udp_over_tcp: {enabled: true, version: 2}} else {} end))}
       else {s: "slow"} end
   end
   end;

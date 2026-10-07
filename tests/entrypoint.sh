@@ -19325,6 +19325,21 @@ LIST
         echo "tags-unique=$(jq -c '[.outbounds[].tag] | (length == (unique | length))' "$n_fast")"
         echo "utf8=$(jq -c '[.outbounds[].tag | select(contains("Berlin"))] | length' "$n_fast")"
 
+        # the "UDP over TCP" flag reaches socks and ss links, the same on both paths
+        uci -q set netshift.bk.enable_udp_over_tcp=1; uci -q commit netshift
+        ln -sf "$lib/linkfast.jq" /usr/lib/netshift/linkfast.jq
+        normalize_subscription_to_singbox "$work/links.txt" "$work/uot_fast.json" "bk" > /dev/null 2>&1
+        rm -f /usr/lib/netshift/linkfast.jq
+        normalize_subscription_to_singbox "$work/links.txt" "$work/uot_slow.json" "bk" > /dev/null 2>&1
+        echo "uot-set=$(jq -c '[.outbounds[] | select(.udp_over_tcp.enabled == true) | .type] | unique' "$work/uot_slow.json")"
+        echo "uot-only-those=$(jq -c '[.outbounds[] | select(.udp_over_tcp != null and (.type == "socks" or .type == "shadowsocks" | not))] | length' "$work/uot_slow.json")"
+        if [ "$(jq -S -c . "$work/uot_fast.json")" = "$(jq -S -c . "$work/uot_slow.json")" ]; then echo "uot-same=yes"; else echo "uot-same=no"; fi
+        uci -q delete netshift.bk.enable_udp_over_tcp; uci -q commit netshift
+        # a single link
+        echo "uot-single=$(sing_box_cf_add_proxy_outbound '{"outbounds":[]}' x 'ss://aes-128-gcm:pw@h.example.com:8388#n' 1 | jq -c '.outbounds[0].udp_over_tcp')"
+        echo "uot-single-socks=$(sing_box_cf_add_proxy_outbound '{"outbounds":[]}' x 'socks5://u:p@h.example.com:1080#n' 1 | jq -c '.outbounds[0].udp_over_tcp')"
+        echo "uot-single-off=$(sing_box_cf_add_proxy_outbound '{"outbounds":[]}' x 'ss://aes-128-gcm:pw@h.example.com:8388#n' 0 | jq -c '.outbounds[0].udp_over_tcp')"
+
         # the cap counts converted links as well
         ln -sf "$lib/linkfast.jq" /usr/lib/netshift/linkfast.jq
         uci -q set netshift.bk.subscription_max_nodes=4; uci -q commit netshift
@@ -19358,6 +19373,12 @@ LIST
     _bk "vmess and ss links are converted" "vmess-ss=yes"
     _bk "tags stay unique" "tags-unique=true"
     _bk "percent-encoded UTF-8 names are decoded" "utf8=1"
+    _bk "the UDP over TCP flag turns it on for socks and ss in a subscription" 'uot-set=["shadowsocks","socks"]'
+    _bk "other protocols do not get it" "uot-only-those=0"
+    _bk "the fast and the slow path agree with the flag on" "uot-same=yes"
+    _bk "a single ss link gets it" 'uot-single={"enabled":true,"version":2}'
+    _bk "a single socks link gets it" 'uot-single-socks={"enabled":true,"version":2}'
+    _bk "without the flag nothing is added" "uot-single-off=null"
     _bk "the cap counts converted links too" "cap=4 warned=1"
     _bk "1500 links all become servers" "many=1500"
     _bk "1500 links are converted in a few seconds" "quick=yes"
