@@ -31,7 +31,6 @@ check_required_file "$NETSHIFT_LIB/snapshots.sh"
 check_required_file "$NETSHIFT_LIB/pinguard.sh"
 check_required_file "$NETSHIFT_LIB/routerstats.sh"
 check_required_file "$NETSHIFT_LIB/dnsforward.sh"
-check_required_file "$NETSHIFT_LIB/warp.sh"
 . /lib/functions.sh
 . /lib/config/uci.sh
 . /lib/functions/network.sh
@@ -53,7 +52,6 @@ check_required_file "$NETSHIFT_LIB/warp.sh"
 . "$NETSHIFT_LIB/pinguard.sh"
 . "$NETSHIFT_LIB/routerstats.sh"
 . "$NETSHIFT_LIB/dnsforward.sh"
-. "$NETSHIFT_LIB/warp.sh"
 
 config_load "$NETSHIFT_CONFIG"
 
@@ -8008,13 +8006,6 @@ Available commands:
     get_sing_box_status     Get sing-box service status
     get_system_info         Get system information in JSON format
     check_dns_available     Check DNS server availability
-    warp_import <config text> [interface]
-                            Make an interface and a VPN section from a pasted WireGuard or
-                            AmneziaWG config (WARP made elsewhere, for networks where the
-                            router cannot register by itself)
-    warp_generate [host:port|auto] [interface] [amneziawg|wireguard] [relay-url]
-                            Register a free Cloudflare WARP device (no login) and set up an
-                            interface plus a NetShift VPN section for it
     global_check            Run global system check
     component_action        Run component action: <component> <action>
                             (e.g. sing_box install_extended|install_extended_lite|
@@ -8156,12 +8147,6 @@ get_system_info)
     ;;
 check_dns_available)
     check_dns_available
-    ;;
-warp_import)
-    warp_import "${2:-}" "${3:-}"
-    ;;
-warp_generate)
-    warp_generate "${2:-}" "${3:-}" "${4:-}" "${5:-}"
     ;;
 global_check)
     global_check "${2:-}"

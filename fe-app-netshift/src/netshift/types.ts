@@ -54,8 +54,6 @@ export namespace NetShift {
 
   export enum AvailableMethods {
     CHECK_DNS_AVAILABLE = 'check_dns_available',
-    WARP_GENERATE = 'warp_generate',
-    WARP_IMPORT = 'warp_import',
     CHECK_FAKEIP = 'check_fakeip',
     CHECK_ROUTE = 'check_route',
     CHECK_ENVIRONMENT = 'check_environment',

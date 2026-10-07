@@ -11,22 +11,6 @@ import {
 import { parseComponentCheckUpdate } from './parseComponentCheckUpdate';
 
 export const NetShiftShellMethods = {
-  // A ready WireGuard / AmneziaWG config pasted by the user.
-  warpImport: async (config: string) =>
-    callBaseMethod<unknown>(
-      NetShift.AvailableMethods.WARP_IMPORT,
-      [config],
-      undefined,
-      { nobatch: true },
-    ),
-  // Registering a device can take a while: Cloudflare is asked twice.
-  warpGenerate: async (endpoint: string, relay = '') =>
-    callBaseMethod<unknown>(
-      NetShift.AvailableMethods.WARP_GENERATE,
-      relay ? [endpoint, '', '', relay] : [endpoint],
-      undefined,
-      { nobatch: true, timeout: 90000 },
-    ),
   checkDNSAvailable: async () =>
     callBaseMethod<NetShift.DnsCheckResult>(
       NetShift.AvailableMethods.CHECK_DNS_AVAILABLE,
