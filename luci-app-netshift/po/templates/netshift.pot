@@ -2322,8 +2322,8 @@ msgstr ""
 msgid "UPX-compressed core: a RAM spike is possible at startup; on devices with less than 256 MB of RAM, enable zram swap"
 msgstr ""
 
-#: src/validators/validateProxyUrl.ts:42
-msgid "URL must start with vless://, vmess://, ss://, trojan://, socks4/5://, or hysteria2://hy2://"
+#: src/validators/validateProxyUrl.ts:47
+msgid "URL must start with vless://, vmess://, ss://, trojan://, socks4/5://, hysteria2://hy2:// or naive+https://"
 msgstr ""
 
 #: src/validators/validateUrl.ts:58
@@ -2417,6 +2417,7 @@ msgstr ""
 #: src/validators/validateIp.ts:8
 #: src/validators/validateIp.ts:91
 #: src/validators/validateIp.ts:97
+#: src/validators/validateNaiveUrl.ts:66
 #: src/validators/validateOutboundJson.ts:7
 #: src/validators/validatePath.ts:16
 #: src/validators/validateShadowsocksUrl.ts:95
@@ -2452,12 +2453,12 @@ msgstr ""
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:150
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:466
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:521
-msgid "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links"
+msgid "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2://, naive+https:// links"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:492
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:547
-msgid "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links — one per line"
+msgid "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2://, naive+https:// links — one per line"
 msgstr ""
 
 #: ../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:608
