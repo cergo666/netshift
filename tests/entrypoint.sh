@@ -1900,7 +1900,8 @@ normalize_subscription_to_singbox "$ve_sub" "$ve_subout" "vc" > /dev/null 2>&1
 n=$(jq '[.outbounds[] | select(has("encryption"))] | length' "$ve_subout" 2>/dev/null)
 calls=$(wc -l < "$VE_CALLS" | tr -d ' ')
 [ "$n" = "5" ] && echo 've-cache-sub-outbounds:OK' || echo "ve-cache-sub-outbounds:FAIL (n=$n)"
-[ "$calls" = "1" ] && echo 've-cache-sub-one-call:OK' || echo "ve-cache-sub-one-call:FAIL (calls=$calls)"
+# one for the version and one for the build tags, whatever the number of links
+[ "$calls" -le 2 ] && echo 've-cache-sub-one-call:OK' || echo "ve-cache-sub-one-call:FAIL (calls=$calls)"
 : > "$VE_CALLS"
 config="$base"
 _build_proxy_member_outbounds "vm" "$(sed 's/#.*//' "$ve_sub")" "0" "URLTest"
@@ -19131,7 +19132,7 @@ test_collected_lists() {
     local out
     out="$(
         mkdir -p /usr/lib/netshift
-        for f in constants.sh helpers.sh logging.sh sing_box_config_manager.sh sing_box_config_facade.sh; do
+        for f in constants.sh helpers.sh logging.sh sing_box_config_manager.sh sing_box_config_facade.sh linkfast.jq; do
             ln -sf "$lib/$f" "/usr/lib/netshift/$f"
         done
         . /usr/lib/netshift/constants.sh
@@ -19230,6 +19231,118 @@ LIST
     _cl "an address that is not http(s) is refused" 'bad-address=[false,"the address of the list must start with http:// or https://"]'
     _cl "at most 200 feeds are taken" "capped=200"
     rm -rf "$work" /etc/config/netshift
+}
+
+test_bulk_links() {
+    header "Bulk conversion: the single-pass converter agrees with the per-link builder"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not available"
+        return
+    fi
+    if [ ! -r "$lib/linkfast.jq" ] || [ ! -r "$lib/helpers.sh" ] || [ ! -r "$lib/sing_box_config_facade.sh" ]; then
+        fail "linkfast.jq / helpers / facade not found"
+        return
+    fi
+
+    local work="/tmp/netshift-bulk-$$"
+    rm -rf "$work"
+    mkdir -p "$work"
+
+    local out
+    out="$(
+        mkdir -p /usr/lib/netshift
+        for f in constants.sh helpers.sh logging.sh sing_box_config_manager.sh sing_box_config_facade.sh; do
+            ln -sf "$lib/$f" "/usr/lib/netshift/$f"
+        done
+        . /usr/lib/netshift/constants.sh
+        . /usr/lib/netshift/logging.sh
+        . /usr/lib/netshift/sing_box_config_facade.sh
+        CL_LOG="$work/log"; : > "$CL_LOG"
+        log() { printf '[%s] %s\n' "${2:-info}" "$1" >> "$CL_LOG"; }
+        : > /etc/config/netshift
+        uci -q set netshift.bk=section
+        uci -q commit netshift
+
+        U=2f35965a-9a9b-45fd-ba32-987296dfb6be
+        cat > "$work/links.txt" << LIST
+vless://$U@a.example.com:443?security=tls&type=tcp&sni=a.example.com&fp=chrome&alpn=h2%2Chttp%2F1.1#plain
+vless://$U@b.example.com:443?security=reality&type=tcp&sni=b.example.com&fp=chrome&pbk=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG&sid=ab12&flow=xtls-rprx-vision#reality
+vless://$U@c.example.com:80?type=ws&path=%2Fws&host=c.example.com#ws-nosecurity
+vless://$U@d.example.com:443?security=tls&type=ws&path=%2Fws%3Fed%3D2048&host=d.example.com&sni=d.example.com#ws-ed
+vless://$U@e.example.com:443?security=tls&type=grpc&serviceName=svc&sni=e.example.com#grpc
+vless://$U@f.example.com:443?security=tls&type=httpupgrade&path=%2Fhu&host=f.example.com#httpupgrade
+vless://$U@g.example.com:443?security=&type=tcp&headerType=none#empty-security
+vless://$U@h.example.com:443?type=ws&path=/?ed=2048&host=h.example.com#second-question-mark
+vless://$U@i.example.com:443?security=tls&type=tcp&sni=i.example.com#%F0%9F%87%A9%F0%9F%87%AA%20Berlin
+vless://$U@j.example.com:443?security=tls&type=tcp&sni=j.example.com#dup
+vless://$U@k.example.com:443?security=tls&type=tcp&sni=k.example.com#dup
+vless://$U@l.example.com:443?security=weird&type=tcp#weird
+vless://$U@[2001:db8::1]:443?security=tls&type=tcp&sni=v6.example.com#ipv6
+trojan://secret@m.example.com:443?type=tcp&sni=m.example.com#trojan
+trojan://secret@n.example.com:443?security=none&type=ws&path=%2Ft#trojan-ws-none
+hysteria2://pass@o.example.com:443?sni=o.example.com&insecure=1&obfs=salamander&obfs-password=xx#hy2
+hy2://pass@p.example.com:8443?sni=p.example.com#hy2-short
+socks5://user:pw@q.example.com:1080#socks
+socks5://onlyuser@r.example.com:1080#socks-nocolon
+vless://$U@s.example.com:443?security=tls&type=xhttp&path=%2Fx&sni=s.example.com#xhttp
+vless://broken#x
+vless://$U@t.example.com:99999?security=tls#bad-port
+LIST
+        n_fast="$work/fast.json"; n_slow="$work/slow.json"
+        ln -sf "$lib/linkfast.jq" /usr/lib/netshift/linkfast.jq
+        normalize_subscription_to_singbox "$work/links.txt" "$n_fast" "bk" > /dev/null 2>&1
+        rm -f /usr/lib/netshift/linkfast.jq
+        normalize_subscription_to_singbox "$work/links.txt" "$n_slow" "bk" > /dev/null 2>&1
+        echo "count-fast=$(jq -c '.outbounds | length' "$n_fast")"
+        echo "count-slow=$(jq -c '.outbounds | length' "$n_slow")"
+        if [ "$(jq -S -c . "$n_fast")" = "$(jq -S -c . "$n_slow")" ]; then
+            echo "same=yes"
+        else
+            echo "same=no"
+            jq -S . "$n_fast" > "$work/f.pretty"; jq -S . "$n_slow" > "$work/s.pretty"
+            diff "$work/f.pretty" "$work/s.pretty" | head -20 > "$work/diff" || true
+        fi
+        echo "tags-unique=$(jq -c '[.outbounds[].tag] | (length == (unique | length))' "$n_fast")"
+        echo "utf8=$(jq -c '[.outbounds[].tag | select(contains("Berlin"))] | length' "$n_fast")"
+
+        # the cap counts converted links as well
+        ln -sf "$lib/linkfast.jq" /usr/lib/netshift/linkfast.jq
+        uci -q set netshift.bk.subscription_max_nodes=4; uci -q commit netshift
+        : > "$CL_LOG"
+        normalize_subscription_to_singbox "$work/links.txt" "$work/cap.json" "bk" > /dev/null 2>&1
+        echo "cap=$(jq -c '.outbounds | length' "$work/cap.json") warned=$(grep -c 'only the first 4' "$CL_LOG")"
+
+        # many links, one pass: it must stay quick
+        uci -q set netshift.bk.subscription_max_nodes=0; uci -q commit netshift
+        i=0; : > "$work/many.txt"
+        while [ "$i" -lt 1500 ]; do
+            echo "vless://$U@s$i.example.com:443?security=tls&type=tcp&sni=s$i.example.com#n$i" >> "$work/many.txt"
+            i=$((i + 1))
+        done
+        t0="$(date +%s)"
+        normalize_subscription_to_singbox "$work/many.txt" "$work/many.json" "bk" > /dev/null 2>&1
+        t1="$(date +%s)"
+        echo "many=$(jq -c '.outbounds | length' "$work/many.json")"
+        if [ $((t1 - t0)) -le 20 ]; then echo "quick=yes"; else echo "quick=no($((t1 - t0))s)"; fi
+    )"
+
+    _bk() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~') $(cat "$work/diff" 2>/dev/null)"
+        fi
+    }
+    _bk "the same number of servers on both paths" "count-fast=$(printf '%s\n' "$out" | sed -n 's/^count-slow=//p')"
+    _bk "both paths give the very same configuration" "same=yes"
+    _bk "tags stay unique" "tags-unique=true"
+    _bk "percent-encoded UTF-8 names are decoded" "utf8=1"
+    _bk "the cap counts converted links too" "cap=4 warned=1"
+    _bk "1500 links all become servers" "many=1500"
+    _bk "1500 links are converted in a few seconds" "quick=yes"
+    rm -rf "$work" /etc/config/netshift /usr/lib/netshift/linkfast.jq
 }
 # ─────────────────────────────────────────────────────────────────
 
@@ -19331,6 +19444,7 @@ main() {
             test_urltest_interval
             test_dns_forward
             test_collected_lists
+            test_bulk_links
             ;;
         deps)        test_deps ;;
         syntax)      test_syntax ;;
@@ -19416,12 +19530,13 @@ main() {
         tuicanytls)  test_tuic_anytls ;;
         configlint)  test_config_lint ;;
         collected)   test_collected_lists ;;
+        bulk)        test_bulk_links ;;
         dnsroute)    test_dns_server_route ;;
         urlint)      test_urltest_interval ;;
         dnsforward)  test_dns_forward ;;
         *)
             echo "Unknown test: $target"
-echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink mixedauth"" pinguard" snapshots" updatenotice updatepkg" paramfilters" connections" subinfo" dnsbench" dnsservers" ecsauto" lan" environment" routecheck" domrules dnsroute dnsforward urlint naive corecaps dnshijack portrules tuicanytls configlint naivecomp collected"
+echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink mixedauth"" pinguard" snapshots" updatenotice updatepkg" paramfilters" connections" subinfo" dnsbench" dnsservers" ecsauto" lan" environment" routecheck" domrules dnsroute dnsforward urlint naive corecaps dnshijack portrules tuicanytls configlint naivecomp collected bulk"
             exit 1
             ;;
     esac
