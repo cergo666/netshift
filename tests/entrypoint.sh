@@ -593,6 +593,7 @@ for fn in nft_init_interfaces_set populate_netshift_subnets_from_file \
           populate_netshift_subnets_from_string nft_mark_fully_routed_source_ips \
           _nft_mark_fully_routed_ips_for_section _nft_mark_fully_routed_ip_handler \
           foreach_active_section _active_section_dispatch \
+          nft_add_dns_hijack nft_add_port_rules \
           create_nft_rules; do
     eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$BIN")"
 done
@@ -19194,6 +19195,16 @@ main() {
             test_bypass
             test_urltest_filters
             test_subscription_geoip
+            test_naive
+            test_naive_component
+            test_core_caps
+            test_dns_hijack
+            test_port_rules
+            test_tuic_anytls
+            test_config_lint
+            test_dns_server_route
+            test_urltest_interval
+            test_dns_forward
             ;;
         deps)        test_deps ;;
         syntax)      test_syntax ;;
