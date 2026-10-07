@@ -98,9 +98,6 @@ msgstr "Необходимо указать хотя бы одну действ�
 msgid "Auto"
 msgstr "Авто"
 
-msgid "Auto (the fastest address)"
-msgstr "Авто (самый быстрый адрес)"
-
 msgid "Automatic (first working)"
 msgstr "Автоматически (первый рабочий)"
 
@@ -206,9 +203,6 @@ msgstr "Закрыть все"
 msgid "Close all connections? Active downloads and calls will be interrupted."
 msgstr "Закрыть все соединения? Идущие загрузки и звонки прервутся."
 
-msgid "Cloudflare WARP"
-msgstr "Cloudflare WARP"
-
 msgid "cloudflare-dns.com/dns-query (Cloudflare DoH)"
 msgstr "cloudflare-dns.com/dns-query (Cloudflare DoH)"
 
@@ -269,18 +263,6 @@ msgstr "Не удалось переключить ядро"
 msgid "Core switch timed out"
 msgstr "Истекло время ожидания переключения ядра"
 
-msgid "Could not create the WARP interface"
-msgstr "Не удалось создать интерфейс WARP"
-
-msgid "Could not import the config"
-msgstr "Не удалось импортировать конфиг"
-
-msgid "Create a WARP interface"
-msgstr "Создать интерфейс WARP"
-
-msgid "Created the interface %s (%s) and a VPN section with the same name. Reloading the page..."
-msgstr "Создан интерфейс %s (%s) и VPN-секция с тем же именем. Страница перезагружается..."
-
 msgid "Currently unavailable"
 msgstr "Временно недоступно"
 
@@ -298,6 +280,9 @@ msgstr "Дашборд"
 
 msgid "Dashboard currently unavailable"
 msgstr "Дашборд сейчас недоступен"
+
+msgid "Dashboard tiles, YACD web dashboard access and remote-access protection"
+msgstr "Плитки дашборда, доступ к веб-панели YACD и защита удалённого доступа"
 
 msgid "days left"
 msgstr "дн. осталось"
@@ -626,9 +611,6 @@ msgstr "Самый быстрый"
 msgid "First server only"
 msgstr "Только первый сервер"
 
-msgid "Flash free"
-msgstr "Свободно во флеш"
-
 msgid "Flow offloading is enabled"
 msgstr "Включён Flow Offloading"
 
@@ -679,12 +661,6 @@ msgstr "Как серверы списка используются вместе
 
 msgid "HTTP error"
 msgstr "Ошибка HTTP"
-
-msgid "Import the config"
-msgstr "Импортировать конфиг"
-
-msgid "Importing the config..."
-msgstr "Импортируем конфиг..."
 
 msgid "Include servers by country"
 msgstr "Оставить серверы по стране"
@@ -956,14 +932,11 @@ msgstr "Список"
 msgid "List Update Frequency"
 msgstr "Частота обновления списков"
 
-msgid "List update schedule, download routing, and routing exclusions"
-msgstr "Расписание обновления списков, маршрутизация загрузок и исключения из маршрутизации"
+msgid "List update schedule and the way lists and components are downloaded"
+msgstr "Расписание обновления списков и способ загрузки списков и компонентов"
 
 msgid "Lists & Updates"
 msgstr "Списки и обновления"
-
-msgid "Load"
-msgstr "Нагрузка"
 
 msgid "Local Domain Lists"
 msgstr "Локальные списки доменов"
@@ -991,15 +964,6 @@ msgstr "Сработавший список"
 
 msgid "Matches no list, goes through the global proxy section"
 msgstr "Не входит ни в один список, идёт через секцию глобального прокси"
-
-msgid "MB"
-msgstr "МБ"
-
-msgid "MB free"
-msgstr "МБ свободно"
-
-msgid "Memory"
-msgstr "Память"
 
 msgid "Memory Usage"
 msgstr "Использование памяти"
@@ -1057,9 +1021,6 @@ msgstr "Сетевой интерфейс"
 
 msgid "Newest first"
 msgstr "Сначала новые"
-
-msgid "No access to Cloudflare from here? Make a WARP config elsewhere (a cloud shell or a generator site) and paste it:"
-msgstr "Нет доступа к Cloudflare отсюда? Сделайте конфиг WARP в другом месте (облачная консоль или сайт-генератор) и вставьте его сюда:"
 
 msgid "no address"
 msgstr "нет адреса"
@@ -1126,9 +1087,6 @@ msgstr "Необязательно"
 
 msgid "Optional: query this DNS server through the outbound of another section. If that outbound is not usable the queries go out directly."
 msgstr "Необязательно: опрашивать этот DNS-сервер через outbound другой секции. Если этот outbound недоступен, запросы уходят напрямую."
-
-msgid "Options the protocol does not know were left out"
-msgstr "Параметры, которых протокол не знает, пропущены"
 
 msgid "Outbound Config"
 msgstr "Конфигурация Outbound"
@@ -1202,17 +1160,8 @@ msgstr "Обновить"
 msgid "Regional options cannot be used together"
 msgstr "Нельзя использовать несколько региональных опций одновременно"
 
-msgid "Registering the device..."
-msgstr "Регистрируем устройство..."
-
-msgid "Registers a free WARP device on this router (no account needed) and creates a network interface and a VPN section for it. AmneziaWG is used when its protocol is installed, otherwise WireGuard; one of them is required. If Cloudflare's API is blocked in your network, the router also tries the API address found over HTTPS and the NetShift proxy; as a last resort give the address of a relay: your own reverse proxy of https://api.cloudflareclient.com/v0i1909051800 (for example BaseRelay on Vercel or Cloudflare Workers)."
-msgstr "Регистрирует бесплатное устройство WARP на этом роутере (аккаунт не нужен) и создаёт для него сетевой интерфейс и VPN-секцию. Используется AmneziaWG, если установлен его протокол, иначе WireGuard; нужен один из них. Если API Cloudflare заблокирован в вашей сети, роутер также пробует адрес API, найденный по HTTPS, и прокси NetShift; в крайнем случае укажите адрес реле: собственного обратного прокси для https://api.cloudflareclient.com/v0i1909051800 (например, BaseRelay на Vercel или Cloudflare Workers)."
-
 msgid "Regular expression must not contain spaces or commas"
 msgstr "Регулярное выражение не должно содержать пробелов и запятых"
-
-msgid "Relay URL (optional)"
-msgstr "Адрес реле (необязательно)"
 
 msgid "Release"
 msgstr "Освободить"
@@ -1258,9 +1207,6 @@ msgstr "Направлять весь несовпавший трафик чер
 
 msgid "Route BitTorrent traffic directly, bypassing the proxy or VPN. Some providers block subscriptions when they detect torrent traffic."
 msgstr "Направлять трафик BitTorrent напрямую, минуя прокси или VPN. Некоторые провайдеры блокируют подписки, обнаружив торрент-трафик."
-
-msgid "Router"
-msgstr "Роутер"
 
 msgid "Router DNS is not routed through sing-box"
 msgstr "DNS роутера не проходит через sing-box"
@@ -1409,6 +1355,9 @@ msgstr "Показывать на дашборде уведомление о н�
 msgid "Show sing-box config"
 msgstr "Показать sing-box конфигурацию"
 
+msgid "Show the tiles on the dashboard"
+msgstr "Показывать плитки на дашборде"
+
 msgid "Sing-box"
 msgstr "Sing-box"
 
@@ -1445,8 +1394,8 @@ msgstr "Сортировать по пингу"
 msgid "Source"
 msgstr "Источник"
 
-msgid "Source and output interfaces, and Bad WAN interface monitoring"
-msgstr "Входящий и исходящий интерфейсы, а также мониторинг интерфейсов Bad WAN"
+msgid "Source and output interfaces, Bad WAN interface monitoring and devices excluded from routing"
+msgstr "Входные и выходные интерфейсы, контроль плохого WAN и устройства, исключённые из маршрутизации"
 
 msgid "Source Network Interface"
 msgstr "Сетевой интерфейс источника"
@@ -1528,9 +1477,6 @@ msgstr "Брать подсеть из WAN-интерфейса: его публ
 
 msgid "TCP"
 msgstr "TCP"
-
-msgid "Temperature"
-msgstr "Температура"
 
 msgid "Test latency"
 msgstr "Тестирование задержки"
@@ -1616,6 +1562,9 @@ msgstr "Подсети этой секции-исключения вообще �
 msgid "The test could not be run"
 msgstr "Не удалось выполнить проверку"
 
+msgid "The tiles with the traffic, the total traffic, the system information and the services above the lists of servers. Turn them off to leave only the servers."
+msgstr "Плитки с трафиком, общим трафиком, системной информацией и службами над списками серверов. Выключите, чтобы остались только серверы."
+
 msgid "The URL the dashboard uses to measure server latency. Change it if the default is slow or blocked in your region."
 msgstr "URL, который дашборд использует для измерения задержки серверов. Измените его, если значение по умолчанию медленное или заблокировано в вашем регионе."
 
@@ -1660,9 +1609,6 @@ msgstr "Трафик перечисленных выше IP-адресов во�
 
 msgid "Traffic Total"
 msgstr "Всего трафика"
-
-msgid "Tried"
-msgstr "Пробовали"
 
 msgid "Troubleshooting"
 msgstr "Устранение неполадок"
@@ -1711,9 +1657,6 @@ msgstr "Исходящий"
 
 msgid "Upstream and bootstrap DNS resolvers, and optional DNS-over-proxy"
 msgstr "Вышестоящий и начальный (bootstrap) DNS-резолверы и опциональный DNS через прокси"
-
-msgid "Uptime"
-msgstr "Работает"
 
 msgid "UPX"
 msgstr "UPX"
@@ -1831,9 +1774,6 @@ msgstr "Xray JSON (Happ)"
 
 msgid "YACD Secret Key"
 msgstr "Секретный ключ YACD"
-
-msgid "YACD web dashboard access and remote-access protection"
-msgstr "Доступ к веб-панели YACD и защита удалённого доступа"
 
 msgid "You can select Output Network Interface, by default autodetect"
 msgstr "Вы можете выбрать выходной сетевой интерфейс, по умолчанию он определяется автоматически."

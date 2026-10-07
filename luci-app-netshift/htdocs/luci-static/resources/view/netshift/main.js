@@ -669,8 +669,8 @@ function validateHysteria2Url(url) {
     const portEntries = cleanedPort.split(",");
     const isValidPortNumber = (value) => {
       if (!/^\d+$/.test(value)) return false;
-      const num2 = Number(value);
-      return num2 >= 1 && num2 <= 65535;
+      const num = Number(value);
+      return num >= 1 && num <= 65535;
     };
     const isValidPortEntry = (entry) => {
       if (!entry) return false;
@@ -950,7 +950,7 @@ async function callBaseMethod(method, args = [], command = "/usr/bin/netshift", 
   const response = await executeShellCommand({
     command,
     args: [method, ...args],
-    timeout: options.timeout ?? 15e3,
+    timeout: 15e3,
     nobatch: options.nobatch
   });
   if (response.stdout) {
@@ -978,8 +978,6 @@ var NetShift;
   let AvailableMethods;
   ((AvailableMethods2) => {
     AvailableMethods2["CHECK_DNS_AVAILABLE"] = "check_dns_available";
-    AvailableMethods2["WARP_GENERATE"] = "warp_generate";
-    AvailableMethods2["WARP_IMPORT"] = "warp_import";
     AvailableMethods2["CHECK_FAKEIP"] = "check_fakeip";
     AvailableMethods2["CHECK_ROUTE"] = "check_route";
     AvailableMethods2["CHECK_ENVIRONMENT"] = "check_environment";
@@ -989,7 +987,6 @@ var NetShift;
     AvailableMethods2["REFRESH_UPDATE_NOTICE"] = "refresh_update_notice";
     AvailableMethods2["CONFIG_SNAPSHOT"] = "config_snapshot";
     AvailableMethods2["GET_PIN_GUARD_EVENTS"] = "get_pin_guard_events";
-    AvailableMethods2["GET_ROUTER_STATS"] = "get_router_stats";
     AvailableMethods2["CHECK_NFT_RULES"] = "check_nft_rules";
     AvailableMethods2["GET_STATUS"] = "get_status";
     AvailableMethods2["CHECK_SING_BOX"] = "check_sing_box";
@@ -1096,20 +1093,6 @@ function parseComponentCheckUpdate(stdout) {
 
 // src/netshift/methods/shell/index.ts
 var NetShiftShellMethods = {
-  // A ready WireGuard / AmneziaWG config pasted by the user.
-  warpImport: async (config) => callBaseMethod(
-    NetShift.AvailableMethods.WARP_IMPORT,
-    [config],
-    void 0,
-    { nobatch: true }
-  ),
-  // Registering a device can take a while: Cloudflare is asked twice.
-  warpGenerate: async (endpoint, relay = "") => callBaseMethod(
-    NetShift.AvailableMethods.WARP_GENERATE,
-    relay ? [endpoint, "", "", relay] : [endpoint],
-    void 0,
-    { nobatch: true, timeout: 9e4 }
-  ),
   checkDNSAvailable: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_DNS_AVAILABLE
   ),
@@ -1160,7 +1143,6 @@ var NetShiftShellMethods = {
     ["restore", id]
   ),
   getPinGuardEvents: async () => callBaseMethod(NetShift.AvailableMethods.GET_PIN_GUARD_EVENTS),
-  getRouterStats: async () => callBaseMethod(NetShift.AvailableMethods.GET_ROUTER_STATS),
   checkNftRules: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_NFT_RULES
   ),
@@ -3760,6 +3742,13 @@ function renderWidget(props) {
 }
 
 // src/netshift/tabs/dashboard/render.ts
+function widgetsAreShown() {
+  try {
+    return uci.get("netshift", "settings", "dashboard_widgets") !== "0";
+  } catch {
+    return true;
+  }
+}
 function render() {
   return E(
     "div",
@@ -3773,33 +3762,55 @@ function render() {
       // The servers the pin guard gave up (filled by the controller)
       E("div", { id: "dashboard-pin-guard" }),
       // Widgets section
-      E("div", { class: "pdk_dashboard-page__widgets-section" }, [
-        E(
-          "div",
-          { id: "dashboard-widget-traffic" },
-          renderWidget({ loading: true, failed: false, title: "", items: [] })
-        ),
-        E(
-          "div",
-          { id: "dashboard-widget-traffic-total" },
-          renderWidget({ loading: true, failed: false, title: "", items: [] })
-        ),
-        E(
-          "div",
-          { id: "dashboard-widget-system-info" },
-          renderWidget({ loading: true, failed: false, title: "", items: [] })
-        ),
-        E(
-          "div",
-          { id: "dashboard-widget-service-info" },
-          renderWidget({ loading: true, failed: false, title: "", items: [] })
-        ),
-        E(
-          "div",
-          { id: "dashboard-widget-router" },
-          renderWidget({ loading: true, failed: false, title: "", items: [] })
-        )
-      ]),
+      E(
+        "div",
+        {
+          class: "pdk_dashboard-page__widgets-section",
+          ...widgetsAreShown() ? {} : { style: "display: none" }
+        },
+        [
+          E(
+            "div",
+            { id: "dashboard-widget-traffic" },
+            renderWidget({
+              loading: true,
+              failed: false,
+              title: "",
+              items: []
+            })
+          ),
+          E(
+            "div",
+            { id: "dashboard-widget-traffic-total" },
+            renderWidget({
+              loading: true,
+              failed: false,
+              title: "",
+              items: []
+            })
+          ),
+          E(
+            "div",
+            { id: "dashboard-widget-system-info" },
+            renderWidget({
+              loading: true,
+              failed: false,
+              title: "",
+              items: []
+            })
+          ),
+          E(
+            "div",
+            { id: "dashboard-widget-service-info" },
+            renderWidget({
+              loading: true,
+              failed: false,
+              title: "",
+              items: []
+            })
+          )
+        ]
+      ),
       // All outbounds
       E(
         "div",
@@ -3918,65 +3929,6 @@ function parsePinGuardEvents(input) {
 }
 function recentPinGuardEvents(events, now) {
   return events.filter((event) => now - event.time <= PIN_GUARD_SHOW_SECONDS).sort((a, b) => b.time - a.time);
-}
-
-// src/helpers/routerStats.ts
-var num = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
-function parseRouterStats(input) {
-  let data = input;
-  if (typeof input === "string") {
-    try {
-      data = JSON.parse(input);
-    } catch {
-      return null;
-    }
-  }
-  if (!data || typeof data !== "object") {
-    return null;
-  }
-  const raw = data;
-  if (typeof raw.uptime_seconds !== "number") {
-    return null;
-  }
-  const load = Array.isArray(raw.load) ? raw.load : [];
-  return {
-    uptime_seconds: num(raw.uptime_seconds),
-    load: [num(load[0]), num(load[1]), num(load[2])],
-    cpu_cores: Math.max(1, num(raw.cpu_cores)),
-    ram_total_mb: num(raw.ram_total_mb),
-    ram_available_mb: num(raw.ram_available_mb),
-    flash_free_mb: num(raw.flash_free_mb),
-    tmp_free_mb: num(raw.tmp_free_mb),
-    temperature_c: typeof raw.temperature_c === "number" ? raw.temperature_c : null
-  };
-}
-function formatUptime(seconds, units) {
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor(seconds % 86400 / 3600);
-  const minutes = Math.floor(seconds % 3600 / 60);
-  if (days > 0) {
-    return `${days} ${units.d} ${hours} ${units.h}`;
-  }
-  if (hours > 0) {
-    return `${hours} ${units.h} ${minutes} ${units.min}`;
-  }
-  if (minutes > 0) {
-    return `${minutes} ${units.min}`;
-  }
-  return `${seconds} ${units.s}`;
-}
-function ramUsedPercent(stats) {
-  if (stats.ram_total_mb <= 0) {
-    return 0;
-  }
-  const used = stats.ram_total_mb - stats.ram_available_mb;
-  return Math.min(
-    100,
-    Math.max(0, Math.round(used / stats.ram_total_mb * 100))
-  );
-}
-function loadPercent(stats) {
-  return Math.round(stats.load[0] / stats.cpu_cores * 100);
 }
 
 // src/netshift/fetchers/fetchServicesInfo.ts
@@ -4129,74 +4081,6 @@ async function loadPinGuardEvents() {
     );
   } catch (e) {
     logger.error("[DASHBOARD]", "loadPinGuardEvents: failed", e);
-  }
-}
-var ROUTER_STATS_INTERVAL = 1e4;
-var routerStatsTimer;
-async function renderRouterStats() {
-  const container = document.getElementById("dashboard-widget-router");
-  if (!container) {
-    return;
-  }
-  try {
-    const response = await NetShiftShellMethods.getRouterStats();
-    const stats = response.success ? parseRouterStats(response.data) : null;
-    if (!stats) {
-      container.replaceChildren();
-      return;
-    }
-    container.replaceChildren(
-      renderWidget({
-        loading: false,
-        failed: false,
-        title: _("Router"),
-        items: [
-          {
-            key: _("Uptime"),
-            value: formatUptime(stats.uptime_seconds, {
-              d: _("d"),
-              h: _("h"),
-              min: _("min"),
-              s: _("s")
-            })
-          },
-          {
-            key: _("Load"),
-            value: `${stats.load[0].toFixed(2)} (${loadPercent(stats)}%)`
-          },
-          {
-            key: _("Memory"),
-            value: `${ramUsedPercent(stats)}% (${stats.ram_available_mb} ${_("MB free")})`
-          },
-          {
-            key: _("Flash free"),
-            value: `${stats.flash_free_mb} ${_("MB")}`
-          },
-          ...stats.temperature_c !== null ? [
-            {
-              key: _("Temperature"),
-              value: `${stats.temperature_c} \xB0C`
-            }
-          ] : []
-        ]
-      })
-    );
-  } catch (e) {
-    logger.error("[DASHBOARD]", "renderRouterStats: failed", e);
-  }
-}
-function startRouterStats() {
-  stopRouterStats();
-  void renderRouterStats();
-  routerStatsTimer = window.setInterval(
-    () => void renderRouterStats(),
-    ROUTER_STATS_INTERVAL
-  );
-}
-function stopRouterStats() {
-  if (routerStatsTimer !== void 0) {
-    window.clearInterval(routerStatsTimer);
-    routerStatsTimer = void 0;
   }
 }
 async function connectToClashSockets() {
@@ -4531,7 +4415,6 @@ async function onPageMount() {
   onPageUnmount();
   void loadUpdateNotice();
   void loadPinGuardEvents();
-  startRouterStats();
   store.subscribe(onStoreUpdate);
   store.set({
     sectionsWidget: {
@@ -4545,7 +4428,6 @@ async function onPageMount() {
 }
 function onPageUnmount() {
   store.unsubscribe(onStoreUpdate);
-  stopRouterStats();
   store.reset([
     "bandwidthWidget",
     "trafficTotalWidget",
@@ -4619,6 +4501,12 @@ var styles3 = `
     grid-gap: 10px;
 }
 
+@media (max-width: 600px) {
+    .pdk_dashboard-page__widgets-section {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .pdk_dashboard-page__widgets-section__item {
 }
 
@@ -4662,7 +4550,7 @@ var styles3 = `
 .pdk_dashboard-page__outbound-grid {
     margin-top: 5px;
     display: grid;
-    grid-template-columns: repeat(var(--dashboard-grid-columns), minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
     grid-gap: 10px;
 }
 
@@ -4686,10 +4574,12 @@ var styles3 = `
     content: '\\2713\\00a0';
 }
 
+/* One column on a phone, more of them as the screen gets wider */
 .pdk_dashboard-page__outbound-list {
     margin-top: 5px;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+    align-content: start;
     gap: 6px;
     max-height: 520px;
     overflow-y: auto;
@@ -7517,6 +7407,57 @@ ${ManagerTab.styles}
 ${PartialStyles}
 
 
+/*
+ * The custom tabs (dashboard, devices, connections, component manager,
+ * diagnostics) fill the whole width of the page: some themes narrow the field of a
+ * form row, and these tabs are not forms.
+ */
+:is(#cbi-netshift-dashboard, #cbi-netshift-devices, #cbi-netshift-connections, #cbi-netshift-manager, #cbi-netshift-diagnostic) :is(.cbi-section-node, .cbi-value, .cbi-value-field) {
+    display: block;
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+    box-sizing: border-box;
+}
+
+:is(#cbi-netshift-dashboard, #cbi-netshift-devices, #cbi-netshift-connections, #cbi-netshift-manager, #cbi-netshift-diagnostic) .cbi-value-title {
+    display: none;
+}
+
+/*
+ * Inputs and selects of the custom tabs look like the ones of the forms: the theme
+ * styles them only inside a form row, so the same tokens are applied here.
+ */
+:is(#cbi-netshift-devices, #cbi-netshift-connections, #cbi-netshift-diagnostic) :is(input.cbi-input-text, select.cbi-input-select, textarea) {
+    box-sizing: border-box;
+    min-height: 2.4em;
+    padding: 0.4em 0.7em;
+    color: var(--text-color-high, inherit);
+    background: var(--background-color-high, transparent);
+    border: 1px solid var(--border-color-medium, rgba(128, 128, 128, 0.5));
+    border-radius: var(--border-radius, 4px);
+    font: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+:is(#cbi-netshift-devices, #cbi-netshift-connections, #cbi-netshift-diagnostic) :is(input.cbi-input-text, select.cbi-input-select, textarea):focus {
+    outline: none;
+    border-color: var(--primary-color-high, #2196f3);
+}
+
+
+:is(#cbi-netshift-devices, #cbi-netshift-connections, #cbi-netshift-diagnostic) select.cbi-input-select {
+    padding-right: 2em;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 1.1em) 55%, calc(100% - 0.8em) 55%;
+    background-size: 0.3em 0.3em, 0.3em 0.3em;
+    background-repeat: no-repeat;
+}
+
 /* Hide extra H3 for settings tab */
 #cbi-netshift-settings > h3 {
     display: none;
@@ -8158,50 +8099,6 @@ function connectionAge(start, now) {
   return { value: Math.floor(seconds / 86400), unit: "d" };
 }
 
-// src/helpers/warp.ts
-var WARP_ENDPOINTS = [
-  "engage.cloudflareclient.com:4500",
-  "engage.cloudflareclient.com:2408",
-  "engage.cloudflareclient.com:500"
-];
-function parseWarpResult(input) {
-  let data = input;
-  if (typeof input === "string") {
-    try {
-      data = JSON.parse(input);
-    } catch {
-      return { ok: false, error: "" };
-    }
-  }
-  if (!data || typeof data !== "object") {
-    return { ok: false, error: "" };
-  }
-  const value = data;
-  const text2 = (item) => typeof item === "string" && item ? item : void 0;
-  if (value.ok === true) {
-    return {
-      ok: true,
-      interface: text2(value.interface),
-      proto: text2(value.proto),
-      endpoint: text2(value.endpoint),
-      ...Array.isArray(value.skipped) && value.skipped.length ? { skipped: value.skipped.map(String) } : {}
-    };
-  }
-  const attempts = Array.isArray(value.attempts) ? value.attempts.filter(
-    (item) => !!item && typeof item === "object"
-  ).map((item) => ({
-    route: String(item.route ?? ""),
-    curl: Number(item.curl ?? 0),
-    http: String(item.http ?? "")
-  })).filter((item) => item.route) : [];
-  return {
-    ok: false,
-    error: text2(value.error) ?? "",
-    hint: text2(value.hint),
-    attempts
-  };
-}
-
 // src/main.ts
 if (typeof structuredClone !== "function")
   globalThis.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -8248,7 +8145,6 @@ return baseclass.extend({
   TabService,
   TabServiceInstance,
   UPDATE_INTERVAL_OPTIONS,
-  WARP_ENDPOINTS,
   bulkValidate,
   connectionAge,
   connectionRoute,
@@ -8266,7 +8162,6 @@ return baseclass.extend({
   filterConnections,
   findStaticLease,
   formatSnapshotTime,
-  formatUptime,
   getClashUIUrl,
   getClashWsUrl,
   getDeviceRoute,
@@ -8280,7 +8175,6 @@ return baseclass.extend({
   isValidMac,
   listedDeviceIps,
   loadDashboardViewPrefs,
-  loadPercent,
   logger,
   maskIP,
   onMount,
@@ -8290,15 +8184,12 @@ return baseclass.extend({
   parseLanInfo,
   parsePinGuardEvents,
   parseQueryString,
-  parseRouterStats,
   parseSnapshots,
   parseSubscriptionInfo,
   parseUpdateNotice,
   parseValueList,
-  parseWarpResult,
   preserveScrollForPage,
   prettyBytes,
-  ramUsedPercent,
   recentPinGuardEvents,
   saveDashboardViewPrefs,
   setDeviceRoute,
