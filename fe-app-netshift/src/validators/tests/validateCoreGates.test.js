@@ -8,18 +8,7 @@ import {
 
 const HY2 = 'hysteria2://secret@example.com:443?sni=example.com';
 const VMESS =
-  'vmess://' +
-  Buffer.from(
-    JSON.stringify({
-      v: '2',
-      ps: 'n',
-      add: 'example.com',
-      port: '443',
-      id: '11111111-2222-3333-4444-555555555555',
-      aid: '0',
-      net: 'tcp',
-    }),
-  ).toString('base64');
+  'vmess://eyJ2IjogIjIiLCAicHMiOiAibiIsICJhZGQiOiAiZXhhbXBsZS5jb20iLCAicG9ydCI6ICI0NDMiLCAiaWQiOiAiMTExMTExMTEtMjIyMi0zMzMzLTQ0NDQtNTU1NTU1NTU1NTU1IiwgImFpZCI6ICIwIiwgIm5ldCI6ICJ0Y3AifQ==';
 
 describe('links the core cannot carry', () => {
   afterEach(() => setCoreCapabilities({ ...UNKNOWN_CORE_CAPABILITIES }));

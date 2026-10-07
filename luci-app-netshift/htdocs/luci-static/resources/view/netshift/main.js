@@ -825,6 +825,99 @@ function validateNaiveUrl(url) {
   return { valid: true, message: _("Valid") };
 }
 
+// src/validators/validateTuicAnytlsUrl.ts
+function validateCredentialUrl(url, scheme, title) {
+  const invalid = (message) => ({
+    valid: false,
+    message: _(message)
+  });
+  if (/\s/.test(url)) {
+    return invalid(`Invalid ${title} URL: must not contain spaces`);
+  }
+  const body = url.slice(`${scheme}://`.length);
+  const [authority] = body.split(/[/?#]/);
+  const at = authority.lastIndexOf("@");
+  if (at <= 0) {
+    return invalid(
+      scheme === "tuic" ? `Invalid ${title} URL: uuid and password are required` : `Invalid ${title} URL: password is required`
+    );
+  }
+  const hostPort = authority.slice(at + 1);
+  const match = hostPort.match(/^(\[[^\]]+\]|[^:]+)(?::(\d+))?$/);
+  if (!match) {
+    return invalid(`Invalid ${title} URL: missing host`);
+  }
+  const host = match[1];
+  const port = match[2];
+  if (port !== void 0 && (Number(port) < 1 || Number(port) > 65535)) {
+    return invalid(`Invalid ${title} URL: invalid port`);
+  }
+  if (!host.startsWith("[") && !validateIPV4(host).valid && !validateDomain(host).valid) {
+    return invalid(`Invalid ${title} URL: invalid host`);
+  }
+  return { valid: true, message: _("Valid") };
+}
+function validateTuicUrl(url) {
+  return validateCredentialUrl(url, "tuic", "TUIC");
+}
+function validateAnytlsUrl(url) {
+  return validateCredentialUrl(url, "anytls", "AnyTLS");
+}
+
+// src/helpers/coreCapabilities.ts
+var UNKNOWN_CORE_CAPABILITIES = {
+  version: "",
+  variant: "stock",
+  quic: true,
+  utls: true,
+  naive: true,
+  naive_core: false,
+  naive_client: false,
+  dns_pool: true,
+  extended: true,
+  vmess: true,
+  xhttp: true,
+  vless_encryption: true,
+  reality_mlkem: true
+};
+function parseCoreCapabilities(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return { ...UNKNOWN_CORE_CAPABILITIES };
+    }
+  }
+  if (!data || typeof data !== "object") {
+    return { ...UNKNOWN_CORE_CAPABILITIES };
+  }
+  const value = data;
+  const flag = (key) => typeof value[key] === "boolean" ? value[key] : UNKNOWN_CORE_CAPABILITIES[key];
+  return {
+    version: typeof value.version === "string" ? value.version : "",
+    variant: typeof value.variant === "string" ? value.variant : "stock",
+    quic: flag("quic"),
+    utls: flag("utls"),
+    naive: flag("naive"),
+    naive_core: flag("naive_core"),
+    naive_client: flag("naive_client"),
+    dns_pool: flag("dns_pool"),
+    extended: flag("extended"),
+    vmess: flag("vmess"),
+    xhttp: flag("xhttp"),
+    vless_encryption: flag("vless_encryption"),
+    reality_mlkem: flag("reality_mlkem")
+  };
+}
+var current = { ...UNKNOWN_CORE_CAPABILITIES };
+function setCoreCapabilities(value) {
+  current = value;
+}
+function getCoreCapabilities() {
+  return current;
+}
+
 // src/validators/validateProxyUrl.ts
 function validateProxyUrl(url) {
   const trimmedUrl = url.trim();
@@ -838,13 +931,37 @@ function validateProxyUrl(url) {
     return validateTrojanUrl(trimmedUrl);
   }
   if (trimmedUrl.startsWith("vmess://")) {
+    if (!getCoreCapabilities().vmess) {
+      return {
+        valid: false,
+        message: _("VMess needs the sing-box-extended core")
+      };
+    }
     return validateVmessUrl(trimmedUrl);
   }
   if (/^socks(4|4a|5):\/\//.test(trimmedUrl)) {
     return validateSocksUrl(trimmedUrl);
   }
   if (trimmedUrl.startsWith("hysteria2://") || trimmedUrl.startsWith("hy2://")) {
+    if (!getCoreCapabilities().quic) {
+      return {
+        valid: false,
+        message: _("Hysteria2 needs a sing-box core built with QUIC")
+      };
+    }
     return validateHysteria2Url(trimmedUrl);
+  }
+  if (trimmedUrl.startsWith("tuic://")) {
+    if (!getCoreCapabilities().quic) {
+      return {
+        valid: false,
+        message: _("TUIC needs a sing-box core built with QUIC")
+      };
+    }
+    return validateTuicUrl(trimmedUrl);
+  }
+  if (trimmedUrl.startsWith("anytls://")) {
+    return validateAnytlsUrl(trimmedUrl);
   }
   if (isNaiveUrl(trimmedUrl)) {
     return validateNaiveUrl(trimmedUrl);
@@ -852,7 +969,7 @@ function validateProxyUrl(url) {
   return {
     valid: false,
     message: _(
-      "URL must start with vless://, vmess://, ss://, trojan://, socks4/5://, hysteria2://hy2:// or naive+https://"
+      "URL must start with vless://, vmess://, ss://, trojan://, socks4/5://, hysteria2://hy2://, tuic://, anytls:// or naive+https://"
     )
   };
 }
@@ -980,6 +1097,26 @@ function validateDnsForward(entry) {
   return { valid: true, message: _("Valid") };
 }
 
+// src/validators/validatePortList.ts
+function validatePortList(value) {
+  const items = value.split(/[,\s]+/).map((item) => item.trim()).filter(Boolean);
+  if (items.length === 0) {
+    return { valid: true, message: _("Valid") };
+  }
+  for (const item of items) {
+    const match = item.match(/^(\d+)(?:[-:](\d+))?$/);
+    if (!match) {
+      return { valid: false, message: _("Invalid port or port range") };
+    }
+    const first = Number(match[1]);
+    const last = match[2] === void 0 ? first : Number(match[2]);
+    if (first < 1 || last > 65535 || first > last) {
+      return { valid: false, message: _("Invalid port or port range") };
+    }
+  }
+  return { valid: true, message: _("Valid") };
+}
+
 // src/helpers/parseValueList.ts
 function parseValueList(value) {
   return value.split(/\n/).map((line) => line.split("//")[0]).join(" ").split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
@@ -1023,6 +1160,7 @@ var NetShift;
   let AvailableMethods;
   ((AvailableMethods2) => {
     AvailableMethods2["CHECK_DNS_AVAILABLE"] = "check_dns_available";
+    AvailableMethods2["GET_CORE_CAPABILITIES"] = "get_core_capabilities";
     AvailableMethods2["CHECK_FAKEIP"] = "check_fakeip";
     AvailableMethods2["CHECK_ROUTE"] = "check_route";
     AvailableMethods2["CHECK_ENVIRONMENT"] = "check_environment";
@@ -1138,6 +1276,7 @@ function parseComponentCheckUpdate(stdout) {
 
 // src/netshift/methods/shell/index.ts
 var NetShiftShellMethods = {
+  getCoreCapabilities: async () => callBaseMethod(NetShift.AvailableMethods.GET_CORE_CAPABILITIES),
   checkDNSAvailable: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_DNS_AVAILABLE
   ),
@@ -1348,6 +1487,56 @@ var NetShiftShellMethods = {
       success: false,
       message: response.stderr || ""
     };
+  },
+  // The NaiveProxy client component: check (sync), install and remove (async, like the
+  // core switch: the download and the restart can outlast the rpcd limit).
+  naiveCheckUpdate: async () => {
+    const response = await executeShellCommand({
+      command: "/usr/bin/netshift",
+      args: ["component_action", "naive", "check_update"],
+      timeout: 6e5
+    });
+    if (response.stdout) {
+      return parseComponentCheckUpdate(response.stdout);
+    }
+    return { success: false, message: response.stderr || "" };
+  },
+  naiveComponentAction: async (action) => {
+    const startResponse = await executeShellCommand({
+      command: "/usr/bin/netshift",
+      args: ["component_action_async", "naive", action]
+    });
+    let start = null;
+    if (startResponse.stdout) {
+      try {
+        start = JSON.parse(
+          startResponse.stdout
+        );
+      } catch (_e) {
+        start = null;
+      }
+    }
+    if (!start || start.success !== true || !start.job_id) {
+      return {
+        success: false,
+        message: start?.message || startResponse.stderr || ""
+      };
+    }
+    const jobId = start.job_id;
+    return pollSingBoxComponentAction(async () => {
+      try {
+        const statusResponse = await executeShellCommand({
+          command: "/usr/bin/netshift",
+          args: ["component_action_status", jobId]
+        });
+        if (!statusResponse.stdout) {
+          return { running: true };
+        }
+        return parseComponentActionStatus(statusResponse.stdout) ?? { running: true };
+      } catch (_e) {
+        return { running: true };
+      }
+    });
   },
   // Clear subscription cache (async) — task-039/040 contract:
   // component_action_async subscription clear_cache + component_action_status
@@ -1917,6 +2106,17 @@ var RemoteFakeIPMethods = {
   getIpCheck
 };
 
+// src/netshift/methods/loadCoreCapabilities.ts
+async function loadCoreCapabilities() {
+  try {
+    const reply = await NetShiftShellMethods.getCoreCapabilities();
+    if (reply.success) {
+      setCoreCapabilities(parseCoreCapabilities(reply.data));
+    }
+  } catch {
+  }
+}
+
 // src/netshift/services/tab.service.ts
 var TabService = class _TabService {
   constructor() {
@@ -2207,13 +2407,16 @@ var initialManagerStore = {
     singBoxExtendedCheck: { loading: false },
     singBoxExtendedAction: { loading: false },
     singBoxExtendedLiteCheck: { loading: false },
-    singBoxExtendedLiteAction: { loading: false }
+    singBoxExtendedLiteAction: { loading: false },
+    naiveCheck: { loading: false },
+    naiveAction: { loading: false }
   },
   managerChecks: {
     netshift: { status: null, latest_version: "" },
     sing_box_stock: { status: null, latest_version: "" },
     sing_box_extended: { status: null, latest_version: "" },
-    sing_box_extended_lite: { status: null, latest_version: "" }
+    sing_box_extended_lite: { status: null, latest_version: "" },
+    naive: { status: null, latest_version: "" }
   }
 };
 
@@ -6935,12 +7138,55 @@ function singBoxExtendedLiteCard(systemInfo, check) {
     actions
   };
 }
+function naiveCard(systemInfo, check) {
+  const version = systemInfo.naive_version || "not installed";
+  const installed = version !== "not installed";
+  const actions = [];
+  if (!installed) {
+    actions.push({
+      loadingKey: "naiveAction",
+      kind: "naive_install",
+      text: _("Install")
+    });
+  } else {
+    if (check.status === "outdated") {
+      actions.push({
+        loadingKey: "naiveAction",
+        kind: "naive_install",
+        text: check.latest_version ? _("Install %s").replace("%s", check.latest_version) : _("Update")
+      });
+    } else {
+      actions.push({
+        loadingKey: "naiveCheck",
+        kind: "naive_check",
+        text: _("Check update")
+      });
+    }
+    actions.push({
+      loadingKey: "naiveAction",
+      kind: "naive_remove",
+      text: _("Remove")
+    });
+  }
+  return {
+    key: "naive",
+    title: "NaiveProxy",
+    description: _(
+      "Client for naive+https:// links (~4 MB), used beside sing-box; not needed with a core that has the naive outbound"
+    ),
+    version: installed ? version === "unknown" ? _("unknown") : version : _("Not installed"),
+    installed,
+    tag: installed ? getCheckTag(check.status) : getCheckTag("not_installed"),
+    actions
+  };
+}
 function getComponentCards(systemInfo, checks) {
   return [
     netshiftCard(systemInfo, checks.netshift),
     singBoxStockCard(systemInfo, checks.sing_box_stock),
     singBoxExtendedCard(systemInfo, checks.sing_box_extended),
-    singBoxExtendedLiteCard(systemInfo, checks.sing_box_extended_lite)
+    singBoxExtendedLiteCard(systemInfo, checks.sing_box_extended_lite),
+    naiveCard(systemInfo, checks.naive)
   ];
 }
 
@@ -6958,7 +7204,8 @@ async function fetchSystemInfo2() {
         sing_box_extended: systemInfo.data.sing_box_extended === 1 ? 1 : 0,
         sing_box_variant: systemInfo.data.sing_box_variant,
         sing_box_lite_upx: systemInfo.data.sing_box_lite_upx === 1 ? 1 : 0,
-        sing_box_lite_supported: systemInfo.data.sing_box_lite_supported === 1 ? 1 : 0
+        sing_box_lite_supported: systemInfo.data.sing_box_lite_supported === 1 ? 1 : 0,
+        naive_version: systemInfo.data.naive_version || "not installed"
       }
     });
   } else {
@@ -6974,7 +7221,8 @@ async function fetchSystemInfo2() {
         sing_box_extended: 0,
         sing_box_variant: "stock",
         sing_box_lite_upx: 0,
-        sing_box_lite_supported: 0
+        sing_box_lite_supported: 0,
+        naive_version: "not installed"
       }
     });
   }
@@ -7088,6 +7336,50 @@ async function runSingBoxMutation(component, button) {
     setActionLoading(button.loadingKey, false);
   }
 }
+async function runNaiveCheck(button) {
+  setActionLoading(button.loadingKey, true);
+  try {
+    const parsed = await NetShiftShellMethods.naiveCheckUpdate();
+    if (!parsed.success) {
+      showToast(parsed.message || _("Failed to execute!"), "error");
+      return;
+    }
+    const status = parsed.status ?? null;
+    setCheckResult("naive", status, parsed.latest_version || "");
+    showToast(getCheckToastMessage(status), "success");
+  } catch (error) {
+    logger.error("[MANAGER]", "runNaiveCheck failed", error);
+    showToast(_("Failed to execute!"), "error");
+  } finally {
+    setActionLoading(button.loadingKey, false);
+  }
+}
+async function runNaiveAction(button, action) {
+  setActionLoading(button.loadingKey, true);
+  showToast(
+    action === "install" ? _("Installing the NaiveProxy client, this may take a minute\u2026") : _("Removing the NaiveProxy client\u2026"),
+    "info"
+  );
+  try {
+    const result = await NetShiftShellMethods.naiveComponentAction(action);
+    if (result.success) {
+      showToast(
+        action === "install" ? `${_("NaiveProxy client installed, version:")} ${result.version || ""}`.trim() : _("NaiveProxy client removed"),
+        "success"
+      );
+      resetCheckResult("naive");
+      await fetchSystemInfo2();
+    } else {
+      logger.error("[MANAGER]", "runNaiveAction failed", result);
+      showToast(result.message || _("Failed to execute!"), "error");
+    }
+  } catch (error) {
+    logger.error("[MANAGER]", "runNaiveAction failed", error);
+    showToast(_("Failed to execute!"), "error");
+  } finally {
+    setActionLoading(button.loadingKey, false);
+  }
+}
 function reloadPageAfterSelfUpdate() {
   window.setTimeout(() => {
     window.location.reload();
@@ -7123,6 +7415,18 @@ function handleManagerAction(card, button) {
   }
   if (button.kind === "check_netshift") {
     void runNetshiftCheck(button);
+    return;
+  }
+  if (button.kind === "naive_check") {
+    void runNaiveCheck(button);
+    return;
+  }
+  if (button.kind === "naive_install") {
+    void runNaiveAction(button, "install");
+    return;
+  }
+  if (button.kind === "naive_remove") {
+    void runNaiveAction(button, "remove");
     return;
   }
   if (button.kind === "check") {
@@ -7197,7 +7501,7 @@ function renderComponentCard(card) {
         const loading = managerActions[action.loadingKey].loading;
         return renderButton({
           text: action.text,
-          icon: action.kind === "check" || action.kind === "check_netshift" ? renderSearchIcon24 : renderRotateCcwIcon24,
+          icon: action.kind === "check" || action.kind === "check_netshift" || action.kind === "naive_check" ? renderSearchIcon24 : renderRotateCcwIcon24,
           loading,
           disabled: systemInfoLoading || card.actionsDisabled || anyActionLoading && !loading,
           onClick: () => handleManagerAction(card, action)
@@ -7227,7 +7531,8 @@ function renderManagerComponents() {
       sing_box_version: diagnosticsSystemInfo.sing_box_version,
       sing_box_variant: diagnosticsSystemInfo.sing_box_variant,
       sing_box_lite_upx: diagnosticsSystemInfo.sing_box_lite_upx,
-      sing_box_lite_supported: diagnosticsSystemInfo.sing_box_lite_supported
+      sing_box_lite_supported: diagnosticsSystemInfo.sing_box_lite_supported,
+      naive_version: diagnosticsSystemInfo.naive_version
     },
     managerChecks
   ).map(renderComponentCard);
@@ -7501,6 +7806,23 @@ ${PartialStyles}
     background-position: calc(100% - 1.1em) 55%, calc(100% - 0.8em) 55%;
     background-size: 0.3em 0.3em, 0.3em 0.3em;
     background-repeat: no-repeat;
+}
+
+/*
+ * Tables of the custom tabs (DNS servers, devices, connections). Their cells carry
+ * data-title, which the themes use to label the cells when they turn a row into a
+ * card on a narrow screen (the header row is not shown there, so nothing that must
+ * stay reachable may live in it).
+ */
+.ns-table {
+    width: 100%;
+}
+
+/* Secondary text of the custom tabs (the themes put an icon in front of
+   .cbi-value-description, which does not belong here) */
+.ns-muted {
+    opacity: 0.7;
+    font-size: 0.9em;
 }
 
 /* Hide extra H3 for settings tab */
@@ -8189,6 +8511,7 @@ return baseclass.extend({
   SUBSCRIPTION_UPDATE_INTERVAL_OPTIONS,
   TabService,
   TabServiceInstance,
+  UNKNOWN_CORE_CAPABILITIES,
   UPDATE_INTERVAL_OPTIONS,
   bulkValidate,
   connectionAge,
@@ -8209,6 +8532,7 @@ return baseclass.extend({
   formatSnapshotTime,
   getClashUIUrl,
   getClashWsUrl,
+  getCoreCapabilities,
   getDeviceRoute,
   getOutdatedComponents,
   getProxyUrlName,
@@ -8220,11 +8544,13 @@ return baseclass.extend({
   isNaiveUrl,
   isValidMac,
   listedDeviceIps,
+  loadCoreCapabilities,
   loadDashboardViewPrefs,
   logger,
   maskIP,
   onMount,
   parseConnections,
+  parseCoreCapabilities,
   parseDnsBenchmark,
   parseDnsBenchmarkVia,
   parseLanInfo,
@@ -8238,6 +8564,7 @@ return baseclass.extend({
   prettyBytes,
   recentPinGuardEvents,
   saveDashboardViewPrefs,
+  setCoreCapabilities,
   setDeviceRoute,
   shouldRefreshUpdateNotice,
   socket,
@@ -8248,6 +8575,7 @@ return baseclass.extend({
   store,
   svgEl,
   toIpList,
+  validateAnytlsUrl,
   validateDNS,
   validateDnsForward,
   validateDnsPoolServer,
@@ -8260,6 +8588,7 @@ return baseclass.extend({
   validateNaiveUrl,
   validateOutboundJson,
   validatePath,
+  validatePortList,
   validateProxyUrl,
   validateProxyUrlList,
   validateShadowsocksUrl,
@@ -8267,6 +8596,7 @@ return baseclass.extend({
   validateSubnet,
   validateTime,
   validateTrojanUrl,
+  validateTuicUrl,
   validateUrl,
   validateVlessUrl,
   withCountryFlag,
