@@ -20,17 +20,17 @@ function createSettingsContent(section) {
   section.tab(
     "network",
     _("Network"),
-    _("Source and output interfaces, and Bad WAN interface monitoring"),
+    _("Source and output interfaces, Bad WAN interface monitoring and devices excluded from routing"),
   );
   section.tab(
     "lists",
     _("Lists & Updates"),
-    _("List update schedule, download routing, and routing exclusions"),
+    _("List update schedule and the way lists and components are downloaded"),
   );
   section.tab(
     "yacd",
     _("Dashboard"),
-    _("YACD web dashboard access and remote-access protection"),
+    _("Dashboard tiles, YACD web dashboard access and remote-access protection"),
   );
   section.tab(
     "advanced",
@@ -457,30 +457,6 @@ function createSettingsContent(section) {
 
   o = section.taboption(
     "dns",
-    form.Value,
-    "bootstrap_dns_server",
-    _("Bootstrap DNS server"),
-    _(
-      "The DNS server used to look up the IP address of an upstream DNS server",
-    ),
-  );
-  Object.entries(main.BOOTSTRAP_DNS_SERVER_OPTIONS).forEach(([key, label]) => {
-    o.value(key, _(label));
-  });
-  o.default = "77.88.8.8";
-  o.rmempty = false;
-  o.validate = function (section_id, value) {
-    const validation = main.validateDNS(value);
-
-    if (validation.valid) {
-      return true;
-    }
-
-    return validation.message;
-  };
-
-  o = section.taboption(
-    "dns",
     form.ListValue,
     "dns_pool_mode",
     _("Several DNS servers"),
@@ -509,6 +485,30 @@ function createSettingsContent(section) {
   o.rmempty = false;
   o.validate = function (section_id, value) {
     const validation = main.validateDnsPoolTimeout(value);
+
+    if (validation.valid) {
+      return true;
+    }
+
+    return validation.message;
+  };
+
+  o = section.taboption(
+    "dns",
+    form.Value,
+    "bootstrap_dns_server",
+    _("Bootstrap DNS server"),
+    _(
+      "The DNS server used to look up the IP address of an upstream DNS server",
+    ),
+  );
+  Object.entries(main.BOOTSTRAP_DNS_SERVER_OPTIONS).forEach(([key, label]) => {
+    o.value(key, _(label));
+  });
+  o.default = "77.88.8.8";
+  o.rmempty = false;
+  o.validate = function (section_id, value) {
+    const validation = main.validateDNS(value);
 
     if (validation.valid) {
       return true;
@@ -912,17 +912,40 @@ function createSettingsContent(section) {
     return true;
   };
 
-  // --- Lists & Updates tab ---
   o = section.taboption(
-    "lists",
+    "network",
+    form.DynamicList,
+    "routing_excluded_ips",
+    _("Routing Excluded IPs"),
+    _("Specify a local IP address to be excluded from routing"),
+  );
+  o.placeholder = "IP";
+  o.rmempty = true;
+  o.validate = function (section_id, value) {
+    // Optional
+    if (!value || value.length === 0) {
+      return true;
+    }
+
+    const validation = main.validateIP(value);
+
+    if (validation.valid) {
+      return true;
+    }
+
+    return validation.message;
+  };
+
+  o = section.taboption(
+    "network",
     form.Flag,
-    "update_notice",
-    _("Notify about new versions"),
+    "bypass_excluded_ips",
+    _("Bypass sing-box for excluded IPs"),
     _(
-      "Show a notice on the dashboard when a newer NetShift or sing-box-extended version is out. When the dashboard is opened and the last check is more than a day old, the router asks GitHub once in the background; nothing is installed.",
+      "Traffic of the IP addresses listed above never enters sing-box: the router sends it out directly, which saves CPU (a streaming TV, a game console). They also skip Fully Routed IPs and Global Proxy.",
     ),
   );
-  o.default = "1";
+  o.default = "0";
   o.rmempty = false;
 
   o = section.taboption(
@@ -938,24 +961,25 @@ function createSettingsContent(section) {
   o.default = "1d";
   o.rmempty = false;
 
+  // --- Lists & Updates tab ---
+  o = section.taboption(
+    "lists",
+    form.Flag,
+    "update_notice",
+    _("Notify about new versions"),
+    _(
+      "Show a notice on the dashboard when a newer NetShift or sing-box-extended version is out. When the dashboard is opened and the last check is more than a day old, the router asks GitHub once in the background; nothing is installed.",
+    ),
+  );
+  o.default = "1";
+  o.rmempty = false;
+
   o = section.taboption(
     "lists",
     form.Flag,
     "download_lists_via_proxy",
     _("Download Lists via Proxy/VPN"),
     _("Downloading all lists via specific Proxy/VPN"),
-  );
-  o.default = "0";
-  o.rmempty = false;
-
-  o = section.taboption(
-    "lists",
-    form.Flag,
-    "download_components_via_proxy",
-    _("Download components via Proxy/VPN"),
-    _(
-      "Download sing-box, NetShift packages and release information through the proxy section selected below. Useful when GitHub is blocked; a failed download falls back to a direct connection.",
-    ),
   );
   o.default = "0";
   o.rmempty = false;
@@ -999,38 +1023,26 @@ function createSettingsContent(section) {
 
   o = section.taboption(
     "lists",
-    form.DynamicList,
-    "routing_excluded_ips",
-    _("Routing Excluded IPs"),
-    _("Specify a local IP address to be excluded from routing"),
-  );
-  o.placeholder = "IP";
-  o.rmempty = true;
-  o.validate = function (section_id, value) {
-    // Optional
-    if (!value || value.length === 0) {
-      return true;
-    }
-
-    const validation = main.validateIP(value);
-
-    if (validation.valid) {
-      return true;
-    }
-
-    return validation.message;
-  };
-
-  o = section.taboption(
-    "lists",
     form.Flag,
-    "bypass_excluded_ips",
-    _("Bypass sing-box for excluded IPs"),
+    "download_components_via_proxy",
+    _("Download components via Proxy/VPN"),
     _(
-      "Traffic of the IP addresses listed above never enters sing-box: the router sends it out directly, which saves CPU (a streaming TV, a game console). They also skip Fully Routed IPs and Global Proxy.",
+      "Download sing-box, NetShift packages and release information through the proxy section selected below. Useful when GitHub is blocked; a failed download falls back to a direct connection.",
     ),
   );
   o.default = "0";
+  o.rmempty = false;
+
+  o = section.taboption(
+    "yacd",
+    form.Flag,
+    "dashboard_widgets",
+    _("Show the tiles on the dashboard"),
+    _(
+      "The tiles with the traffic, the total traffic, the system information and the services above the lists of servers. Turn them off to leave only the servers.",
+    ),
+  );
+  o.default = "1";
   o.rmempty = false;
 
   // --- Dashboard / YACD tab ---
@@ -1069,6 +1081,18 @@ function createSettingsContent(section) {
   o.depends("enable_yacd_wan_access", "1");
   o.rmempty = false;
 
+  o = section.taboption(
+    "advanced",
+    form.Flag,
+    "enable_ipv6",
+    _("Enable IPv6 Support"),
+    _("Enable IPv6 TProxy routing, IPv6 DNS inbound, and IPv6 FakeIP support.") +
+      " " +
+      _("Use this only when the router has working IPv6 connectivity."),
+  );
+  o.default = "0";
+  o.rmempty = false;
+
   // --- Advanced tab ---
   o = section.taboption(
     "advanced",
@@ -1085,9 +1109,11 @@ function createSettingsContent(section) {
   o = section.taboption(
     "advanced",
     form.Flag,
-    "dont_touch_dhcp",
-    _("Dont Touch My DHCP!"),
-    _("NetShift will not modify your DHCP configuration"),
+    "block_doh",
+    _("Block DoH Servers"),
+    _(
+      "Block direct connections to known public DoH servers (Cloudflare, Google, Quad9, OpenDNS, AdGuard, Yandex) so apps cannot bypass router DNS filtering.",
+    ),
   );
   o.default = "0";
   o.rmempty = false;
@@ -1112,6 +1138,16 @@ function createSettingsContent(section) {
     _(
       "Route BitTorrent traffic directly, bypassing the proxy or VPN. Some providers block subscriptions when they detect torrent traffic.",
     ),
+  );
+  o.default = "0";
+  o.rmempty = false;
+
+  o = section.taboption(
+    "advanced",
+    form.Flag,
+    "dont_touch_dhcp",
+    _("Dont Touch My DHCP!"),
+    _("NetShift will not modify your DHCP configuration"),
   );
   o.default = "0";
   o.rmempty = false;
@@ -1149,30 +1185,6 @@ function createSettingsContent(section) {
 
     return validation.message;
   };
-
-  o = section.taboption(
-    "advanced",
-    form.Flag,
-    "block_doh",
-    _("Block DoH Servers"),
-    _(
-      "Block direct connections to known public DoH servers (Cloudflare, Google, Quad9, OpenDNS, AdGuard, Yandex) so apps cannot bypass router DNS filtering.",
-    ),
-  );
-  o.default = "0";
-  o.rmempty = false;
-
-  o = section.taboption(
-    "advanced",
-    form.Flag,
-    "enable_ipv6",
-    _("Enable IPv6 Support"),
-    _("Enable IPv6 TProxy routing, IPv6 DNS inbound, and IPv6 FakeIP support.") +
-      " " +
-      _("Use this only when the router has working IPv6 connectivity."),
-  );
-  o.default = "0";
-  o.rmempty = false;
 
   o = section.taboption(
     "advanced",
@@ -1241,6 +1253,7 @@ function createSettingsContent(section) {
   o.value("panic", "Panic");
   o.default = "warn";
   o.rmempty = false;
+
 }
 
 const EntryPoint = {
