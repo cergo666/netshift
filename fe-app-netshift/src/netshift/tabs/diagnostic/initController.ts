@@ -9,6 +9,7 @@ import {
   renderAvailableActions,
   renderCheckSection,
   renderRunAction,
+  renderSnapshots,
   renderSystemInfo,
 } from './partials';
 import { NetShiftShellMethods } from '../../methods';
@@ -570,6 +571,11 @@ function onPageMount() {
 
   // Initial Wiki disclaimer render
   renderWikiDisclaimerWidget();
+
+  // Configuration snapshots (keeps its own state)
+  document
+    .getElementById('pdk_diagnostic-page-snapshots')
+    ?.replaceChildren(renderSnapshots());
 
   // Initial services info fetch
   fetchServicesInfo();

@@ -52,6 +52,7 @@ export namespace NetShift {
   export enum AvailableMethods {
     CHECK_DNS_AVAILABLE = 'check_dns_available',
     CHECK_FAKEIP = 'check_fakeip',
+    CONFIG_SNAPSHOT = 'config_snapshot',
     CHECK_NFT_RULES = 'check_nft_rules',
     GET_STATUS = 'get_status',
     CHECK_SING_BOX = 'check_sing_box',
