@@ -1,6 +1,7 @@
 import { NetShift } from '../types';
 import { loadDashboardViewPrefs } from '../../helpers/dashboardView';
 import type { DashboardViewMode } from '../../helpers/dashboardView';
+import type { SubscriptionInfoBySection } from '../../helpers/subscriptionInfo';
 import { initialDiagnosticStore } from '../tabs/diagnostic/diagnostic.store';
 import { initialManagerStore } from '../tabs/manager/manager.store';
 import type { ManagerComponentKey } from '../tabs/manager/cards';
@@ -180,6 +181,8 @@ export interface StoreType {
     // How the server lists are shown (kept in the browser).
     viewMode: DashboardViewMode;
     sortByPing: boolean;
+    // Traffic and expiry the panels report, by section.
+    subscriptionInfo: SubscriptionInfoBySection;
   };
   diagnosticsRunAction: {
     loading: boolean;
@@ -259,6 +262,7 @@ const initialStore: StoreType = {
     latencyTestingSections: [],
     latencyPendingOutbounds: [],
     ...loadDashboardViewPrefs(),
+    subscriptionInfo: {},
     data: [],
   },
   ...initialDiagnosticStore,

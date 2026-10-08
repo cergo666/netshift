@@ -37,6 +37,7 @@ export namespace NetShift {
   // check_logs              Show netshift logs from system journal
   // check_sing_box_logs     Show sing-box logs
   // check_fakeip            Test FakeIP on router
+  // get_subscription_info   Traffic and expiry the subscription panels report
   // clash_api               Clash API interface for managing proxies and groups
   // show_config             Display current netshift configuration
   // show_version            Show netshift version
@@ -52,6 +53,7 @@ export namespace NetShift {
   export enum AvailableMethods {
     CHECK_DNS_AVAILABLE = 'check_dns_available',
     CHECK_FAKEIP = 'check_fakeip',
+    GET_SUBSCRIPTION_INFO = 'get_subscription_info',
     CHECK_NFT_RULES = 'check_nft_rules',
     GET_STATUS = 'get_status',
     CHECK_SING_BOX = 'check_sing_box',

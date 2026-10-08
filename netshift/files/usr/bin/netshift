@@ -21,6 +21,7 @@ check_required_file "$NETSHIFT_LIB/sing_box_config_facade.sh"
 check_required_file "$NETSHIFT_LIB/logging.sh"
 check_required_file "$NETSHIFT_LIB/rulesets.sh"
 check_required_file "$NETSHIFT_LIB/updater.sh"
+check_required_file "$NETSHIFT_LIB/subinfo.sh"
 . /lib/functions.sh
 . /lib/config/uci.sh
 . /lib/functions/network.sh
@@ -31,6 +32,7 @@ check_required_file "$NETSHIFT_LIB/updater.sh"
 . "$NETSHIFT_LIB/sing_box_config_facade.sh"
 . "$NETSHIFT_LIB/logging.sh"
 . "$NETSHIFT_LIB/rulesets.sh"
+. "$NETSHIFT_LIB/subinfo.sh"
 . "$NETSHIFT_LIB/updater.sh"
 
 config_load "$NETSHIFT_CONFIG"
@@ -790,6 +792,10 @@ download_subscription_into_cache() {
             rm -f "$ua_tmpfile"
         fi
     fi
+
+    # Traffic / expiry reported by the panel (best effort, never fails the refresh).
+    subscription_refresh_info "$section" "$subscription_url" "$urlhash" "$winning_user_agent" \
+        "$service_proxy_address" "$subscription_insecure"
 
     rejected_cache_path="$(get_subscription_rejected_cache_path "$section" "$urlhash")"
     tmp_hash="$(md5sum "$tmpfile" 2>/dev/null | awk '{print $1}')"
@@ -7598,6 +7604,7 @@ Available commands:
     get_geoip_flags         Print the GeoIP country of manually added links as JSON
     check_sing_box_logs     Show sing-box logs
     check_fakeip            Test FakeIP on router
+    get_subscription_info   Print the traffic and expiry the subscription panels report as JSON
     clash_api               Clash API interface for managing proxies and groups
     show_config             Display current NetShift configuration
     show_version            Show NetShift version
@@ -7668,6 +7675,9 @@ check_sing_box_logs)
     ;;
 check_fakeip)
     check_fakeip
+    ;;
+get_subscription_info)
+    get_subscription_info
     ;;
 clash_api)
     clash_api "$2" "$3" "$4"

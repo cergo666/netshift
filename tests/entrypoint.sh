@@ -116,6 +116,7 @@ test_syntax() {
         "$lib/logging.sh" \
         "$lib/nft.sh" \
         "$lib/rulesets.sh" \
+        "$lib/subinfo.sh" \
         "$lib/sing_box_config_manager.sh" \
         "$lib/sing_box_config_facade.sh" \
         "$lib/updater.sh"; do
@@ -14625,6 +14626,121 @@ test_update_package_check() {
     rm -rf "$work"
 }
 
+test_subscription_info() {
+    header "Subscription info: traffic and expiry from the panel headers"
+
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not installed"
+        return
+    fi
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    if [ ! -r "$lib/subinfo.sh" ] || [ ! -r "$lib/constants.sh" ]; then
+        fail "subinfo.sh / constants.sh not found"
+        return
+    fi
+
+    local work="/tmp/netshift-subinfo-$$"
+    rm -rf "$work"
+    mkdir -p "$work"
+
+    local out
+    out="$(
+        . "$lib/constants.sh"
+        . "$lib/subinfo.sh"
+        SUBSCRIPTION_CACHE_FOLDER="$work/cache"
+        log() { :; }
+        ensure_subscription_cache_dir() { mkdir -p "$SUBSCRIPTION_CACHE_FOLDER"; }
+        generate_hwid() { echo hwid; }
+        get_device_model() { echo model; }
+        get_kernel_version() { echo kernel; }
+
+        hdr() { printf '%b' "$1" > "$work/h"; }
+        info() { subscription_info_from_headers "$work/h" || echo "NONE"; }
+
+        hdr 'HTTP/2 200\r\nsubscription-userinfo: upload=1000; download=2000; total=10737418240; expire=1790000000\r\nprofile-title: My VPN\r\n\r\n'
+        echo "full=$(info)"
+        hdr 'HTTP/1.1 200 OK\r\nSubscription-Userinfo: upload=0;download=5;total=0;expire=0\r\n\r\n'
+        echo "mixed-case=$(info | jq -c '[.upload,.download,.total,.expire]')"
+        hdr 'HTTP/1.1 200 OK\r\nsubscription-userinfo: download=12345\r\n\r\n'
+        echo "partial=$(info | jq -c '[.upload,.download,.total,.expire]')"
+        hdr 'HTTP/1.1 200 OK\r\nsubscription-userinfo: nothing useful\r\n\r\n'
+        echo "unusable=$(info)"
+        hdr 'HTTP/1.1 200 OK\r\ncontent-type: text/plain\r\n\r\n'
+        echo "absent=$(info)"
+        hdr 'HTTP/1.1 200 OK\r\nsubscription-userinfo: total=5\r\nprofile-title: base64:VGVzdCBwYW5lbA==\r\nprofile-web-page-url: https://panel.example/account\r\n\r\n'
+        echo "title-base64=$(info | jq -c '[.title, .web_page]')"
+        hdr 'HTTP/1.1 200 OK\r\nsubscription-userinfo: total=5\r\nprofile-web-page-url: javascript:alert(1)\r\n\r\n'
+        echo "bad-web-page=$(info | jq -c '.web_page')"
+        hdr 'HTTP/1.1 200 OK\r\nsubscription-userinfo: total=5\r\nprofile-title: '"$(printf 'x%.0s' $(seq 1 200))"'\r\n\r\n'
+        echo "title-cut=$(info | jq -r '.title | length')"
+
+        # the request: curl is replaced by a function that writes the headers it was asked for
+        CURL_HEADERS='HTTP/2 200\r\nsubscription-userinfo: upload=1; download=2; total=3; expire=4\r\n\r\n'
+        CURL_FAIL=0
+        curl() {
+            local out=""
+            while [ $# -gt 0 ]; do
+                [ "$1" = "-D" ] && out="$2"
+                shift
+            done
+            [ "$CURL_FAIL" = 1 ] && return 22
+            [ -n "$out" ] && printf '%b' "$CURL_HEADERS" > "$out"
+            return 0
+        }
+        subscription_refresh_info main "https://panel.example/sub/TOKEN#name" aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "UA" "" 0
+        f="$SUBSCRIPTION_CACHE_FOLDER/main.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.info.json"
+        echo "stored=$(jq -c 'del(.updated)' "$f")"
+        echo "has-updated=$(jq '.updated > 1700000000' "$f")"
+        echo "no-token=$(grep -c TOKEN "$f")"
+        echo "mode=$(ls -l "$f" | cut -c1-10)"
+
+        # a failing panel keeps the previous info and returns 0
+        CURL_FAIL=1
+        subscription_refresh_info main "https://panel.example/sub/TOKEN" aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "UA" "" 0
+        echo "fail-rc=$?"
+        echo "kept=$(jq -c 'del(.updated)' "$f" | jq -c '.total')"
+
+        CURL_FAIL=0
+        CURL_HEADERS='HTTP/2 200\r\n\r\n'
+        subscription_refresh_info second "https://panel.example/b" bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb "UA" "" 0
+        [ -e "$SUBSCRIPTION_CACHE_FOLDER/second.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.info.json" ] && echo "none-written=present" || echo "none-written=absent"
+
+        CURL_HEADERS='HTTP/2 200\r\nsubscription-userinfo: total=9\r\n\r\n'
+        subscription_refresh_info main "https://panel.example/sub/OTHER" cccccccccccccccccccccccccccccccc "UA" "" 0
+        echo "all=$(get_subscription_info | jq -c 'map_values(map(.total))')"
+        echo "empty-dir=$(SUBSCRIPTION_CACHE_FOLDER="$work/none" get_subscription_info)"
+    )"
+
+    _si() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+
+    _si "all four numbers and the title are read" 'full={"upload":1000,"download":2000,"total":10737418240,"expire":1790000000,"title":"My VPN","web_page":null}'
+    _si "the header name is case-insensitive" "mixed-case=[0,5,0,0]"
+    _si "a header with some numbers is usable" "partial=[null,12345,null,null]"
+    _si "a header without numbers is not" "unusable=NONE"
+    _si "no header, no info" "absent=NONE"
+    _si "a base64 title is decoded, the web page kept" 'title-base64=["Test panel","https://panel.example/account"]'
+    _si "a non-http web page is dropped" "bad-web-page=null"
+    _si "a long title is cut" "title-cut=80"
+    _si "the info is stored" 'stored={"upload":1,"download":2,"total":3,"expire":4,"title":null,"web_page":null}'
+    _si "...with the time it was read" "has-updated=true"
+    _si "...and never the URL or its token" "no-token=0"
+    _si "...readable by root only" "mode=-rw-------"
+    _si "a failing panel does not fail the refresh" "fail-rc=0"
+    _si "...and the previous info stays" "kept=3"
+    _si "a panel without the header leaves no file" "none-written=absent"
+    _si "get_subscription_info groups the feeds by section" 'all={"main":[3,9]}'
+    _si "no cache, no info" "empty-dir={}"
+
+    rm -rf "$work"
+}
+
 # ─────────────────────────────────────────────────────────────────
 # Test: subscription country filters
 # ─────────────────────────────────────────────────────────────────
@@ -16195,6 +16311,7 @@ main() {
             test_domain_separators
             test_cache_persist
             test_update_package_check
+            test_subscription_info
             test_dns_section
             test_section_disabled
             test_ipv6_routing
@@ -16265,12 +16382,13 @@ main() {
         bypass)      test_bypass ;;
         dnssection)  test_dns_section ;;
         updatepkg)   test_update_package_check ;;
+        subinfo)     test_subscription_info ;;
         utfilters)   test_urltest_filters ;;
         ipv6routing) test_ipv6_routing ;;
         compproxy)   test_components_via_proxy ;;
         *)
             echo "Unknown test: $target"
-echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink updatepkg"
+echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink updatepkg subinfo"
             exit 1
             ;;
     esac
