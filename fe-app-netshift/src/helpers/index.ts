@@ -17,3 +17,4 @@ export * from './dashboardView';
 export * from './dnsServers';
 export * from './connections';
 export * from './prettyBytes';
+export * from './lanDevices';
