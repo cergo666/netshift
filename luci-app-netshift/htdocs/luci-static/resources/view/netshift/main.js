@@ -980,6 +980,26 @@ function validateDnsForward(entry) {
   return { valid: true, message: _("Valid") };
 }
 
+// src/validators/validatePortList.ts
+function validatePortList(value) {
+  const items = value.split(/[,\s]+/).map((item) => item.trim()).filter(Boolean);
+  if (items.length === 0) {
+    return { valid: true, message: _("Valid") };
+  }
+  for (const item of items) {
+    const match = item.match(/^(\d+)(?:[-:](\d+))?$/);
+    if (!match) {
+      return { valid: false, message: _("Invalid port or port range") };
+    }
+    const first = Number(match[1]);
+    const last = match[2] === void 0 ? first : Number(match[2]);
+    if (first < 1 || last > 65535 || first > last) {
+      return { valid: false, message: _("Invalid port or port range") };
+    }
+  }
+  return { valid: true, message: _("Valid") };
+}
+
 // src/helpers/parseValueList.ts
 function parseValueList(value) {
   return value.split(/\n/).map((line) => line.split("//")[0]).join(" ").split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
@@ -1025,6 +1045,13 @@ var NetShift;
     AvailableMethods2["CHECK_DNS_AVAILABLE"] = "check_dns_available";
     AvailableMethods2["CHECK_FAKEIP"] = "check_fakeip";
     AvailableMethods2["CHECK_ROUTE"] = "check_route";
+    AvailableMethods2["CHECK_ENVIRONMENT"] = "check_environment";
+    AvailableMethods2["GET_UPDATE_NOTICE"] = "get_update_notice";
+    AvailableMethods2["REFRESH_UPDATE_NOTICE"] = "refresh_update_notice";
+    AvailableMethods2["CONFIG_SNAPSHOT"] = "config_snapshot";
+    AvailableMethods2["GET_PIN_GUARD_EVENTS"] = "get_pin_guard_events";
+    AvailableMethods2["DNS_BENCHMARK"] = "dns_benchmark";
+    AvailableMethods2["GET_SUBSCRIPTION_INFO"] = "get_subscription_info";
     AvailableMethods2["CHECK_NFT_RULES"] = "check_nft_rules";
     AvailableMethods2["GET_STATUS"] = "get_status";
     AvailableMethods2["CHECK_SING_BOX"] = "check_sing_box";
@@ -1048,6 +1075,9 @@ var NetShift;
     AvailableClashAPIMethods2["GET_PROXY_LATENCY"] = "get_proxy_latency";
     AvailableClashAPIMethods2["GET_GROUP_LATENCY"] = "get_group_latency";
     AvailableClashAPIMethods2["SET_GROUP_PROXY"] = "set_group_proxy";
+    AvailableClashAPIMethods2["GET_CONNECTIONS"] = "get_connections";
+    AvailableClashAPIMethods2["CLOSE_CONNECTION"] = "close_connection";
+    AvailableClashAPIMethods2["CLOSE_CONNECTIONS"] = "close_connections";
   })(AvailableClashAPIMethods = NetShift2.AvailableClashAPIMethods || (NetShift2.AvailableClashAPIMethods = {}));
 })(NetShift || (NetShift = {}));
 
@@ -1141,6 +1171,43 @@ var NetShiftShellMethods = {
     // Replaying the rules runs the core a few times: do not hold other calls.
     { nobatch: true }
   ),
+  checkEnvironment: async () => callBaseMethod(
+    NetShift.AvailableMethods.CHECK_ENVIRONMENT
+  ),
+  getConnections: async () => callBaseMethod(
+    NetShift.AvailableMethods.CLASH_API,
+    [NetShift.AvailableClashAPIMethods.GET_CONNECTIONS],
+    void 0,
+    { nobatch: true }
+  ),
+  closeConnection: async (id) => callBaseMethod(NetShift.AvailableMethods.CLASH_API, [
+    NetShift.AvailableClashAPIMethods.CLOSE_CONNECTION,
+    id
+  ]),
+  closeAllConnections: async () => callBaseMethod(NetShift.AvailableMethods.CLASH_API, [
+    NetShift.AvailableClashAPIMethods.CLOSE_CONNECTIONS
+  ]),
+  getUpdateNotice: async () => callBaseMethod(NetShift.AvailableMethods.GET_UPDATE_NOTICE),
+  refreshUpdateNotice: async () => callBaseMethod(NetShift.AvailableMethods.REFRESH_UPDATE_NOTICE),
+  listSnapshots: async () => callBaseMethod(NetShift.AvailableMethods.CONFIG_SNAPSHOT, [
+    "list"
+  ]),
+  saveSnapshot: async () => callBaseMethod(
+    NetShift.AvailableMethods.CONFIG_SNAPSHOT,
+    ["save", "manual"]
+  ),
+  restoreSnapshot: async (id) => callBaseMethod(
+    NetShift.AvailableMethods.CONFIG_SNAPSHOT,
+    ["restore", id]
+  ),
+  getPinGuardEvents: async () => callBaseMethod(NetShift.AvailableMethods.GET_PIN_GUARD_EVENTS),
+  dnsBenchmark: async () => callBaseMethod(
+    NetShift.AvailableMethods.DNS_BENCHMARK,
+    [],
+    void 0,
+    { nobatch: true }
+  ),
+  getSubscriptionInfo: async () => callBaseMethod(NetShift.AvailableMethods.GET_SUBSCRIPTION_INFO),
   checkNftRules: async () => callBaseMethod(
     NetShift.AvailableMethods.CHECK_NFT_RULES
   ),
@@ -1993,6 +2060,11 @@ var DIAGNOSTICS_CHECKS_MAP = {
     order: 5,
     title: getCheckTitle("FakeIP"),
     code: "FAKEIP" /* FAKEIP */
+  },
+  ["ENVIRONMENT" /* ENVIRONMENT */]: {
+    order: 6,
+    title: getCheckTitle("Environment"),
+    code: "ENVIRONMENT" /* ENVIRONMENT */
   }
 };
 
@@ -2081,6 +2153,14 @@ var initialDiagnosticStore = {
       description: _("Not running"),
       items: [],
       state: "skipped"
+    },
+    {
+      code: "ENVIRONMENT" /* ENVIRONMENT */,
+      title: DIAGNOSTICS_CHECKS_MAP.ENVIRONMENT.title,
+      order: DIAGNOSTICS_CHECKS_MAP.ENVIRONMENT.order,
+      description: _("Not running"),
+      items: [],
+      state: "skipped"
     }
   ]
 };
@@ -2122,6 +2202,14 @@ var loadingDiagnosticsChecksStore = {
       code: "FAKEIP" /* FAKEIP */,
       title: DIAGNOSTICS_CHECKS_MAP.FAKEIP.title,
       order: DIAGNOSTICS_CHECKS_MAP.FAKEIP.order,
+      description: _("Pending"),
+      items: [],
+      state: "skipped"
+    },
+    {
+      code: "ENVIRONMENT" /* ENVIRONMENT */,
+      title: DIAGNOSTICS_CHECKS_MAP.ENVIRONMENT.title,
+      order: DIAGNOSTICS_CHECKS_MAP.ENVIRONMENT.order,
       description: _("Pending"),
       items: [],
       state: "skipped"
@@ -2270,6 +2358,7 @@ var initialStore = {
     latencyTestingSections: [],
     latencyPendingOutbounds: [],
     ...loadDashboardViewPrefs(),
+    subscriptionInfo: {},
     data: []
   },
   ...initialDiagnosticStore,
@@ -2278,8 +2367,8 @@ var initialStore = {
 var store = new StoreService(initialStore);
 
 // src/helpers/downloadAsTxt.ts
-function downloadAsTxt(text, filename) {
-  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+function downloadAsTxt(text2, filename) {
+  const blob = new Blob([text2], { type: "text/plain;charset=utf-8" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   const safeName = filename.endsWith(".txt") ? filename : `${filename}.txt`;
@@ -3185,7 +3274,7 @@ function renderButton({
   disabled,
   loading,
   onClick,
-  text,
+  text: text2,
   icon
 }) {
   const hasIcon = !!loading || !!icon;
@@ -3222,7 +3311,7 @@ function renderButton({
   return E(
     "button",
     { class: getClass(), disabled: getDisabled(), click: onClick },
-    [...insertIf(hasIcon, [getWrappedIcon()]), E("span", {}, text)]
+    [...insertIf(hasIcon, [getWrappedIcon()]), E("span", {}, text2)]
   );
 }
 
@@ -3246,9 +3335,9 @@ function showToast(message, type, duration = 3e3) {
 }
 
 // src/helpers/copyToClipboard.ts
-function copyToClipboard(text) {
+function copyToClipboard(text2) {
   const textarea = document.createElement("textarea");
-  textarea.value = text;
+  textarea.value = text2;
   document.body.appendChild(textarea);
   textarea.select();
   try {
@@ -3262,23 +3351,23 @@ function copyToClipboard(text) {
 }
 
 // src/partials/modal/renderModal.ts
-function renderModal(text, name) {
+function renderModal(text2, name) {
   return E(
     "div",
     { class: "pdk-partial-modal__body" },
     E("div", {}, [
-      E("pre", { class: "pdk-partial-modal__content" }, E("code", {}, text)),
+      E("pre", { class: "pdk-partial-modal__content" }, E("code", {}, text2)),
       E("div", { class: "pdk-partial-modal__footer" }, [
         renderButton({
           classNames: ["cbi-button-apply"],
           text: _("Download"),
-          onClick: () => downloadAsTxt(text, name)
+          onClick: () => downloadAsTxt(text2, name)
         }),
         renderButton({
           classNames: ["cbi-button-apply"],
           text: _("Copy"),
           onClick: () => copyToClipboard(` \`\`\`${name} 
- ${text}  
+ ${text2}  
  \`\`\``)
         }),
         renderButton({
@@ -3367,6 +3456,73 @@ function sortOutboundsByLatency(outbounds) {
   return [...groups, ...servers];
 }
 
+// src/helpers/subscriptionInfo.ts
+var asNumberOrNull = (value) => typeof value === "number" && Number.isFinite(value) ? value : null;
+function parseSubscriptionInfo(stdout) {
+  let data = stdout;
+  if (typeof stdout === "string") {
+    try {
+      data = JSON.parse(stdout);
+    } catch {
+      return {};
+    }
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return {};
+  }
+  const result = {};
+  for (const [section, entries] of Object.entries(data)) {
+    if (!Array.isArray(entries)) {
+      continue;
+    }
+    result[section] = entries.filter((entry) => entry && typeof entry === "object").map((entry) => ({
+      upload: asNumberOrNull(entry.upload),
+      download: asNumberOrNull(entry.download),
+      total: asNumberOrNull(entry.total),
+      expire: asNumberOrNull(entry.expire),
+      title: typeof entry.title === "string" ? entry.title : null,
+      web_page: typeof entry.web_page === "string" && /^https?:\/\//.test(entry.web_page) ? entry.web_page : null,
+      updated: asNumberOrNull(entry.updated) ?? 0
+    }));
+  }
+  return result;
+}
+var DAY_SECONDS = 86400;
+function describeSubscriptionInfo(info, now) {
+  const hasUsage = info.upload !== null || info.download !== null;
+  const used = hasUsage ? (info.upload ?? 0) + (info.download ?? 0) : null;
+  const total = info.total !== null && info.total > 0 ? info.total : null;
+  const percent = total !== null && used !== null ? Math.min(100, Math.round(used / total * 100)) : null;
+  let expireDate = null;
+  let daysLeft = null;
+  if (info.expire !== null && info.expire > 0) {
+    expireDate = new Date(info.expire * 1e3).toISOString().slice(0, 10);
+    daysLeft = Math.ceil((info.expire - now) / DAY_SECONDS);
+  }
+  return {
+    used,
+    total,
+    percent,
+    expireDate,
+    daysLeft,
+    exhausted: daysLeft !== null && daysLeft < 0 || percent === 100,
+    title: info.title,
+    webPage: info.web_page
+  };
+}
+
+// src/helpers/prettyBytes.ts
+function prettyBytes(n) {
+  const UNITS = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+  if (n < 1e3) {
+    return n + " B";
+  }
+  const exponent = Math.min(Math.floor(Math.log10(n) / 3), UNITS.length - 1);
+  n = Number((n / Math.pow(1e3, exponent)).toPrecision(3));
+  const unit = UNITS[exponent];
+  return n + " " + unit;
+}
+
 // src/netshift/tabs/dashboard/partials/renderSections.ts
 function getLatencyClassName(latency) {
   if (!latency) {
@@ -3404,6 +3560,50 @@ function renderSkeleton(style) {
     style: `${style}; --skeleton-phase: -${phase}ms`
   });
 }
+function renderSubscriptionInfo(infos) {
+  const now = Math.floor(Date.now() / 1e3);
+  return E(
+    "div",
+    { class: "pdk_dashboard-page__subscription-info" },
+    infos.map((info) => {
+      const line = describeSubscriptionInfo(info, now);
+      const parts = [];
+      if (line.used !== null) {
+        parts.push(
+          line.total !== null ? `${_("Traffic")}: ${prettyBytes(line.used)} / ${prettyBytes(line.total)}` : `${_("Traffic")}: ${prettyBytes(line.used)}`
+        );
+      }
+      if (line.expireDate !== null && line.daysLeft !== null) {
+        parts.push(
+          line.daysLeft < 0 ? `${_("Expired")}: ${line.expireDate}` : `${_("Expires")}: ${line.expireDate} (${line.daysLeft} ${_("days left")})`
+        );
+      }
+      const name = infos.length > 1 && line.title ? `${line.title}: ` : "";
+      const text2 = E(
+        "span",
+        {
+          class: `pdk_dashboard-page__subscription-info__text${line.exhausted ? " pdk_dashboard-page__subscription-info__text--exhausted" : ""}`
+        },
+        name + parts.join(" \xB7 ")
+      );
+      return E("div", { class: "pdk_dashboard-page__subscription-info__row" }, [
+        text2,
+        ...line.percent !== null ? [
+          E(
+            "div",
+            { class: "pdk_dashboard-page__subscription-info__bar" },
+            [
+              E("div", {
+                class: `pdk_dashboard-page__subscription-info__bar__fill${line.percent >= 90 ? " pdk_dashboard-page__subscription-info__bar__fill--high" : ""}`,
+                style: `width: ${line.percent}%`
+              })
+            ]
+          )
+        ] : []
+      ]);
+    })
+  );
+}
 function renderDefaultState({
   section,
   onChooseOutbound,
@@ -3413,7 +3613,8 @@ function renderDefaultState({
   viewMode,
   sortByPing,
   onToggleViewMode,
-  onToggleSortByPing
+  onToggleSortByPing,
+  subscriptionInfo
 }) {
   function renderOutbound(outbound) {
     const getLatencyClass = () => getLatencyClassName(outbound.latency);
@@ -3519,6 +3720,7 @@ function renderDefaultState({
         })
       ])
     ]),
+    ...subscriptionInfo.length > 0 ? [renderSubscriptionInfo(subscriptionInfo)] : [],
     renderOutbounds(section.outbounds, section.code),
     ...(section.subgroups ?? []).map(
       (subgroup) => E("div", { class: "pdk_dashboard-page__outbound-subgroup" }, [
@@ -3613,6 +3815,10 @@ function render() {
       class: "pdk_dashboard-page"
     },
     [
+      // A newer version is available (filled by the controller)
+      E("div", { id: "dashboard-update-notice" }),
+      // The servers the pin guard gave up (filled by the controller)
+      E("div", { id: "dashboard-pin-guard" }),
       // Widgets section
       E("div", { class: "pdk_dashboard-page__widgets-section" }, [
         E(
@@ -3660,23 +3866,100 @@ function render() {
           onToggleViewMode: () => {
           },
           onToggleSortByPing: () => {
-          }
+          },
+          subscriptionInfo: []
         })
       )
     ]
   );
 }
 
-// src/helpers/prettyBytes.ts
-function prettyBytes(n) {
-  const UNITS = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-  if (n < 1e3) {
-    return n + " B";
+// src/helpers/updateNotice.ts
+var EMPTY_UPDATE_NOTICE = {
+  enabled: false,
+  stale: false,
+  checked: null,
+  netshift: null,
+  sing_box: null
+};
+function parseCheck(value) {
+  if (!value || typeof value !== "object") {
+    return null;
   }
-  const exponent = Math.min(Math.floor(Math.log10(n) / 3), UNITS.length - 1);
-  n = Number((n / Math.pow(1e3, exponent)).toPrecision(3));
-  const unit = UNITS[exponent];
-  return n + " " + unit;
+  const raw = value;
+  if (typeof raw.latest_version !== "string" || typeof raw.current_version !== "string") {
+    return null;
+  }
+  return {
+    current_version: raw.current_version,
+    latest_version: raw.latest_version,
+    status: typeof raw.status === "string" ? raw.status : ""
+  };
+}
+function parseUpdateNotice(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return EMPTY_UPDATE_NOTICE;
+    }
+  }
+  if (!data || typeof data !== "object") {
+    return EMPTY_UPDATE_NOTICE;
+  }
+  const raw = data;
+  return {
+    enabled: raw.enabled === true,
+    stale: raw.stale === true,
+    checked: typeof raw.checked === "number" ? raw.checked : null,
+    netshift: parseCheck(raw.netshift),
+    sing_box: parseCheck(raw.sing_box)
+  };
+}
+function getOutdatedComponents(notice) {
+  const items = [];
+  for (const component of ["netshift", "sing_box"]) {
+    const check = notice[component];
+    if (check && check.status === "outdated") {
+      items.push({
+        component,
+        current: check.current_version,
+        latest: check.latest_version
+      });
+    }
+  }
+  return items;
+}
+function shouldRefreshUpdateNotice(notice) {
+  return notice.enabled && notice.stale;
+}
+
+// src/helpers/pinGuardEvents.ts
+var PIN_GUARD_SHOW_SECONDS = 86400;
+function parsePinGuardEvents(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.filter(
+    (item) => item && typeof item.time === "number" && typeof item.section === "string" && typeof item.from === "string" && typeof item.to === "string"
+  ).map((item) => ({
+    time: item.time,
+    section: item.section,
+    from: item.from,
+    to: item.to
+  }));
+}
+function recentPinGuardEvents(events, now) {
+  return events.filter((event) => now - event.time <= PIN_GUARD_SHOW_SECONDS).sort((a, b) => b.time - a.time);
 }
 
 // src/netshift/fetchers/fetchServicesInfo.ts
@@ -3730,6 +4013,106 @@ async function fetchDashboardSections() {
       data
     }
   });
+  void fetchSubscriptionInfo();
+}
+async function fetchSubscriptionInfo() {
+  try {
+    const response = await NetShiftShellMethods.getSubscriptionInfo();
+    const subscriptionInfo = response.success ? parseSubscriptionInfo(response.data) : {};
+    store.set({
+      sectionsWidget: {
+        ...store.get().sectionsWidget,
+        subscriptionInfo
+      }
+    });
+  } catch (e) {
+    logger.error("[DASHBOARD]", "fetchSubscriptionInfo: failed", e);
+  }
+}
+var UPDATE_NOTICE_REFRESH_WAIT = 25e3;
+function renderUpdateNotice(notice) {
+  const container = document.getElementById("dashboard-update-notice");
+  if (!container) {
+    return;
+  }
+  const items = notice.enabled ? getOutdatedComponents(notice) : [];
+  if (items.length === 0) {
+    container.replaceChildren();
+    return;
+  }
+  const names = {
+    netshift: _("NetShift"),
+    sing_box: _("Sing-box")
+  };
+  container.replaceChildren(
+    E("div", { class: "card pdk_dashboard-page__update-notice" }, [
+      E("b", {}, _("A newer version is available")),
+      ...items.map(
+        (item) => E(
+          "div",
+          {},
+          `${names[item.component]}: ${item.current} \u2192 ${item.latest}`
+        )
+      ),
+      E(
+        "div",
+        { class: "pdk_dashboard-page__update-notice__hint" },
+        _("Update it in the Component Manager tab.")
+      )
+    ])
+  );
+}
+async function loadUpdateNotice() {
+  try {
+    const first = await NetShiftShellMethods.getUpdateNotice();
+    const notice = first.success ? parseUpdateNotice(first.data) : null;
+    if (!notice) {
+      return;
+    }
+    renderUpdateNotice(notice);
+    if (!shouldRefreshUpdateNotice(notice)) {
+      return;
+    }
+    await NetShiftShellMethods.refreshUpdateNotice();
+    await new Promise(
+      (resolve) => setTimeout(resolve, UPDATE_NOTICE_REFRESH_WAIT)
+    );
+    const second = await NetShiftShellMethods.getUpdateNotice();
+    if (second.success) {
+      renderUpdateNotice(parseUpdateNotice(second.data));
+    }
+  } catch (e) {
+    logger.error("[DASHBOARD]", "loadUpdateNotice: failed", e);
+  }
+}
+async function loadPinGuardEvents() {
+  const container = document.getElementById("dashboard-pin-guard");
+  if (!container) {
+    return;
+  }
+  try {
+    const response = await NetShiftShellMethods.getPinGuardEvents();
+    const events = response.success ? recentPinGuardEvents(
+      parsePinGuardEvents(response.data),
+      Math.floor(Date.now() / 1e3)
+    ) : [];
+    container.replaceChildren(
+      ...events.length === 0 ? [] : [
+        E("div", { class: "card pdk_dashboard-page__pin-guard" }, [
+          E("b", {}, _("A dead server was left")),
+          ...events.map(
+            (event) => E(
+              "div",
+              {},
+              `${event.section}: ${event.from} ${_("stopped answering, the automatic choice is on again")}`
+            )
+          )
+        ])
+      ]
+    );
+  } catch (e) {
+    logger.error("[DASHBOARD]", "loadPinGuardEvents: failed", e);
+  }
 }
 async function connectToClashSockets() {
   const clashApiSecret = await getClashApiSecret();
@@ -3884,7 +4267,8 @@ async function renderSectionsWidget() {
       onToggleViewMode: () => {
       },
       onToggleSortByPing: () => {
-      }
+      },
+      subscriptionInfo: []
     });
     return preserveScrollForPage(() => {
       container.replaceChildren(renderedWidget);
@@ -3906,7 +4290,8 @@ async function renderSectionsWidget() {
       viewMode: sectionsWidget.viewMode,
       sortByPing: sectionsWidget.sortByPing,
       onToggleViewMode: handleToggleViewMode,
-      onToggleSortByPing: handleToggleSortByPing
+      onToggleSortByPing: handleToggleSortByPing,
+      subscriptionInfo: sectionsWidget.subscriptionInfo[section.code] ?? []
     })
   );
   const listScroll = /* @__PURE__ */ new Map();
@@ -4059,6 +4444,8 @@ async function onStoreUpdate(next, prev, diff) {
 }
 async function onPageMount() {
   onPageUnmount();
+  void loadUpdateNotice();
+  void loadPinGuardEvents();
   store.subscribe(onStoreUpdate);
   store.set({
     sectionsWidget: {
@@ -4373,6 +4760,63 @@ var styles3 = `
         display: none;
     }
 }
+
+.pdk_dashboard-page__update-notice {
+    margin-top: 10px;
+    display: grid;
+    grid-row-gap: 4px;
+    border: 2px var(--warn-color-medium, orange) solid;
+}
+
+.pdk_dashboard-page__update-notice__hint {
+    opacity: 0.75;
+    font-size: 0.9em;
+}
+
+.pdk_dashboard-page__pin-guard {
+    margin-top: 10px;
+    display: grid;
+    grid-row-gap: 4px;
+    border: 2px var(--warn-color-medium, orange) solid;
+}
+
+.pdk_dashboard-page__subscription-info {
+    margin-top: 6px;
+    display: grid;
+    grid-row-gap: 4px;
+    font-size: 0.9em;
+}
+
+.pdk_dashboard-page__subscription-info__row {
+    display: grid;
+    grid-row-gap: 3px;
+}
+
+.pdk_dashboard-page__subscription-info__text {
+    opacity: 0.85;
+    overflow-wrap: anywhere;
+}
+
+.pdk_dashboard-page__subscription-info__text--exhausted {
+    color: var(--error-color-medium, red);
+    opacity: 1;
+}
+
+.pdk_dashboard-page__subscription-info__bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--ns-card-border, rgba(128, 128, 128, 0.3));
+    overflow: hidden;
+}
+
+.pdk_dashboard-page__subscription-info__bar__fill {
+    height: 100%;
+    background: var(--success-color-medium, green);
+}
+
+.pdk_dashboard-page__subscription-info__bar__fill--high {
+    background: var(--warn-color-medium, orange);
+}
 `;
 
 // src/netshift/tabs/dashboard/index.ts
@@ -4396,6 +4840,7 @@ function render2() {
       E("div", { id: "pdk_diagnostic-page-wiki" }),
       E("div", { id: "pdk_diagnostic-page-actions" }),
       E("div", { id: "pdk_diagnostic-page-route-check" }),
+      E("div", { id: "pdk_diagnostic-page-snapshots" }),
       E("div", { id: "pdk_diagnostic-page-system-info" })
     ])
   ]);
@@ -4707,6 +5152,99 @@ async function runFakeIPCheck() {
         }
       ])
     ]
+  });
+}
+
+// src/netshift/tabs/diagnostic/helpers/getEnvironmentItems.ts
+var CLOCK_SKEW_WARNING_SECONDS = 300;
+function getEnvironmentItems(data) {
+  const items = [];
+  const flow = data.flow_offloading;
+  if (flow.hardware || flow.software || flow.active) {
+    items.push({
+      state: "warning",
+      key: _("Flow offloading is enabled"),
+      value: _(
+        "Established connections can skip the marks NetShift sets: turn it off in Network - Firewall"
+      )
+    });
+  } else {
+    items.push({
+      state: "success",
+      key: _("Flow offloading is off"),
+      value: ""
+    });
+  }
+  if (!data.clock.plausible) {
+    items.push({
+      state: "error",
+      key: _("The router clock is not set"),
+      value: _("TLS and Reality fail with a wrong time: check NTP")
+    });
+  } else if (data.clock.skew_seconds !== null && Math.abs(data.clock.skew_seconds) > CLOCK_SKEW_WARNING_SECONDS) {
+    items.push({
+      state: "warning",
+      key: _("The router clock is off"),
+      value: `${Math.round(data.clock.skew_seconds / 60)} ${_("min")}`
+    });
+  } else {
+    items.push({
+      state: "success",
+      key: _("The router clock is right"),
+      value: ""
+    });
+  }
+  if (data.ipv6.router_has_global && !data.ipv6.netshift_enabled) {
+    items.push({
+      state: "warning",
+      key: _("The router has a global IPv6 address, IPv6 handling is off"),
+      value: _(
+        "IPv6 traffic goes around the tunnel: enable IPv6 in the settings"
+      )
+    });
+  } else {
+    items.push({
+      state: "success",
+      key: _("IPv6 handling matches the network"),
+      value: ""
+    });
+  }
+  return items;
+}
+
+// src/netshift/tabs/diagnostic/checks/runEnvironmentCheck.ts
+async function runEnvironmentCheck() {
+  const { order, title, code } = DIAGNOSTICS_CHECKS_MAP.ENVIRONMENT;
+  updateCheckStore({
+    order,
+    code,
+    title,
+    description: _("Checking, please wait"),
+    state: "loading",
+    items: []
+  });
+  const response = await NetShiftShellMethods.checkEnvironment();
+  if (!response.success || typeof response.data !== "object" || response.data === null) {
+    updateCheckStore({
+      order,
+      code,
+      title,
+      description: _("Not available"),
+      state: "skipped",
+      items: []
+    });
+    return;
+  }
+  const items = getEnvironmentItems(response.data);
+  const hasError = items.some((item) => item.state === "error");
+  const hasWarning = items.some((item) => item.state === "warning");
+  updateCheckStore({
+    order,
+    code,
+    title,
+    description: hasError ? _("Checks failed") : hasWarning ? _("Issues detected") : _("Checks passed"),
+    state: hasError ? "error" : hasWarning ? "warning" : "success",
+    items
   });
 }
 
@@ -5128,6 +5666,124 @@ function renderRouteCheck() {
     sourceInput,
     button,
     output
+  ]);
+}
+
+// src/helpers/configSnapshots.ts
+var LABELS = ["auto", "manual", "before-restore"];
+function parseSnapshots(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return [];
+    }
+  }
+  const list = data?.snapshots;
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.filter(
+    (item) => item && typeof item.id === "string" && typeof item.time === "number" && LABELS.includes(item.label)
+  ).map((item) => ({
+    id: item.id,
+    time: item.time,
+    label: item.label,
+    size: typeof item.size === "number" ? item.size : 0,
+    current: item.current === true
+  }));
+}
+function formatSnapshotTime(time) {
+  const date = new Date(time * 1e3);
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// src/netshift/tabs/diagnostic/partials/renderSnapshots.ts
+function labelText(snapshot) {
+  switch (snapshot.label) {
+    case "auto":
+      return _("Saved at a successful start");
+    case "manual":
+      return _("Saved by hand");
+    default:
+      return _("Kept before a restore");
+  }
+}
+function renderSnapshots() {
+  const list = E("div", { class: "pdk_diagnostic-page__snapshots__list" });
+  const message = E("div", {
+    class: "pdk_diagnostic-page__snapshots__message"
+  });
+  function say(text2) {
+    message.textContent = text2;
+  }
+  async function refresh() {
+    try {
+      const response = await NetShiftShellMethods.listSnapshots();
+      const snapshots = response.success ? parseSnapshots(response.data) : [];
+      list.replaceChildren(
+        ...snapshots.length === 0 ? [E("div", {}, _("No snapshots yet"))] : snapshots.map(
+          (snapshot) => E("div", { class: "pdk_diagnostic-page__snapshots__row" }, [
+            E("div", {}, [
+              E("b", {}, formatSnapshotTime(snapshot.time)),
+              E(
+                "div",
+                { class: "pdk_diagnostic-page__snapshots__hint" },
+                snapshot.current ? `${labelText(snapshot)} \xB7 ${_("same as now")}` : labelText(snapshot)
+              )
+            ]),
+            snapshot.current ? E("span", {}) : renderButton({
+              text: _("Restore"),
+              onClick: () => void restore(snapshot)
+            })
+          ])
+        )
+      );
+    } catch (e) {
+      logger.error("[DIAGNOSTIC]", "snapshots: list failed", e);
+    }
+  }
+  async function restore(snapshot) {
+    if (!window.confirm(
+      `${_("Bring back the settings of")} ${formatSnapshotTime(snapshot.time)}? ${_("The service will restart.")}`
+    )) {
+      return;
+    }
+    const result = await NetShiftShellMethods.restoreSnapshot(snapshot.id);
+    if (!result.success || !result.data || result.data.ok !== true) {
+      say(_("The snapshot could not be restored"));
+      return;
+    }
+    say(_("Restored, restarting the service..."));
+    await NetShiftShellMethods.restart();
+    await refresh();
+    say(_("Restored. Reload the page to see the settings."));
+  }
+  async function save() {
+    const result = await NetShiftShellMethods.saveSnapshot();
+    say(
+      result.success && result.data?.ok ? _("Snapshot saved") : _("The snapshot could not be saved")
+    );
+    await refresh();
+  }
+  void refresh();
+  return E("div", { class: "card pdk_diagnostic-page__snapshots" }, [
+    E("b", {}, _("Configuration snapshots")),
+    E(
+      "div",
+      { class: "pdk_diagnostic-page__snapshots__hint" },
+      _(
+        "The settings are kept every time the service starts successfully (the last ten). A snapshot brings them back after a change that broke the service."
+      )
+    ),
+    list,
+    message,
+    renderButton({
+      text: _("Save a snapshot now"),
+      onClick: () => void save()
+    })
   ]);
 }
 
@@ -5761,6 +6417,7 @@ async function runChecks() {
     await runNftCheck();
     await runSectionsCheck();
     await runFakeIPCheck();
+    await runEnvironmentCheck();
   } catch (e) {
     logger.error("[DIAGNOSTIC]", "runChecks - e", e);
   } finally {
@@ -5776,6 +6433,7 @@ function onPageMount2() {
   renderDiagnosticSystemInfoWidget();
   renderWikiDisclaimerWidget();
   document.getElementById("pdk_diagnostic-page-route-check")?.replaceChildren(renderRouteCheck());
+  document.getElementById("pdk_diagnostic-page-snapshots")?.replaceChildren(renderSnapshots());
   fetchServicesInfo();
   fetchSystemInfo();
 }
@@ -6017,6 +6675,29 @@ var styles4 = `
     display: grid;
     grid-row-gap: 4px;
     overflow-wrap: anywhere;
+}
+
+.pdk_diagnostic-page__snapshots {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-row-gap: 8px;
+}
+
+.pdk_diagnostic-page__snapshots__hint {
+    opacity: 0.75;
+    font-size: 0.9em;
+}
+
+.pdk_diagnostic-page__snapshots__list {
+    display: grid;
+    grid-row-gap: 6px;
+}
+
+.pdk_diagnostic-page__snapshots__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }
 `;
 
@@ -7137,6 +7818,223 @@ function dnsServersToOptions(list) {
   return { dns_type: scheme, dns_server: server, dns_pool_server: rest };
 }
 
+// src/helpers/connections.ts
+var EMPTY_CONNECTIONS = {
+  downloadTotal: 0,
+  uploadTotal: 0,
+  total: 0,
+  connections: []
+};
+var text = (value) => typeof value === "string" ? value : value == null ? "" : String(value);
+var count = (value) => typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
+function parseConnections(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return EMPTY_CONNECTIONS;
+    }
+  }
+  if (!data || typeof data !== "object") {
+    return EMPTY_CONNECTIONS;
+  }
+  const raw = data;
+  const list = Array.isArray(raw.connections) ? raw.connections : [];
+  const connections = list.filter((item) => item && typeof item === "object" && item.id).map(
+    (item) => ({
+      id: text(item.id),
+      network: text(item.network),
+      type: text(item.type),
+      source: text(item.source),
+      host: text(item.host),
+      destination: text(item.destination),
+      port: text(item.port),
+      chains: Array.isArray(item.chains) ? item.chains.map(text) : [],
+      rule: text(item.rule),
+      rule_payload: text(item.rule_payload),
+      upload: count(item.upload),
+      download: count(item.download),
+      start: text(item.start)
+    })
+  );
+  return {
+    downloadTotal: count(raw.downloadTotal),
+    uploadTotal: count(raw.uploadTotal),
+    total: count(raw.total) || connections.length,
+    connections
+  };
+}
+function connectionRoute(connection) {
+  return [...connection.chains].reverse().join(" \u2192 ");
+}
+function connectionTarget(connection) {
+  const host = connection.host || connection.destination;
+  return connection.port ? `${host}:${connection.port}` : host;
+}
+function filterConnections(connections, query) {
+  const needle = query.trim().toLowerCase();
+  if (!needle) {
+    return connections;
+  }
+  return connections.filter(
+    (connection) => [
+      connectionTarget(connection),
+      connection.destination,
+      connection.source,
+      connectionRoute(connection),
+      connection.rule_payload,
+      connection.network
+    ].some((field) => field.toLowerCase().includes(needle))
+  );
+}
+function sortConnections(connections, key) {
+  const copy = [...connections];
+  if (key === "traffic") {
+    return copy.sort((a, b) => b.upload + b.download - (a.upload + a.download));
+  }
+  if (key === "host") {
+    return copy.sort(
+      (a, b) => connectionTarget(a).localeCompare(connectionTarget(b))
+    );
+  }
+  return copy;
+}
+function connectionAge(start, now) {
+  const started = Date.parse(start);
+  if (Number.isNaN(started)) {
+    return null;
+  }
+  const seconds = Math.max(0, Math.floor((now - started) / 1e3));
+  if (seconds < 60) {
+    return { value: seconds, unit: "s" };
+  }
+  if (seconds < 3600) {
+    return { value: Math.floor(seconds / 60), unit: "min" };
+  }
+  if (seconds < 86400) {
+    return { value: Math.floor(seconds / 3600), unit: "h" };
+  }
+  return { value: Math.floor(seconds / 86400), unit: "d" };
+}
+
+// src/helpers/lanDevices.ts
+var EMPTY_LAN_INFO = { subnets: [], staticHosts: [] };
+function ipv4ToNumber(ip) {
+  const parts = ip.split(".");
+  if (parts.length !== 4) {
+    return null;
+  }
+  let value = 0;
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part) || Number(part) > 255) {
+      return null;
+    }
+    value = value * 256 + Number(part);
+  }
+  return value;
+}
+function isIpv4InSubnet(ip, subnet) {
+  const [network, prefixText] = subnet.split("/");
+  const prefix = Number(prefixText);
+  const address = ipv4ToNumber(ip);
+  const base = ipv4ToNumber(network);
+  if (address === null || base === null || prefixText === void 0 || !Number.isInteger(prefix) || prefix < 0 || prefix > 32) {
+    return false;
+  }
+  const size = 2 ** (32 - prefix);
+  return Math.floor(address / size) === Math.floor(base / size);
+}
+function isLanIpv4(ip, subnets) {
+  if (!ip) {
+    return false;
+  }
+  if (subnets.length === 0) {
+    return true;
+  }
+  return subnets.some((subnet) => isIpv4InSubnet(ip, subnet));
+}
+function parseLanInfo(stdout) {
+  try {
+    const data = JSON.parse(stdout);
+    const subnets = Array.isArray(data?.subnets) ? data.subnets.filter((item) => typeof item === "string") : [];
+    const staticHosts = Array.isArray(data?.static_hosts) ? data.static_hosts.filter((item) => typeof item?.ip === "string").map(
+      (item) => ({
+        section: String(item.section ?? ""),
+        macs: (Array.isArray(item.macs) ? item.macs : []).map(
+          (mac) => String(mac).toUpperCase()
+        ),
+        ip: item.ip,
+        name: String(item.name ?? "")
+      })
+    ) : [];
+    return { subnets, staticHosts };
+  } catch {
+    return EMPTY_LAN_INFO;
+  }
+}
+function findStaticLease(info, mac) {
+  const wanted = mac.toUpperCase();
+  return info.staticHosts.find((lease) => lease.macs.includes(wanted));
+}
+function deviceMatchesQuery(device, query) {
+  const needle = query.trim().toLowerCase();
+  if (!needle) {
+    return true;
+  }
+  return [device.name, device.ip, device.mac].some(
+    (field) => field.toLowerCase().includes(needle)
+  );
+}
+function isValidMac(value) {
+  return /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(value);
+}
+
+// src/helpers/dnsBenchmark.ts
+function parseDnsBenchmark(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return [];
+    }
+  }
+  const list = data?.results;
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.filter((item) => item && typeof item.server === "string").map((item) => ({
+    server: item.server,
+    ms: typeof item.ms === "number" && item.ms >= 0 ? item.ms : null
+  }));
+}
+function parseDnsBenchmarkVia(input) {
+  let data = input;
+  if (typeof input === "string") {
+    try {
+      data = JSON.parse(input);
+    } catch {
+      return "direct";
+    }
+  }
+  return data?.via === "tunnel" ? "tunnel" : "direct";
+}
+function sortBySpeed(results) {
+  return results.map((result, index) => ({ result, index })).sort((a, b) => {
+    if (a.result.ms === null && b.result.ms === null) {
+      return a.index - b.index;
+    }
+    if (a.result.ms === null) {
+      return 1;
+    }
+    if (b.result.ms === null) {
+      return -1;
+    }
+    return a.result.ms - b.result.ms || a.index - b.index;
+  }).map((item) => item.result);
+}
+
 // src/main.ts
 if (typeof structuredClone !== "function")
   globalThis.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
@@ -7160,6 +8058,9 @@ return baseclass.extend({
   DOMAIN_LIST_OPTIONS,
   DashboardTab,
   DiagnosticTab,
+  EMPTY_CONNECTIONS,
+  EMPTY_LAN_INFO,
+  EMPTY_UPDATE_NOTICE,
   ERROR_POLL_INTERVAL,
   FAKEIP_CHECK_DOMAIN,
   FETCH_TIMEOUT,
@@ -7168,6 +8069,7 @@ return baseclass.extend({
   ManagerTab,
   NETSHIFT_LUCI_APP_VERSION,
   NetShiftShellMethods,
+  PIN_GUARD_SHOW_SECONDS,
   REGIONAL_OPTIONS,
   RemoteFakeIPMethods,
   SKELETON_SHIMMER_DURATION,
@@ -7177,29 +8079,54 @@ return baseclass.extend({
   TabServiceInstance,
   UPDATE_INTERVAL_OPTIONS,
   bulkValidate,
+  connectionAge,
+  connectionRoute,
+  connectionTarget,
   coreService,
+  describeSubscriptionInfo,
+  deviceMatchesQuery,
   dnsServersFromOptions,
   dnsServersToOptions,
   executeShellCommand,
+  filterConnections,
+  findStaticLease,
+  formatSnapshotTime,
   getClashUIUrl,
   getClashWsUrl,
   getDeviceRoute,
+  getOutdatedComponents,
   getProxyUrlName,
   injectGlobalStyles,
   insertIf,
   insertIfObj,
+  isIpv4InSubnet,
+  isLanIpv4,
   isNaiveUrl,
+  isValidMac,
   listedDeviceIps,
   loadDashboardViewPrefs,
   logger,
   maskIP,
   onMount,
+  parseConnections,
+  parseDnsBenchmark,
+  parseDnsBenchmarkVia,
+  parseLanInfo,
+  parsePinGuardEvents,
   parseQueryString,
+  parseSnapshots,
+  parseSubscriptionInfo,
+  parseUpdateNotice,
   parseValueList,
   preserveScrollForPage,
+  prettyBytes,
+  recentPinGuardEvents,
   saveDashboardViewPrefs,
   setDeviceRoute,
+  shouldRefreshUpdateNotice,
   socket,
+  sortBySpeed,
+  sortConnections,
   splitDnsForward,
   splitProxyString,
   store,
@@ -7217,6 +8144,7 @@ return baseclass.extend({
   validateNaiveUrl,
   validateOutboundJson,
   validatePath,
+  validatePortList,
   validateProxyUrl,
   validateProxyUrlList,
   validateShadowsocksUrl,
