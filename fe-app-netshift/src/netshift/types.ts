@@ -60,6 +60,7 @@ export namespace NetShift {
     REFRESH_UPDATE_NOTICE = 'refresh_update_notice',
     CONFIG_SNAPSHOT = 'config_snapshot',
     GET_PIN_GUARD_EVENTS = 'get_pin_guard_events',
+    DNS_BENCHMARK = 'dns_benchmark',
     CHECK_NFT_RULES = 'check_nft_rules',
     GET_STATUS = 'get_status',
     CHECK_SING_BOX = 'check_sing_box',
