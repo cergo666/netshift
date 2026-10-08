@@ -38,6 +38,7 @@ export namespace NetShift {
   // check_sing_box_logs     Show sing-box logs
   // check_fakeip            Test FakeIP on router
   // check_route             Which section / DNS server handles a domain or IP
+  // check_environment       Flow offloading, clock and IPv6 facts
   // clash_api               Clash API interface for managing proxies and groups
   // show_config             Display current netshift configuration
   // show_version            Show netshift version
@@ -54,6 +55,7 @@ export namespace NetShift {
     CHECK_DNS_AVAILABLE = 'check_dns_available',
     CHECK_FAKEIP = 'check_fakeip',
     CHECK_ROUTE = 'check_route',
+    CHECK_ENVIRONMENT = 'check_environment',
     CHECK_NFT_RULES = 'check_nft_rules',
     GET_STATUS = 'get_status',
     CHECK_SING_BOX = 'check_sing_box',
@@ -246,6 +248,17 @@ export namespace NetShift {
     } | null;
     incomplete?: boolean;
     skipped_rules?: string[];
+  }
+
+  export interface EnvironmentCheckResult {
+    flow_offloading: { software: boolean; hardware: boolean; active: boolean };
+    clock: {
+      plausible: boolean;
+      skew_seconds: number | null;
+      ntp_enabled: boolean;
+      timezone: string;
+    };
+    ipv6: { router_has_global: boolean; netshift_enabled: boolean };
   }
 
   export interface GetStatus {
