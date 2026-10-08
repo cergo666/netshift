@@ -783,6 +783,48 @@ function validateVmessUrl(url) {
   return { valid: true, message: _("Valid") };
 }
 
+// src/validators/validateNaiveUrl.ts
+function isNaiveUrl(url) {
+  return /^naive(\+https|\+quic)?:\/\//.test(url) || /^https:\/\/[^/@]*:[^/@]*@/.test(url);
+}
+function validateNaiveUrl(url) {
+  const invalid = (message) => ({
+    valid: false,
+    message: _(message)
+  });
+  if (/\s/.test(url)) {
+    return invalid("Invalid NaiveProxy URL: must not contain spaces");
+  }
+  const body = url.replace(/^(naive(\+https|\+quic)?|https):\/\//, "");
+  const [authority] = body.split(/[/?#]/);
+  const at = authority.lastIndexOf("@");
+  if (at < 0) {
+    return invalid("Invalid NaiveProxy URL: login and password are required");
+  }
+  const credentials = authority.slice(0, at);
+  const hostPort = authority.slice(at + 1);
+  const colon = credentials.indexOf(":");
+  if (colon <= 0 || colon === credentials.length - 1) {
+    return invalid("Invalid NaiveProxy URL: login and password are required");
+  }
+  const match = hostPort.match(/^(\[[^\]]+\]|[^:]+)(?::(\d+))?$/);
+  if (!match) {
+    return invalid("Invalid NaiveProxy URL: missing host");
+  }
+  const host = match[1];
+  const port = match[2];
+  if (port !== void 0) {
+    const number = Number(port);
+    if (number < 1 || number > 65535) {
+      return invalid("Invalid NaiveProxy URL: invalid port");
+    }
+  }
+  if (!host.startsWith("[") && !validateIPV4(host).valid && !validateDomain(host).valid) {
+    return invalid("Invalid NaiveProxy URL: invalid host");
+  }
+  return { valid: true, message: _("Valid") };
+}
+
 // src/validators/validateProxyUrl.ts
 function validateProxyUrl(url) {
   const trimmedUrl = url.trim();
@@ -804,10 +846,13 @@ function validateProxyUrl(url) {
   if (trimmedUrl.startsWith("hysteria2://") || trimmedUrl.startsWith("hy2://")) {
     return validateHysteria2Url(trimmedUrl);
   }
+  if (isNaiveUrl(trimmedUrl)) {
+    return validateNaiveUrl(trimmedUrl);
+  }
   return {
     valid: false,
     message: _(
-      "URL must start with vless://, vmess://, ss://, trojan://, socks4/5://, or hysteria2://hy2://"
+      "URL must start with vless://, vmess://, ss://, trojan://, socks4/5://, hysteria2://hy2:// or naive+https://"
     )
   };
 }
@@ -7143,6 +7188,7 @@ return baseclass.extend({
   injectGlobalStyles,
   insertIf,
   insertIfObj,
+  isNaiveUrl,
   listedDeviceIps,
   loadDashboardViewPrefs,
   logger,
@@ -7168,6 +7214,7 @@ return baseclass.extend({
   validateIP,
   validateIPV4,
   validateIPV6,
+  validateNaiveUrl,
   validateOutboundJson,
   validatePath,
   validateProxyUrl,

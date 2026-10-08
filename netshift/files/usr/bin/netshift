@@ -31,6 +31,7 @@ check_required_file "$NETSHIFT_LIB/pinguard.sh"
 check_required_file "$NETSHIFT_LIB/dnsbench.sh"
 check_required_file "$NETSHIFT_LIB/subinfo.sh"
 check_required_file "$NETSHIFT_LIB/lint.sh"
+check_required_file "$NETSHIFT_LIB/naive.sh"
 . /lib/functions.sh
 . /lib/config/uci.sh
 . /lib/functions/network.sh
@@ -52,6 +53,7 @@ check_required_file "$NETSHIFT_LIB/lint.sh"
 . "$NETSHIFT_LIB/pinguard.sh"
 . "$NETSHIFT_LIB/dnsbench.sh"
 . "$NETSHIFT_LIB/lint.sh"
+. "$NETSHIFT_LIB/naive.sh"
 
 config_load "$NETSHIFT_CONFIG"
 
@@ -1287,6 +1289,7 @@ stop_main() {
 
     log "Stop sing-box"
     /etc/init.d/sing-box stop
+    naive_sidecars_stop
 }
 
 start() {
@@ -3348,6 +3351,9 @@ sing_box_init_config() {
 
     lint_log_warnings
 
+    # NaiveProxy clients are listed while the outbounds are built
+    naive_sidecars_reset
+
     sing_box_configure_log
     sing_box_configure_inbounds
     sing_box_configure_outbounds
@@ -3357,6 +3363,8 @@ sing_box_init_config() {
     sing_box_additional_inbounds
     sing_box_reject_unmatched_for_broken_chain
     sing_box_save_config
+    # after a configuration sing-box accepted: the clients it sends traffic to
+    naive_sidecars_apply
 }
 
 sing_box_configure_log() {
