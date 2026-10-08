@@ -11,6 +11,7 @@ export function render() {
       E('div', { id: 'pdk_diagnostic-page-wiki' }),
       E('div', { id: 'pdk_diagnostic-page-actions' }),
       E('div', { id: 'pdk_diagnostic-page-route-check' }),
+      E('div', { id: 'pdk_diagnostic-page-snapshots' }),
       E('div', { id: 'pdk_diagnostic-page-system-info' }),
     ]),
   ]);
