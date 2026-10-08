@@ -1577,7 +1577,7 @@
     "call": "Hysteria2 needs a sing-box core built with QUIC",
     "key": "Hysteria2 needs a sing-box core built with QUIC",
     "places": [
-      "src/validators/validateProxyUrl.ts:49"
+      "src/validators/validateProxyUrl.ts:50"
     ]
   },
   {
@@ -3954,6 +3954,13 @@
     ]
   },
   {
+    "call": "TUIC needs a sing-box core built with QUIC",
+    "key": "TUIC needs a sing-box core built with QUIC",
+    "places": [
+      "src/validators/validateProxyUrl.ts:61"
+    ]
+  },
+  {
     "call": "UDP (Unprotected DNS)",
     "key": "UDP (Unprotected DNS)",
     "places": [
@@ -4082,10 +4089,10 @@
     ]
   },
   {
-    "call": "URL must start with vless://, vmess://, ss://, trojan://, socks4/5://, hysteria2://hy2:// or naive+https://",
-    "key": "URL must start with vless://, vmess://, ss://, trojan://, socks4/5://, hysteria2://hy2:// or naive+https://",
+    "call": "URL must start with vless://, vmess://, ss://, trojan://, socks4/5://, hysteria2://hy2://, tuic://, anytls:// or naive+https://",
+    "key": "URL must start with vless://, vmess://, ss://, trojan://, socks4/5://, hysteria2://hy2://, tuic://, anytls:// or naive+https://",
     "places": [
-      "src/validators/validateProxyUrl.ts:62"
+      "src/validators/validateProxyUrl.ts:78"
     ]
   },
   {
@@ -4251,6 +4258,7 @@
       "src/validators/validateSubnet.ts:52",
       "src/validators/validateTime.ts:15",
       "src/validators/validateTrojanUrl.ts:59",
+      "src/validators/validateTuicAnytlsUrl.ts:54",
       "src/validators/validateUrl.ts:75",
       "src/validators/validateVlessUrl.ts:108",
       "src/validators/validateVmessUrl.ts:86"
@@ -4287,8 +4295,8 @@
     ]
   },
   {
-    "call": "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2://, naive+https:// links",
-    "key": "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2://, naive+https:// links",
+    "call": "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2://, tuic://, anytls://, naive+https:// links",
+    "key": "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2://, tuic://, anytls://, naive+https:// links",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:151",
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:467",
@@ -4296,8 +4304,8 @@
     ]
   },
   {
-    "call": "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2://, naive+https:// links — one per line",
-    "key": "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2://, naive+https:// links — one per line",
+    "call": "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2://, tuic://, anytls://, naive+https:// links — one per line",
+    "key": "vless://, vmess://, ss://, trojan://, socks4/5://, hy2/hysteria2://, tuic://, anytls://, naive+https:// links — one per line",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:493",
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/section.js:548"
@@ -4307,7 +4315,7 @@
     "call": "VMess needs the sing-box-extended core",
     "key": "VMess needs the sing-box-extended core",
     "places": [
-      "src/validators/validateProxyUrl.ts:31"
+      "src/validators/validateProxyUrl.ts:32"
     ]
   },
   {
