@@ -11,6 +11,8 @@ import {
 import { parseComponentCheckUpdate } from './parseComponentCheckUpdate';
 
 export const NetShiftShellMethods = {
+  getCoreCapabilities: async () =>
+    callBaseMethod<unknown>(NetShift.AvailableMethods.GET_CORE_CAPABILITIES),
   checkDNSAvailable: async () =>
     callBaseMethod<NetShift.DnsCheckResult>(
       NetShift.AvailableMethods.CHECK_DNS_AVAILABLE,

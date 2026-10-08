@@ -57,6 +57,9 @@ function createSettingsContent(section) {
   o.rmempty = true;
   o.forcewrite = true;
   o.rows = null;
+  if (!main.getCoreCapabilities().quic) {
+    o.description = `${o.description} ${_("This core is built without QUIC: DoH3 and DoQ servers are replaced by DoH and DoT.")}`;
+  }
 
   // The proxy/VPN sections a server can be sent through.
   const tunnelSections = () =>
@@ -406,7 +409,7 @@ function createSettingsContent(section) {
 
       // A second server is useless in "first server only" mode: switch to priority
       // (the mode can still be changed below).
-      if (widget.rows.length === 2) {
+      if (widget.rows.length === 2 && main.getCoreCapabilities().dns_pool) {
         const mode = widget.section.getUIElement(section_id, "dns_pool_mode");
 
         if (mode && mode.getValue() === "single") {
@@ -471,6 +474,9 @@ function createSettingsContent(section) {
       "How the servers of the list are used together when there are several. Needs sing-box 1.14 or newer; on an older core only the first server is used.",
     ),
   );
+  if (!main.getCoreCapabilities().dns_pool) {
+    o.description = `${o.description} ${_("The installed core (%s) is older: only the first server is used.").format(main.getCoreCapabilities().version)}`;
+  }
   o.value("single", _("First server only"));
   o.value("fallback", _("Priority: next server if the previous one fails"));
   o.value("race", _("Parallel: the first usable answer wins"));
