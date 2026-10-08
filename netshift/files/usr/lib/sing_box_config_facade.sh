@@ -699,9 +699,11 @@ sing_box_cf_prepare_subscription_batch() {
     local exclude_keywords_json="${4:-[]}"
     local sing_box_extended="false"
     local reality_mlkem="false"
+    local param_filter="${SUBSCRIPTION_PARAM_FILTER:-}"
 
     [ -n "$include_keywords_json" ] || include_keywords_json="[]"
     [ -n "$exclude_keywords_json" ] || exclude_keywords_json="[]"
+    [ -n "$param_filter" ] || param_filter="{}"
 
     if is_sing_box_extended; then
         sing_box_extended="true"
@@ -719,7 +721,8 @@ sing_box_cf_prepare_subscription_batch() {
         --argjson extended "$sing_box_extended" \
         --argjson reality_mlkem "$reality_mlkem" \
         --argjson include_keywords "$include_keywords_json" \
-        --argjson exclude_keywords "$exclude_keywords_json" '
+        --argjson exclude_keywords "$exclude_keywords_json" \
+        --argjson param_filter "$param_filter" '
         # Codepoint-based case fold. OpenWrt jq has no Oniguruma and ascii_downcase
         # only maps ASCII A-Z (leaving Cyrillic mixed-case), so define an inline
         # fold (this jq program does NOT import helpers.jq). It lowercases ASCII
@@ -746,6 +749,27 @@ sing_box_cf_prepare_subscription_batch() {
         | def name_passes_keywords($lc):
             (($inc | length) == 0 or any($inc[]; . as $kw | ($lc | index($kw)) != null))
             and (($exc | length) == 0 or all($exc[]; . as $kw | ($lc | index($kw)) == null));
+        # Filters by how a server connects: protocol (its type), transport (none
+        # means plain TCP) and security (reality, tls, none). Every list that is set
+        # must pass: an include list keeps only its members, an exclude list drops
+        # its members.
+        def node_protocol: (.type // "" | tostring | ascii_downcase);
+        # tls may be a scalar in a malformed node: only an object is looked into
+        def node_security:
+            if ((.tls | type) != "object") then "none"
+            elif (((.tls.reality | type) == "object") and ((.tls.reality.enabled // false) == true)) then "reality"
+            elif ((.tls.enabled // false) == true) then "tls"
+            else "none" end;
+        def node_transport: (if ((.transport | type) == "object") then (.transport.type // "tcp") else "tcp" end | tostring | ascii_downcase);
+        def param_ok($kind; $value):
+            (($param_filter.include[$kind] // []) as $inc
+              | ($inc | length) == 0 or any($inc[]; . == $value))
+            and (($param_filter.exclude[$kind] // []) as $exc
+              | all($exc[]; . != $value));
+        def passes_params:
+            param_ok("protocols"; node_protocol)
+            and param_ok("transports"; node_transport)
+            and param_ok("security"; node_security);
         # Reserved tags already used by the working config (stdin is the config).
         ([.outbounds[]?.tag // empty]) as $existing
         # Candidate proxy outbounds from the subscription (preserve order).
@@ -764,6 +788,7 @@ sing_box_cf_prepare_subscription_batch() {
             | . as $ob
             | (($ob.remark // $ob.tag // "") | tostring) as $name
             | select(name_passes_keywords($name | ucfold))
+            | select($ob | passes_params)
           ] as $candidates
         | ($candidates | length) as $total
         # Statically reject outbounds the current sing-box build cannot load.
