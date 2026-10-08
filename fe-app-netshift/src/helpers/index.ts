@@ -18,3 +18,4 @@ export * from './dnsServers';
 export * from './connections';
 export * from './prettyBytes';
 export * from './lanDevices';
+export * from './updateNotice';

@@ -47,6 +47,10 @@ export const NetShiftShellMethods = {
     callBaseMethod<unknown>(NetShift.AvailableMethods.CLASH_API, [
       NetShift.AvailableClashAPIMethods.CLOSE_CONNECTIONS,
     ]),
+  getUpdateNotice: async () =>
+    callBaseMethod<unknown>(NetShift.AvailableMethods.GET_UPDATE_NOTICE),
+  refreshUpdateNotice: async () =>
+    callBaseMethod<unknown>(NetShift.AvailableMethods.REFRESH_UPDATE_NOTICE),
   checkNftRules: async () =>
     callBaseMethod<NetShift.NftRulesCheckResult>(
       NetShift.AvailableMethods.CHECK_NFT_RULES,
