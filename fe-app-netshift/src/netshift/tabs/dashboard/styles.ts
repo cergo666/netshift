@@ -266,4 +266,11 @@ export const styles = `
     opacity: 0.75;
     font-size: 0.9em;
 }
+
+.pdk_dashboard-page__pin-guard {
+    margin-top: 10px;
+    display: grid;
+    grid-row-gap: 4px;
+    border: 2px var(--warn-color-medium, orange) solid;
+}
 `;

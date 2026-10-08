@@ -11,6 +11,10 @@ import {
   type UpdateNotice,
 } from '../../../helpers/updateNotice';
 import {
+  parsePinGuardEvents,
+  recentPinGuardEvents,
+} from '../../../helpers/pinGuardEvents';
+import {
   loadDashboardViewPrefs,
   saveDashboardViewPrefs,
 } from '../../../helpers/dashboardView';
@@ -130,6 +134,45 @@ async function loadUpdateNotice() {
     }
   } catch (e) {
     logger.error('[DASHBOARD]', 'loadUpdateNotice: failed', e);
+  }
+}
+
+// Servers chosen by hand that stopped answering and were given up by the pin
+// guard in the last day. Optional: no events, no notice.
+async function loadPinGuardEvents() {
+  const container = document.getElementById('dashboard-pin-guard');
+
+  if (!container) {
+    return;
+  }
+
+  try {
+    const response = await NetShiftShellMethods.getPinGuardEvents();
+    const events = response.success
+      ? recentPinGuardEvents(
+          parsePinGuardEvents(response.data),
+          Math.floor(Date.now() / 1000),
+        )
+      : [];
+
+    container.replaceChildren(
+      ...(events.length === 0
+        ? []
+        : [
+            E('div', { class: 'card pdk_dashboard-page__pin-guard' }, [
+              E('b', {}, _('A dead server was left')),
+              ...events.map((event) =>
+                E(
+                  'div',
+                  {},
+                  `${event.section}: ${event.from} ${_('stopped answering, the automatic choice is on again')}`,
+                ),
+              ),
+            ]),
+          ]),
+    );
+  } catch (e) {
+    logger.error('[DASHBOARD]', 'loadPinGuardEvents: failed', e);
   }
 }
 
@@ -547,6 +590,8 @@ async function onPageMount() {
   onPageUnmount();
 
   void loadUpdateNotice();
+
+  void loadPinGuardEvents();
 
   // Add new listener
   store.subscribe(onStoreUpdate);

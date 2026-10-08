@@ -20,3 +20,4 @@ export * from './prettyBytes';
 export * from './lanDevices';
 export * from './updateNotice';
 export * from './configSnapshots';
+export * from './pinGuardEvents';

@@ -10,6 +10,8 @@ export function render() {
     [
       // A newer version is available (filled by the controller)
       E('div', { id: 'dashboard-update-notice' }),
+      // The servers the pin guard gave up (filled by the controller)
+      E('div', { id: 'dashboard-pin-guard' }),
       // Widgets section
       E('div', { class: 'pdk_dashboard-page__widgets-section' }, [
         E(

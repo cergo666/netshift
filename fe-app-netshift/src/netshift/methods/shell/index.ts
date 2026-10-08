@@ -65,6 +65,8 @@ export const NetShiftShellMethods = {
       NetShift.AvailableMethods.CONFIG_SNAPSHOT,
       ['restore', id],
     ),
+  getPinGuardEvents: async () =>
+    callBaseMethod<unknown>(NetShift.AvailableMethods.GET_PIN_GUARD_EVENTS),
   checkNftRules: async () =>
     callBaseMethod<NetShift.NftRulesCheckResult>(
       NetShift.AvailableMethods.CHECK_NFT_RULES,
