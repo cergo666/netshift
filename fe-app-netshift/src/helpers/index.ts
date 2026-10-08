@@ -24,3 +24,4 @@ export * from './pinGuardEvents';
 export * from './dnsBenchmark';
 export * from './subscriptionInfo';
 export * from './coreCapabilities';
+export * from './feedList';
