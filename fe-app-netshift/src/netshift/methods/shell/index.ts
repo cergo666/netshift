@@ -19,6 +19,14 @@ export const NetShiftShellMethods = {
     callBaseMethod<NetShift.FakeIPCheckResult>(
       NetShift.AvailableMethods.CHECK_FAKEIP,
     ),
+  checkRoute: async (target: string, source = '') =>
+    callBaseMethod<NetShift.RouteCheckResult>(
+      NetShift.AvailableMethods.CHECK_ROUTE,
+      source ? [target, source] : [target],
+      undefined,
+      // Replaying the rules runs the core a few times: do not hold other calls.
+      { nobatch: true },
+    ),
   checkNftRules: async () =>
     callBaseMethod<NetShift.NftRulesCheckResult>(
       NetShift.AvailableMethods.CHECK_NFT_RULES,

@@ -37,6 +37,7 @@ export namespace NetShift {
   // check_logs              Show netshift logs from system journal
   // check_sing_box_logs     Show sing-box logs
   // check_fakeip            Test FakeIP on router
+  // check_route             Which section / DNS server handles a domain or IP
   // clash_api               Clash API interface for managing proxies and groups
   // show_config             Display current netshift configuration
   // show_version            Show netshift version
@@ -52,6 +53,7 @@ export namespace NetShift {
   export enum AvailableMethods {
     CHECK_DNS_AVAILABLE = 'check_dns_available',
     CHECK_FAKEIP = 'check_fakeip',
+    CHECK_ROUTE = 'check_route',
     CHECK_NFT_RULES = 'check_nft_rules',
     GET_STATUS = 'get_status',
     CHECK_SING_BOX = 'check_sing_box',
@@ -225,6 +227,25 @@ export namespace NetShift {
   export interface FakeIPCheckResult {
     fakeip: boolean;
     IP: string;
+  }
+
+  export interface RouteCheckResult {
+    error?: string;
+    target?: string;
+    kind?: 'domain' | 'ip';
+    source?: string | null;
+    verdict?: 'section' | 'direct' | 'blocked' | 'unmatched';
+    outbound?: string | null;
+    section?: string | null;
+    rule?: string | null;
+    rule_set?: string | null;
+    by_default?: boolean;
+    dns?: {
+      server: string | null;
+      verdict: 'rule' | 'final' | 'blocked';
+    } | null;
+    incomplete?: boolean;
+    skipped_rules?: string[];
   }
 
   export interface GetStatus {
