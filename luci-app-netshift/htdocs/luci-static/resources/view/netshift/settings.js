@@ -122,6 +122,40 @@ function createSettingsContent(section) {
     return validation.message;
   };
 
+  // Writes the time of each server into its row of the list ("140 ms"), the way the
+  // dashboard shows a server's latency; a best effort, the list below the button stays.
+  const markRowTimes = (widget, optionName, rows) => {
+    try {
+      const times = new Map(rows.map((row) => [row.server, row.ms]));
+      const root = widget.map.findElement("data-name", optionName);
+
+      root?.querySelectorAll(".cbi-dynlist .item").forEach((item) => {
+        const value = item.querySelector("input[type=hidden]")?.value ?? item.dataset.value;
+
+        item.querySelector(".ns-dns-ms")?.remove();
+
+        if (!times.has(value)) {
+          return;
+        }
+
+        const ms = times.get(value);
+
+        item.appendChild(
+          E(
+            "span",
+            {
+              class: "ns-dns-ms",
+              style: `margin-left:.6em;font-weight:600;color:${ms === null ? "var(--error-color-medium, #dc3545)" : "var(--success-color-medium, #28a745)"}`,
+            },
+            ms === null ? _("no answer") : `${ms} ${_("ms")}`,
+          ),
+        );
+      });
+    } catch (_e) {
+      // the list below the button is enough
+    }
+  };
+
   // Speed test of the configured DNS servers, from this router.
   o = section.taboption(
     "dns",
@@ -134,6 +168,7 @@ function createSettingsContent(section) {
   );
   o.rawhtml = true;
   o.cfgvalue = function () {
+    const widget = this;
     const result = E("div", { class: "cbi-value-description" });
     const button = E(
       "button",
@@ -154,6 +189,7 @@ function createSettingsContent(section) {
                 ? main.parseDnsBenchmarkVia(reply.data)
                 : "direct";
 
+              markRowTimes(widget, "dns_servers", rows);
               result.replaceChildren(
                 ...(rows.length
                   ? [
