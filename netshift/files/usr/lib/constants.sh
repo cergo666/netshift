@@ -325,6 +325,8 @@ SB_FAKEIP_DNS_RULE_TAG="fakeip-dns-rule-tag"
 # Sections with connection_type 'dns': their own DNS server / rule (per section name)
 SB_SECTION_DNS_SERVER_PREFIX="dns-section-"
 SB_SECTION_DNS_RULE_PREFIX="dns-section-rule-"
+# The evaluated responses of a DNS section's own server list: "<prefix><section>-<n>".
+SB_SECTION_DNS_RESPONSE_PREFIX="dns-section-response-"
 SB_INVERT_FAKEIP_DNS_RULE_TAG="invert-fakeip-dns-rule-tag"
 # Inbounds
 SB_TPROXY_INBOUND_TAG="tproxy-in"
