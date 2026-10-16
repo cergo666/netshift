@@ -1255,6 +1255,7 @@ var VALID_STATUSES = [
   "latest",
   "outdated",
   "dev",
+  "switch",
   "not_installed"
 ];
 function normalizeStatus(status) {
@@ -1271,7 +1272,8 @@ function parseComponentCheckUpdate(stdout) {
       current_version: typeof parsed.current_version === "string" ? parsed.current_version : void 0,
       latest_version: typeof parsed.latest_version === "string" ? parsed.latest_version : void 0,
       status: normalizeStatus(parsed.status),
-      message: typeof parsed.message === "string" ? parsed.message : void 0
+      message: typeof parsed.message === "string" ? parsed.message : void 0,
+      notes: typeof parsed.notes === "string" ? parsed.notes : void 0
     };
   } catch (_e) {
     return {
