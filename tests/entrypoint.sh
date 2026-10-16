@@ -21308,6 +21308,17 @@ CF
         echo "ignored-options-hash-same=$([ "$(config_runtime_hash)" = "$h0" ] && echo yes || echo no)"
         echo "ignored-logged=$(grep -c 'is not restarted' "$work/log")"
 
+        # the options of the monitor, the dashboard and the component installer
+        config_applied_hash_save
+        : > "$work/restarts"
+        uci -q set netshift.settings.priority_check_interval='60'
+        uci -q set netshift.settings.latency_test_url='https://example.org/204'
+        uci -q set netshift.main.pin_guard='1'
+        uci -q set netshift.main.priority_mode='1'
+        uci -q commit netshift
+        apply_config_change
+        echo "monitor-options-restarts=$(wc -l < "$work/restarts" | tr -d ' ')"
+
         : > "$work/restarts"
         uci -q set netshift.settings.dns_type='udp'
         uci -q commit netshift
@@ -21342,6 +21353,7 @@ CF
     _ac "only update source, mirrors, notice, tiles and the shutdown flag changed: no restart" "ignored-options-restarts=0"
     _ac "...the hash of the configuration stays the same" "ignored-options-hash-same=yes"
     _ac "...and the log says why nothing restarted" "ignored-logged=1"
+    _ac "the options of the monitor (interval, pin guard, priority mode) and the latency URL: no restart" "monitor-options-restarts=0"
     _ac "a DNS option changed: restart" "dns-change-restarts=1"
     _ac "a section changed: restart" "section-change-restarts=1"
     rm -rf "$work"

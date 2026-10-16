@@ -1710,6 +1710,9 @@ monitor_sing_box() {
             fi
             # Real time, not ticks: a check that takes a while must not stretch the interval.
             now="$(date +%s)"
+            # The options the checks use (interval, priority mode, pin guard) apply without a
+            # restart of the service: the configuration is read anew before every look.
+            config_load "$NETSHIFT_CONFIG"
             if [ $((now - priority_last)) -ge "$(priority_check_interval)" ]; then
                 priority_last="$now"
                 priority_check_sections
