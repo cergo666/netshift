@@ -1011,11 +1011,11 @@ function createSettingsContent(section) {
     "update_repo",
     _("NetShift update source"),
     _(
-      "Where the NetShift updates (the Components manager and the notice on the dashboard) come from. The developer's repository has the stable releases. The fork's test builds are pre-releases that appear sooner and may have bugs; the newest one is offered. Switching back to the developer's repository does not downgrade by itself: install the version you want.",
+      "Where the NetShift updates (the Components manager and the notice on the dashboard) come from. Each repository offers its latest release, even when its version is lower than the installed one: after switching the source, press Check update in the Components manager to see what is offered and what is new in it. Test builds are marked as pre-releases and are not offered.",
     ),
   );
   o.value("upstream", _("yandexru45/netshift (developer, stable releases)"));
-  o.value("fork", _("cergo666/netshift (test builds)"));
+  o.value("fork", _("cergo666/netshift (fork builds)"));
   o.default = "upstream";
   o.rmempty = false;
 

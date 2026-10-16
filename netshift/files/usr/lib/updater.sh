@@ -2807,14 +2807,41 @@ updates_check_netshift() {
     cur_semver="${cur_norm%%-*}"
     latest_semver="${latest_norm%%-*}"
 
-    if is_min_package_version "$cur_semver" "$latest_semver"; then
+    if [ "$cur_semver" = "$latest_semver" ]; then
         status="latest"
+    elif is_min_package_version "$cur_semver" "$latest_semver"; then
+        # installed is NEWER than the latest release of the chosen repository (the source was
+        # switched to the one with the lower version): offered as a switch, never forced
+        status="switch"
     else
         status="outdated"
     fi
 
-    echo "{\"success\":true,\"current_version\":\"$current_version\",\"latest_version\":\"$latest\",\"status\":\"$status\"}"
+    updates_check_netshift_reply "$current_version" "$latest" "$status"
     return 0
+}
+
+# Prints the reply of the check; for a build other than the installed one with the release notes
+# (the body of the GitHub release, cut to UPDATES_NETSHIFT_NOTES_MAX characters), when they can
+# be fetched. $1 current, $2 latest, $3 status.
+updates_check_netshift_reply() {
+    local notes=""
+
+    if [ "$3" != "latest" ]; then
+        notes="$(updates_netshift_release_notes "$2")"
+    fi
+    jq -cn --arg cur "$1" --arg latest "$2" --arg status "$3" --arg notes "$notes" \
+        '{success: true, current_version: $cur, latest_version: $latest, status: $status} + (if $notes != "" then {notes: $notes} else {} end)'
+}
+
+# Prints the release notes of the tag in the selected repository, or nothing.
+updates_netshift_release_notes() {
+    local response
+
+    updates_select_netshift_repo
+    response="$(updates_http_get "https://api.github.com/repos/$UPDATES_NETSHIFT_REPO/releases/tags/$1")"
+    [ -n "$response" ] || return 0
+    printf '%s' "$response" | jq -r '.body // empty' 2> /dev/null | head -c "$UPDATES_NETSHIFT_NOTES_MAX"
 }
 
 # ── NetShift self-update (Component Manager, task-017) ──────────────
@@ -2887,36 +2914,25 @@ updates_select_netshift_repo() {
     local choice=""
 
     UPDATES_NETSHIFT_REPO_KIND="upstream"
+    UPDATES_NETSHIFT_REPO="$NETSHIFT_REPO_UPSTREAM"
     command -v config_get > /dev/null 2>&1 && config_get choice "settings" "update_repo" "upstream"
     [ "$choice" = "fork" ] || return 0
 
+    # Both repositories are read the same way: the newest release that is not marked as a
+    # pre-release (/releases/latest). Test builds of the fork are pre-releases and so stay
+    # invisible to the update check. The version may be LOWER than the installed one:
+    # switching the source installs the latest build of that repository.
     UPDATES_NETSHIFT_REPO_KIND="fork"
+    UPDATES_NETSHIFT_REPO="$NETSHIFT_REPO_FORK"
     NETSHIFT_REPO_RELEASES_LATEST_URL="https://github.com/$NETSHIFT_REPO_FORK/releases/latest"
     NETSHIFT_REPO_RELEASES_DOWNLOAD_BASE="https://github.com/$NETSHIFT_REPO_FORK/releases/download"
-    NETSHIFT_RELEASE_API_URL="https://api.github.com/repos/$NETSHIFT_REPO_FORK/releases?per_page=1"
-    NETSHIFT_REPO_FEED_URL="https://github.com/$NETSHIFT_REPO_FORK/releases.atom"
+    NETSHIFT_RELEASE_API_URL="https://api.github.com/repos/$NETSHIFT_REPO_FORK/releases/latest"
 }
 
 updates_netshift_latest_tag() {
-    local response tag redirect feed
+    local response tag redirect
 
     updates_select_netshift_repo
-
-    # The fork's builds are pre-releases: /releases/latest does not see them. Its release feed
-    # (github.com, not the rate-limited API) lists the newest first; the tag is in the link.
-    if [ "$UPDATES_NETSHIFT_REPO_KIND" = "fork" ]; then
-        feed="$(updates_http_get "$NETSHIFT_REPO_FEED_URL")"
-        tag="$(printf '%s' "$feed" | grep -o '/releases/tag/[^"<]*' | sed -n '1p' | sed 's#.*/##')"
-        if [ -n "$tag" ]; then
-            printf '%s' "$tag"
-            return 0
-        fi
-        response="$(updates_http_get "$NETSHIFT_RELEASE_API_URL")"
-        tag="$(printf '%s' "$response" | jq -r 'if type == "array" then .[0].tag_name else .tag_name end // empty' 2> /dev/null)"
-        [ -n "$tag" ] || return 1
-        printf '%s' "$tag"
-        return 0
-    fi
 
     # PRIMARY: github.com/<repo>/releases/latest 302-redirects to
     # /releases/tag/<tag>. Parse with case/param-expansion (no Oniguruma).
@@ -3086,7 +3102,7 @@ updates_package_file_looks_valid() {
 
 _updates_self_update_netshift_core() {
     local installed latest pkg file_path candidate_file
-    local core_installed core_installed_semver latest_semver
+    local core_installed core_installed_semver latest_semver installed_semver
     local backup_made=0
 
     installed="$NETSHIFT_VERSION"
@@ -3194,8 +3210,13 @@ _updates_self_update_netshift_core() {
     # The install took iff the installed semver equals the target, OR the
     # installed semver is now >= the target (is_min_package_version current
     # required → 0 when current >= required).
+    # A switch to a LOWER version (the other repository) has to land exactly on the target:
+    # "installed is higher" would mean the package manager refused the downgrade.
+    installed_semver="${installed#v}"
+    installed_semver="${installed_semver%%-*}"
     if [ "$core_installed_semver" != "$latest_semver" ] \
-        && ! is_min_package_version "$core_installed_semver" "$latest_semver"; then
+        && { ! is_min_package_version "$latest_semver" "$installed_semver" \
+            || ! is_min_package_version "$core_installed_semver" "$latest_semver"; }; then
         _updates_self_update_restore_config "$backup_made"
         rm -rf "$UPDATES_NETSHIFT_DOWNLOAD_DIR" 2>/dev/null
         updates_log "Self-update: core package version did not change after install (package manager reported success but no upgrade occurred)" "error"

@@ -219,6 +219,13 @@
     ]
   },
   {
+    "call": "Another build is available",
+    "key": "Another build is available",
+    "places": [
+      "src/netshift/tabs/manager/initController.ts:109"
+    ]
+  },
+  {
     "call": "Applicable for SOCKS and Shadowsocks proxy",
     "key": "Applicable for SOCKS and Shadowsocks proxy",
     "places": [
@@ -418,8 +425,8 @@
     ]
   },
   {
-    "call": "cergo666/netshift (test builds)",
-    "key": "cergo666/netshift (test builds)",
+    "call": "cergo666/netshift (fork builds)",
+    "key": "cergo666/netshift (fork builds)",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:1018"
     ]
@@ -456,11 +463,11 @@
     "call": "Check update",
     "key": "Check update",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:204",
-      "src/netshift/tabs/manager/cards.ts:241",
-      "src/netshift/tabs/manager/cards.ts:287",
-      "src/netshift/tabs/manager/cards.ts:342",
-      "src/netshift/tabs/manager/cards.ts:405"
+      "src/netshift/tabs/manager/cards.ts:214",
+      "src/netshift/tabs/manager/cards.ts:253",
+      "src/netshift/tabs/manager/cards.ts:299",
+      "src/netshift/tabs/manager/cards.ts:354",
+      "src/netshift/tabs/manager/cards.ts:417"
     ]
   },
   {
@@ -538,7 +545,7 @@
     "call": "Client for naive+https:// links (~4 MB), used beside sing-box; not needed with a core that has the naive outbound",
     "key": "Client for naive+https:// links (~4 MB), used beside sing-box; not needed with a core that has the naive outbound",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:419"
+      "src/netshift/tabs/manager/cards.ts:431"
     ]
   },
   {
@@ -616,7 +623,7 @@
     "call": "Compressed build: uses more RAM at startup",
     "key": "Compressed build: uses more RAM at startup",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:369"
+      "src/netshift/tabs/manager/cards.ts:381"
     ]
   },
   {
@@ -839,7 +846,7 @@
     "call": "Dev",
     "key": "Dev",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:161"
+      "src/netshift/tabs/manager/cards.ts:168"
     ]
   },
   {
@@ -1565,7 +1572,7 @@
     "call": "Extended core with all features (~105 MB)",
     "key": "Extended core with all features (~105 MB)",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:303"
+      "src/netshift/tabs/manager/cards.ts:315"
     ]
   },
   {
@@ -1601,18 +1608,18 @@
       "src/netshift/tabs/diagnostic/initController.ts:278",
       "src/netshift/tabs/diagnostic/initController.ts:315",
       "src/netshift/tabs/diagnostic/initController.ts:319",
-      "src/netshift/tabs/manager/initController.ts:137",
-      "src/netshift/tabs/manager/initController.ts:147",
-      "src/netshift/tabs/manager/initController.ts:165",
-      "src/netshift/tabs/manager/initController.ts:175",
-      "src/netshift/tabs/manager/initController.ts:208",
-      "src/netshift/tabs/manager/initController.ts:225",
-      "src/netshift/tabs/manager/initController.ts:239",
-      "src/netshift/tabs/manager/initController.ts:249",
-      "src/netshift/tabs/manager/initController.ts:281",
-      "src/netshift/tabs/manager/initController.ts:285",
-      "src/netshift/tabs/manager/initController.ts:318",
-      "src/netshift/tabs/manager/initController.ts:322"
+      "src/netshift/tabs/manager/initController.ts:143",
+      "src/netshift/tabs/manager/initController.ts:153",
+      "src/netshift/tabs/manager/initController.ts:171",
+      "src/netshift/tabs/manager/initController.ts:186",
+      "src/netshift/tabs/manager/initController.ts:219",
+      "src/netshift/tabs/manager/initController.ts:236",
+      "src/netshift/tabs/manager/initController.ts:250",
+      "src/netshift/tabs/manager/initController.ts:260",
+      "src/netshift/tabs/manager/initController.ts:292",
+      "src/netshift/tabs/manager/initController.ts:296",
+      "src/netshift/tabs/manager/initController.ts:329",
+      "src/netshift/tabs/manager/initController.ts:333"
     ]
   },
   {
@@ -1890,32 +1897,32 @@
     "call": "Install",
     "key": "Install",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:390"
+      "src/netshift/tabs/manager/cards.ts:402"
     ]
   },
   {
     "call": "Install %s",
     "key": "Install %s",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:196",
-      "src/netshift/tabs/manager/cards.ts:234",
-      "src/netshift/tabs/manager/cards.ts:280",
-      "src/netshift/tabs/manager/cards.ts:335",
-      "src/netshift/tabs/manager/cards.ts:398"
+      "src/netshift/tabs/manager/cards.ts:203",
+      "src/netshift/tabs/manager/cards.ts:246",
+      "src/netshift/tabs/manager/cards.ts:292",
+      "src/netshift/tabs/manager/cards.ts:347",
+      "src/netshift/tabs/manager/cards.ts:410"
     ]
   },
   {
     "call": "Installed version is newer than release",
     "key": "Installed version is newer than release",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:107"
+      "src/netshift/tabs/manager/initController.ts:113"
     ]
   },
   {
     "call": "Installing the NaiveProxy client, this may take a minute…",
     "key": "Installing the NaiveProxy client, this may take a minute…",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:262"
+      "src/netshift/tabs/manager/initController.ts:273"
     ]
   },
   {
@@ -2521,14 +2528,14 @@
     "key": "Latest",
     "places": [
       "src/netshift/tabs/diagnostic/helpers/getNetshiftVersionRow.ts:48",
-      "src/netshift/tabs/manager/cards.ts:150"
+      "src/netshift/tabs/manager/cards.ts:153"
     ]
   },
   {
     "call": "Latest version is installed",
     "key": "Latest version is installed",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:114"
+      "src/netshift/tabs/manager/initController.ts:120"
     ]
   },
   {
@@ -2542,7 +2549,7 @@
     "call": "Light build of the extended core for low-flash devices (~10 MB instead of ~105 MB)",
     "key": "Light build of the extended core for low-flash devices (~10 MB instead of ~105 MB)",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:358"
+      "src/netshift/tabs/manager/cards.ts:370"
     ]
   },
   {
@@ -2750,14 +2757,14 @@
     "call": "NaiveProxy client installed, version:",
     "key": "NaiveProxy client installed, version:",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:273"
+      "src/netshift/tabs/manager/initController.ts:284"
     ]
   },
   {
     "call": "NaiveProxy client removed",
     "key": "NaiveProxy client removed",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:274"
+      "src/netshift/tabs/manager/initController.ts:285"
     ]
   },
   {
@@ -2786,7 +2793,7 @@
     "call": "NetShift updated, version:",
     "key": "NetShift updated, version:",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:310"
+      "src/netshift/tabs/manager/initController.ts:321"
     ]
   },
   {
@@ -2879,7 +2886,7 @@
     "call": "Not available for your architecture",
     "key": "Not available for your architecture",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:367"
+      "src/netshift/tabs/manager/cards.ts:379"
     ]
   },
   {
@@ -2893,12 +2900,12 @@
     "call": "Not installed",
     "key": "Not installed",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:158",
-      "src/netshift/tabs/manager/cards.ts:258",
-      "src/netshift/tabs/manager/cards.ts:304",
-      "src/netshift/tabs/manager/cards.ts:361",
-      "src/netshift/tabs/manager/cards.ts:426",
-      "src/netshift/tabs/manager/initController.ts:111"
+      "src/netshift/tabs/manager/cards.ts:161",
+      "src/netshift/tabs/manager/cards.ts:270",
+      "src/netshift/tabs/manager/cards.ts:316",
+      "src/netshift/tabs/manager/cards.ts:373",
+      "src/netshift/tabs/manager/cards.ts:438",
+      "src/netshift/tabs/manager/initController.ts:117"
     ]
   },
   {
@@ -3028,6 +3035,13 @@
     ]
   },
   {
+    "call": "Other build",
+    "key": "Other build",
+    "places": [
+      "src/netshift/tabs/manager/cards.ts:165"
+    ]
+  },
+  {
     "call": "Outbound Config",
     "key": "Outbound Config",
     "places": [
@@ -3046,7 +3060,7 @@
     "key": "Outdated",
     "places": [
       "src/netshift/tabs/diagnostic/helpers/getNetshiftVersionRow.ts:38",
-      "src/netshift/tabs/manager/cards.ts:154"
+      "src/netshift/tabs/manager/cards.ts:157"
     ]
   },
   {
@@ -3294,7 +3308,7 @@
     "call": "Remove",
     "key": "Remove",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:412",
+      "src/netshift/tabs/manager/cards.ts:424",
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:338"
     ]
   },
@@ -3302,7 +3316,7 @@
     "call": "Removing the NaiveProxy client…",
     "key": "Removing the NaiveProxy client…",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:263"
+      "src/netshift/tabs/manager/initController.ts:274"
     ]
   },
   {
@@ -3796,7 +3810,7 @@
     "call": "Sing-box core changed, version:",
     "key": "Sing-box core changed, version:",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:201"
+      "src/netshift/tabs/manager/initController.ts:212"
     ]
   },
   {
@@ -4020,31 +4034,38 @@
     ]
   },
   {
+    "call": "Switch to %s",
+    "key": "Switch to %s",
+    "places": [
+      "src/netshift/tabs/manager/cards.ts:203"
+    ]
+  },
+  {
     "call": "Switch to extended",
     "key": "Switch to extended",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:295"
+      "src/netshift/tabs/manager/cards.ts:307"
     ]
   },
   {
     "call": "Switch to lite",
     "key": "Switch to lite",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:350"
+      "src/netshift/tabs/manager/cards.ts:362"
     ]
   },
   {
     "call": "Switch to stable",
     "key": "Switch to stable",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:250"
+      "src/netshift/tabs/manager/cards.ts:262"
     ]
   },
   {
     "call": "Switching sing-box core, this may take a few minutes…",
     "key": "Switching sing-box core, this may take a few minutes…",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:186"
+      "src/netshift/tabs/manager/initController.ts:197"
     ]
   },
   {
@@ -4557,7 +4578,7 @@
       "src/netshift/tabs/diagnostic/initController.ts:50",
       "src/netshift/tabs/diagnostic/initController.ts:51",
       "src/netshift/tabs/diagnostic/initController.ts:52",
-      "src/netshift/tabs/manager/cards.ts:424",
+      "src/netshift/tabs/manager/cards.ts:436",
       "src/netshift/tabs/manager/initController.ts:44",
       "src/netshift/tabs/manager/initController.ts:45",
       "src/netshift/tabs/manager/initController.ts:46",
@@ -4584,17 +4605,17 @@
     "call": "Update",
     "key": "Update",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:234",
-      "src/netshift/tabs/manager/cards.ts:280",
-      "src/netshift/tabs/manager/cards.ts:335",
-      "src/netshift/tabs/manager/cards.ts:399"
+      "src/netshift/tabs/manager/cards.ts:246",
+      "src/netshift/tabs/manager/cards.ts:292",
+      "src/netshift/tabs/manager/cards.ts:347",
+      "src/netshift/tabs/manager/cards.ts:411"
     ]
   },
   {
     "call": "Update is available",
     "key": "Update is available",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:103"
+      "src/netshift/tabs/manager/initController.ts:105"
     ]
   },
   {
@@ -4608,7 +4629,7 @@
     "call": "Update NetShift",
     "key": "Update NetShift",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:197"
+      "src/netshift/tabs/manager/cards.ts:207"
     ]
   },
   {
@@ -4629,7 +4650,7 @@
     "call": "Updating NetShift, this may take a few minutes; the page will reload…",
     "key": "Updating NetShift, this may take a few minutes; the page will reload…",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:301"
+      "src/netshift/tabs/manager/initController.ts:312"
     ]
   },
   {
@@ -4651,14 +4672,14 @@
     "call": "UPX",
     "key": "UPX",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:365"
+      "src/netshift/tabs/manager/cards.ts:377"
     ]
   },
   {
     "call": "UPX-compressed core: a RAM spike is possible at startup; on devices with less than 256 MB of RAM, enable zram swap",
     "key": "UPX-compressed core: a RAM spike is possible at startup; on devices with less than 256 MB of RAM, enable zram swap",
     "places": [
-      "src/netshift/tabs/manager/cards.ts:130"
+      "src/netshift/tabs/manager/cards.ts:133"
     ]
   },
   {
@@ -4857,7 +4878,7 @@
     "call": "Version",
     "key": "Version",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:427"
+      "src/netshift/tabs/manager/initController.ts:438"
     ]
   },
   {
@@ -4928,6 +4949,13 @@
     ]
   },
   {
+    "call": "What is new in this build",
+    "key": "What is new in this build",
+    "places": [
+      "src/netshift/tabs/manager/initController.ts:480"
+    ]
+  },
+  {
     "call": "When a server picked by hand stops answering (three checks in a row, every 30 seconds), go back to the automatic choice (the fastest server) and say so on the dashboard. Needs the automatic group, so it works with URLTest lists and subscriptions; it does nothing together with the list-order mode.",
     "key": "When a server picked by hand stops answering (three checks in a row, every 30 seconds), go back to the automatic choice (the fastest server) and say so on the dashboard. Needs the automatic group, so it works with URLTest lists and subscriptions; it does nothing together with the list-order mode.",
     "places": [
@@ -4963,8 +4991,8 @@
     ]
   },
   {
-    "call": "Where the NetShift updates (the Components manager and the notice on the dashboard) come from. The developer's repository has the stable releases. The fork's test builds are pre-releases that appear sooner and may have bugs; the newest one is offered. Switching back to the developer's repository does not downgrade by itself: install the version you want.",
-    "key": "Where the NetShift updates (the Components manager and the notice on the dashboard) come from. The developer's repository has the stable releases. The fork's test builds are pre-releases that appear sooner and may have bugs; the newest one is offered. Switching back to the developer's repository does not downgrade by itself: install the version you want.",
+    "call": "Where the NetShift updates (the Components manager and the notice on the dashboard) come from. Each repository offers its latest release, even when its version is lower than the installed one: after switching the source, press Check update in the Components manager to see what is offered and what is new in it. Test builds are marked as pre-releases and are not offered.",
+    "key": "Where the NetShift updates (the Components manager and the notice on the dashboard) come from. Each repository offers its latest release, even when its version is lower than the installed one: after switching the source, press Check update in the Components manager to see what is offered and what is new in it. Test builds are marked as pre-releases and are not offered.",
     "places": [
       "../luci-app-netshift/htdocs/luci-static/resources/view/netshift/settings.js:1013"
     ]

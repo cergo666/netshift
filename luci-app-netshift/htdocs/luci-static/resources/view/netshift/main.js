@@ -7406,6 +7406,9 @@ function getCheckTag(status) {
   if (status === "not_installed") {
     return { label: _("Not installed"), kind: "neutral" };
   }
+  if (status === "switch") {
+    return { label: _("Other build"), kind: "neutral" };
+  }
   return { label: _("Dev"), kind: "neutral" };
 }
 function netshiftStatus(systemInfo, check) {
@@ -7419,11 +7422,14 @@ function netshiftCard(systemInfo, check) {
   const status = netshiftStatus(systemInfo, check);
   const latest = check.latest_version;
   const actions = [];
-  if (status === "outdated") {
+  if (status === "outdated" || status === "switch") {
     actions.push({
       loadingKey: "netshiftUpdate",
       kind: "self_update",
-      text: latest ? _("Install %s").replace("%s", latest) : _("Update NetShift"),
+      text: latest ? (status === "switch" ? _("Switch to %s") : _("Install %s")).replace(
+        "%s",
+        latest
+      ) : _("Update NetShift"),
       backendAction: "self_update"
     });
   } else {
@@ -7440,6 +7446,7 @@ function netshiftCard(systemInfo, check) {
     version: normalizeCompiledVersion(systemInfo.netshift_version),
     installed: true,
     tag: getCheckTag(status),
+    notes: status === "outdated" || status === "switch" ? check.notes : void 0,
     actions
   };
 }
@@ -7670,14 +7677,15 @@ function setActionLoading(action, loading) {
     }
   });
 }
-function setCheckResult(component, status, latestVersion) {
+function setCheckResult(component, status, latestVersion, notes = "") {
   const managerChecks = store.get().managerChecks;
   store.set({
     managerChecks: {
       ...managerChecks,
       [component]: {
         status,
-        latest_version: latestVersion
+        latest_version: latestVersion,
+        notes
       }
     }
   });
@@ -7688,6 +7696,9 @@ function resetCheckResult(component) {
 function getCheckToastMessage(status) {
   if (status === "outdated") {
     return _("Update is available");
+  }
+  if (status === "switch") {
+    return _("Another build is available");
   }
   if (status === "dev") {
     return _("Installed version is newer than release");
@@ -7725,7 +7736,12 @@ async function runNetshiftCheck(button) {
       return;
     }
     const status = parsed.status ?? null;
-    setCheckResult("netshift", status, parsed.latest_version || "");
+    setCheckResult(
+      "netshift",
+      status,
+      parsed.latest_version || "",
+      parsed.notes || ""
+    );
     showToast(getCheckToastMessage(status), "success");
   } catch (error) {
     logger.error("[MANAGER]", "runNetshiftCheck failed", error);
@@ -7942,7 +7958,38 @@ function renderComponentCard(card) {
       E("div", { class: "pdk_manager-page__component__note" }, card.note)
     );
   }
+  if (card.notes) {
+    children.push(
+      E("details", { class: "pdk_manager-page__component__changelog" }, [
+        E("summary", {}, _("What is new in this build")),
+        E("div", {}, renderChangelog(card.notes))
+      ])
+    );
+  }
   return E("div", { class: "card pdk_manager-page__component" }, children);
+}
+function renderChangelog(notes) {
+  return notes.split("\n").map((raw) => raw.replace(/\r$/, "")).filter((line) => line.trim() !== "").map((line) => {
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (heading) {
+      return E(
+        "div",
+        {
+          class: `pdk_manager-page__changelog-h${Math.min(heading[1].length, 3)}`
+        },
+        heading[2].replace(/[*`]/g, "")
+      );
+    }
+    const item = /^\s*[-*]\s+(.*)$/.exec(line);
+    if (item) {
+      return E(
+        "div",
+        { class: "pdk_manager-page__changelog-item" },
+        `\u2022 ${item[1].replace(/[*`]/g, "")}`
+      );
+    }
+    return E("div", {}, line.replace(/[*`]/g, ""));
+  });
 }
 function renderManagerComponents() {
   const container = document.getElementById("pdk_manager-components");
@@ -8131,6 +8178,36 @@ var styles5 = `
     line-height: 1.35;
     min-width: 0;
     overflow-wrap: anywhere;
+}
+
+.pdk_manager-page__component__changelog {
+    font-size: 12px;
+    line-height: 1.4;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.pdk_manager-page__component__changelog > summary {
+    cursor: pointer;
+    color: var(--text-color-medium);
+}
+
+.pdk_manager-page__component__changelog > div {
+    max-height: 260px;
+    overflow-y: auto;
+    margin-top: 6px;
+    padding-right: 4px;
+}
+
+.pdk_manager-page__changelog-h1,
+.pdk_manager-page__changelog-h2,
+.pdk_manager-page__changelog-h3 {
+    font-weight: 600;
+    margin-top: 6px;
+}
+
+.pdk_manager-page__changelog-item {
+    padding-left: 6px;
 }
 
 .pdk_manager-page__component__actions > .pdk-partial-button {

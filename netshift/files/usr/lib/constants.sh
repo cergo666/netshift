@@ -292,6 +292,8 @@ NETSHIFT_REPO_FORK="cergo666/netshift"
 # tmpfs scratch dir for the self-update download (release packages) — RAM, never
 # the tiny overlay; reaped on success and on reboot.
 UPDATES_NETSHIFT_DOWNLOAD_DIR="/tmp/netshift/selfupdate"
+# Release notes shown with the build the update check offers (characters)
+UPDATES_NETSHIFT_NOTES_MAX=8000
 # tmpfs backup of /etc/config/netshift taken before the self-update package
 # install (conffiles normally preserve it; this is the defensive belt).
 UPDATES_NETSHIFT_CONFIG_BACKUP="/tmp/netshift/config.bak"

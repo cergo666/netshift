@@ -21428,41 +21428,50 @@ UR_CHOICE=""; UR_MIRRORS=""
 config_get() { eval "$1=\"\${UR_CHOICE:-\$3}\""; }
 config_list_foreach() { local _m; for _m in $UR_MIRRORS; do "$3" "$_m"; done; }
 updates_components_proxy_address() { :; }
-updates_github_resolve_redirect() { printf '%s' "$UR_REDIRECT"; }
-updates_http_get() { printf '%s\n' "$1" >> "$WORK/gets"; case "$1" in *releases.atom) printf '%s' "$UR_FEED" ;; *) printf '%s' "$UR_API" ;; esac; }
+updates_github_resolve_redirect() { printf '%s\n' "$1" >> "$WORK/gets"; case "$1" in */cergo666/*) printf '%s' "$UR_REDIRECT_FORK" ;; *) printf '%s' "$UR_REDIRECT" ;; esac; }
+updates_http_get() { printf '%s\n' "$1" >> "$WORK/gets"; case "$1" in */releases/tags/*) printf '%s' "$UR_NOTES" ;; *) printf '%s' "$UR_API" ;; esac; }
 
-ATOM='<feed><entry><id>tag:github.com,2008:Repository/1/0.9.11.4</id><link rel="alternate" type="text/html" href="https://github.com/cergo666/netshift/releases/tag/0.9.11.4"/><title>0.9.11.4</title></entry><entry><link rel="alternate" type="text/html" href="https://github.com/cergo666/netshift/releases/tag/0.9.11.3"/></entry></feed>'
 UR_REDIRECT="https://github.com/yandexru45/netshift/releases/tag/0.9.10"
-UR_FEED="$ATOM"
-UR_API='[{"tag_name":"0.9.11.2"},{"tag_name":"0.9.11.1"}]'
+UR_REDIRECT_FORK="https://github.com/cergo666/netshift/releases/tag/0.9.10.1"
+UR_API='{"tag_name":"0.9.10.1"}'
+UR_NOTES='{"body":"## 0.9.10.1\n- one\n- two"}'
 
-# the developer's repository (default): the redirect of /releases/latest, nothing else touched
+# the developer's repository (default): the redirect of /releases/latest
 UR_CHOICE=upstream; : > "$WORK/gets"
 echo "upstream-tag=$(updates_netshift_latest_tag)"
-echo "upstream-no-feed=$(grep -c 'releases.atom' "$WORK/gets")"
+echo "upstream-no-fork=$(grep -c 'cergo666' "$WORK/gets")"
 UR_CHOICE=""
 echo "unset-is-upstream=$(updates_netshift_latest_tag)"
 
-# the fork: its pre-releases come from the release feed, the newest first
+# the fork: the same /releases/latest of ITS repository (test builds are pre-releases and not seen)
 UR_CHOICE=fork; : > "$WORK/gets"
-updates_select_netshift_repo
 echo "fork-tag=$(updates_netshift_latest_tag)"
-echo "fork-feed-used=$(grep -c 'github.com/cergo666/netshift/releases.atom' "$WORK/gets")"
+echo "fork-redirect-used=$(grep -c 'github.com/cergo666/netshift/releases/latest' "$WORK/gets")"
+updates_select_netshift_repo
 echo "fork-base=$NETSHIFT_REPO_RELEASES_DOWNLOAD_BASE"
-# no feed: the API list, first item
-UR_FEED=""
+echo "fork-api=$NETSHIFT_RELEASE_API_URL"
+UR_REDIRECT_FORK=""
 echo "fork-api-fallback=$(updates_netshift_latest_tag)"
-UR_API='{"tag_name":"0.9.11.2"}'
-echo "fork-api-object=$(updates_netshift_latest_tag)"
 UR_API=""
 updates_netshift_latest_tag > /dev/null && echo "fork-none=ok" || echo "fork-none=fail"
 UR_CHOICE=""
 
-# a newer fork build is "outdated" for the installed one
-NETSHIFT_VERSION="0.9.11.3"; UR_CHOICE=fork; UR_FEED="$ATOM"
+# the status: a newer build is "outdated", the same is "latest", a lower one is a "switch"
+UR_REDIRECT_FORK="https://github.com/cergo666/netshift/releases/tag/0.9.10.1"; UR_API='{"tag_name":"0.9.10.1"}'
+NETSHIFT_VERSION="0.9.10"; UR_CHOICE=fork
 echo "fork-status=$(updates_check_netshift 2> /dev/null | jq -r '.status')"
-NETSHIFT_VERSION="0.9.11.4"
+NETSHIFT_VERSION="0.9.10.1"
 echo "fork-current=$(updates_check_netshift 2> /dev/null | jq -r '.status')"
+echo "latest-has-no-notes=$(updates_check_netshift 2> /dev/null | jq -r 'has("notes")')"
+NETSHIFT_VERSION="0.9.11.4"
+echo "fork-lower=$(updates_check_netshift 2> /dev/null | jq -r '.status')"
+# each call of the CLI is a process of its own: the upstream answers come from fresh shells
+UR_CHOICE=upstream
+UR_CHOICE=fork; NETSHIFT_VERSION="0.9.10"; : > "$WORK/gets"
+echo "notes-of-the-offered-build=$(updates_check_netshift 2> /dev/null | jq -c '.notes')"
+echo "notes-url=$(grep -c 'repos/cergo666/netshift/releases/tags/0.9.10.1' "$WORK/gets")"
+UR_NOTES=""
+echo "no-notes-still-ok=$(updates_check_netshift 2> /dev/null | jq -c '[.success, has("notes")]')"
 UR_CHOICE=""
 
 # mirrors: used only after the direct download failed, only for GitHub files, only https://
@@ -21512,16 +21521,21 @@ DRVEOF
         fi
     }
     _ur "the developer's repository: the redirect of /releases/latest gives the tag" "upstream-tag=0.9.10"
-    _ur "...and the feed of the fork is not asked" "upstream-no-feed=0"
+    _ur "...and the fork is not asked" "upstream-no-fork=0"
     _ur "no setting is the developer's repository" "unset-is-upstream=0.9.10"
-    _ur "the fork: the newest release of its feed, pre-releases included" "fork-tag=0.9.11.4"
-    _ur "...read from the feed of the fork" "fork-feed-used=1"
+    _ur "the fork: the /releases/latest of its repository" "fork-tag=0.9.10.1"
+    _ur "...read from the repository of the fork" "fork-redirect-used=1"
     _ur "...and its packages are downloaded from the fork" "fork-base=https://github.com/cergo666/netshift/releases/download"
-    _ur "without the feed the API list gives the first (newest) tag" "fork-api-fallback=0.9.11.2"
-    _ur "an API answer that is a single object works too" "fork-api-object=0.9.11.2"
+    _ur "...the API fallback is the latest release of the fork" "fork-api=https://api.github.com/repos/cergo666/netshift/releases/latest"
+    _ur "without the redirect the API gives the tag" "fork-api-fallback=0.9.10.1"
     _ur "nothing reachable: no tag, a failure" "fork-none=fail"
     _ur "a newer build of the fork is offered as an update" "fork-status=outdated"
     _ur "the build that is installed is the latest" "fork-current=latest"
+    _ur "the latest build has no release notes fetched" "latest-has-no-notes=false"
+    _ur "a LOWER build of the chosen repository is offered as a switch" "fork-lower=switch"
+    _ur "the release notes of the offered build come with the check" 'notes-of-the-offered-build="## 0.9.10.1\n- one\n- two"'
+    _ur "...fetched from the repository the build is in" "notes-url=1"
+    _ur "no notes: the check still works" "no-notes-still-ok=[true,false]"
     _ur "a failed direct download falls back to the mirror, with the file written" "mirror-download=ok size=3"
     _ur "the direct download is tried first" "mirror-tried-after-direct=1"
     _ur "the mirror address is put in front of the full GitHub address" "mirror-url=https://mirror.example/https://github.com/cergo666/netshift/releases/download/0.9.11.4/netshift.ipk"
