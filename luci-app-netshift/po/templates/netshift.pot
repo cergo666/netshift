@@ -142,7 +142,7 @@ msgstr ""
 msgid "And more errors"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:109
+#: src/netshift/tabs/manager/initController.ts:110
 msgid "Another build is available"
 msgstr ""
 
@@ -955,18 +955,18 @@ msgstr ""
 #: src/netshift/tabs/diagnostic/initController.ts:278
 #: src/netshift/tabs/diagnostic/initController.ts:315
 #: src/netshift/tabs/diagnostic/initController.ts:319
-#: src/netshift/tabs/manager/initController.ts:143
-#: src/netshift/tabs/manager/initController.ts:153
-#: src/netshift/tabs/manager/initController.ts:171
-#: src/netshift/tabs/manager/initController.ts:186
-#: src/netshift/tabs/manager/initController.ts:219
-#: src/netshift/tabs/manager/initController.ts:236
-#: src/netshift/tabs/manager/initController.ts:250
-#: src/netshift/tabs/manager/initController.ts:260
-#: src/netshift/tabs/manager/initController.ts:292
-#: src/netshift/tabs/manager/initController.ts:296
-#: src/netshift/tabs/manager/initController.ts:329
-#: src/netshift/tabs/manager/initController.ts:333
+#: src/netshift/tabs/manager/initController.ts:144
+#: src/netshift/tabs/manager/initController.ts:154
+#: src/netshift/tabs/manager/initController.ts:172
+#: src/netshift/tabs/manager/initController.ts:187
+#: src/netshift/tabs/manager/initController.ts:220
+#: src/netshift/tabs/manager/initController.ts:237
+#: src/netshift/tabs/manager/initController.ts:251
+#: src/netshift/tabs/manager/initController.ts:261
+#: src/netshift/tabs/manager/initController.ts:293
+#: src/netshift/tabs/manager/initController.ts:297
+#: src/netshift/tabs/manager/initController.ts:330
+#: src/netshift/tabs/manager/initController.ts:334
 msgid "Failed to execute!"
 msgstr ""
 
@@ -1142,11 +1142,11 @@ msgstr ""
 msgid "Install %s"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:113
+#: src/netshift/tabs/manager/initController.ts:114
 msgid "Installed version is newer than release"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:273
+#: src/netshift/tabs/manager/initController.ts:274
 msgid "Installing the NaiveProxy client, this may take a minute…"
 msgstr ""
 
@@ -1501,7 +1501,7 @@ msgstr ""
 msgid "Latest"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:120
+#: src/netshift/tabs/manager/initController.ts:121
 msgid "Latest version is installed"
 msgstr ""
 
@@ -1630,11 +1630,11 @@ msgstr ""
 msgid "Must be a number in the range of 50 - 1000"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:284
+#: src/netshift/tabs/manager/initController.ts:285
 msgid "NaiveProxy client installed, version:"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:285
+#: src/netshift/tabs/manager/initController.ts:286
 msgid "NaiveProxy client removed"
 msgstr ""
 
@@ -1651,7 +1651,7 @@ msgstr ""
 msgid "NetShift update source"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:321
+#: src/netshift/tabs/manager/initController.ts:322
 msgid "NetShift updated, version:"
 msgstr ""
 
@@ -1718,7 +1718,7 @@ msgstr ""
 #: src/netshift/tabs/manager/cards.ts:316
 #: src/netshift/tabs/manager/cards.ts:373
 #: src/netshift/tabs/manager/cards.ts:438
-#: src/netshift/tabs/manager/initController.ts:117
+#: src/netshift/tabs/manager/initController.ts:118
 msgid "Not installed"
 msgstr ""
 
@@ -1961,7 +1961,7 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:274
+#: src/netshift/tabs/manager/initController.ts:275
 msgid "Removing the NaiveProxy client…"
 msgstr ""
 
@@ -2248,7 +2248,7 @@ msgstr ""
 msgid "Sing-box autostart disabled"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:212
+#: src/netshift/tabs/manager/initController.ts:213
 msgid "Sing-box core changed, version:"
 msgstr ""
 
@@ -2395,7 +2395,7 @@ msgstr ""
 msgid "Switch to stable"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:197
+#: src/netshift/tabs/manager/initController.ts:198
 msgid "Switching sing-box core, this may take a few minutes…"
 msgstr ""
 
@@ -2699,12 +2699,12 @@ msgstr ""
 #: src/netshift/tabs/diagnostic/initController.ts:51
 #: src/netshift/tabs/diagnostic/initController.ts:52
 #: src/netshift/tabs/manager/cards.ts:436
-#: src/netshift/tabs/manager/initController.ts:44
 #: src/netshift/tabs/manager/initController.ts:45
 #: src/netshift/tabs/manager/initController.ts:46
 #: src/netshift/tabs/manager/initController.ts:47
 #: src/netshift/tabs/manager/initController.ts:48
 #: src/netshift/tabs/manager/initController.ts:49
+#: src/netshift/tabs/manager/initController.ts:50
 msgid "unknown"
 msgstr ""
 
@@ -2723,7 +2723,7 @@ msgstr ""
 msgid "Update"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:105
+#: src/netshift/tabs/manager/initController.ts:106
 msgid "Update is available"
 msgstr ""
 
@@ -2743,7 +2743,7 @@ msgstr ""
 msgid "Updating all subscriptions… this may take a minute"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:312
+#: src/netshift/tabs/manager/initController.ts:313
 msgid "Updating NetShift, this may take a few minutes; the page will reload…"
 msgstr ""
 
@@ -2887,7 +2887,7 @@ msgstr ""
 msgid "Validation errors:"
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:438
+#: src/netshift/tabs/manager/initController.ts:439
 msgid "Version"
 msgstr ""
 
@@ -2931,7 +2931,7 @@ msgstr ""
 msgid "Warning: Russia inside can only be used with %s. %s already in Russia inside and have been removed from selection."
 msgstr ""
 
-#: src/netshift/tabs/manager/initController.ts:480
+#: src/netshift/tabs/manager/initController.ts:481
 msgid "What is new in this build"
 msgstr ""
 

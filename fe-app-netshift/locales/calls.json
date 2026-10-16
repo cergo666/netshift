@@ -222,7 +222,7 @@
     "call": "Another build is available",
     "key": "Another build is available",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:109"
+      "src/netshift/tabs/manager/initController.ts:110"
     ]
   },
   {
@@ -1608,18 +1608,18 @@
       "src/netshift/tabs/diagnostic/initController.ts:278",
       "src/netshift/tabs/diagnostic/initController.ts:315",
       "src/netshift/tabs/diagnostic/initController.ts:319",
-      "src/netshift/tabs/manager/initController.ts:143",
-      "src/netshift/tabs/manager/initController.ts:153",
-      "src/netshift/tabs/manager/initController.ts:171",
-      "src/netshift/tabs/manager/initController.ts:186",
-      "src/netshift/tabs/manager/initController.ts:219",
-      "src/netshift/tabs/manager/initController.ts:236",
-      "src/netshift/tabs/manager/initController.ts:250",
-      "src/netshift/tabs/manager/initController.ts:260",
-      "src/netshift/tabs/manager/initController.ts:292",
-      "src/netshift/tabs/manager/initController.ts:296",
-      "src/netshift/tabs/manager/initController.ts:329",
-      "src/netshift/tabs/manager/initController.ts:333"
+      "src/netshift/tabs/manager/initController.ts:144",
+      "src/netshift/tabs/manager/initController.ts:154",
+      "src/netshift/tabs/manager/initController.ts:172",
+      "src/netshift/tabs/manager/initController.ts:187",
+      "src/netshift/tabs/manager/initController.ts:220",
+      "src/netshift/tabs/manager/initController.ts:237",
+      "src/netshift/tabs/manager/initController.ts:251",
+      "src/netshift/tabs/manager/initController.ts:261",
+      "src/netshift/tabs/manager/initController.ts:293",
+      "src/netshift/tabs/manager/initController.ts:297",
+      "src/netshift/tabs/manager/initController.ts:330",
+      "src/netshift/tabs/manager/initController.ts:334"
     ]
   },
   {
@@ -1915,14 +1915,14 @@
     "call": "Installed version is newer than release",
     "key": "Installed version is newer than release",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:113"
+      "src/netshift/tabs/manager/initController.ts:114"
     ]
   },
   {
     "call": "Installing the NaiveProxy client, this may take a minute…",
     "key": "Installing the NaiveProxy client, this may take a minute…",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:273"
+      "src/netshift/tabs/manager/initController.ts:274"
     ]
   },
   {
@@ -2535,7 +2535,7 @@
     "call": "Latest version is installed",
     "key": "Latest version is installed",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:120"
+      "src/netshift/tabs/manager/initController.ts:121"
     ]
   },
   {
@@ -2757,14 +2757,14 @@
     "call": "NaiveProxy client installed, version:",
     "key": "NaiveProxy client installed, version:",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:284"
+      "src/netshift/tabs/manager/initController.ts:285"
     ]
   },
   {
     "call": "NaiveProxy client removed",
     "key": "NaiveProxy client removed",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:285"
+      "src/netshift/tabs/manager/initController.ts:286"
     ]
   },
   {
@@ -2793,7 +2793,7 @@
     "call": "NetShift updated, version:",
     "key": "NetShift updated, version:",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:321"
+      "src/netshift/tabs/manager/initController.ts:322"
     ]
   },
   {
@@ -2905,7 +2905,7 @@
       "src/netshift/tabs/manager/cards.ts:316",
       "src/netshift/tabs/manager/cards.ts:373",
       "src/netshift/tabs/manager/cards.ts:438",
-      "src/netshift/tabs/manager/initController.ts:117"
+      "src/netshift/tabs/manager/initController.ts:118"
     ]
   },
   {
@@ -3316,7 +3316,7 @@
     "call": "Removing the NaiveProxy client…",
     "key": "Removing the NaiveProxy client…",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:274"
+      "src/netshift/tabs/manager/initController.ts:275"
     ]
   },
   {
@@ -3810,7 +3810,7 @@
     "call": "Sing-box core changed, version:",
     "key": "Sing-box core changed, version:",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:212"
+      "src/netshift/tabs/manager/initController.ts:213"
     ]
   },
   {
@@ -4065,7 +4065,7 @@
     "call": "Switching sing-box core, this may take a few minutes…",
     "key": "Switching sing-box core, this may take a few minutes…",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:197"
+      "src/netshift/tabs/manager/initController.ts:198"
     ]
   },
   {
@@ -4579,12 +4579,12 @@
       "src/netshift/tabs/diagnostic/initController.ts:51",
       "src/netshift/tabs/diagnostic/initController.ts:52",
       "src/netshift/tabs/manager/cards.ts:436",
-      "src/netshift/tabs/manager/initController.ts:44",
       "src/netshift/tabs/manager/initController.ts:45",
       "src/netshift/tabs/manager/initController.ts:46",
       "src/netshift/tabs/manager/initController.ts:47",
       "src/netshift/tabs/manager/initController.ts:48",
-      "src/netshift/tabs/manager/initController.ts:49"
+      "src/netshift/tabs/manager/initController.ts:49",
+      "src/netshift/tabs/manager/initController.ts:50"
     ]
   },
   {
@@ -4615,7 +4615,7 @@
     "call": "Update is available",
     "key": "Update is available",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:105"
+      "src/netshift/tabs/manager/initController.ts:106"
     ]
   },
   {
@@ -4650,7 +4650,7 @@
     "call": "Updating NetShift, this may take a few minutes; the page will reload…",
     "key": "Updating NetShift, this may take a few minutes; the page will reload…",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:312"
+      "src/netshift/tabs/manager/initController.ts:313"
     ]
   },
   {
@@ -4878,7 +4878,7 @@
     "call": "Version",
     "key": "Version",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:438"
+      "src/netshift/tabs/manager/initController.ts:439"
     ]
   },
   {
@@ -4952,7 +4952,7 @@
     "call": "What is new in this build",
     "key": "What is new in this build",
     "places": [
-      "src/netshift/tabs/manager/initController.ts:480"
+      "src/netshift/tabs/manager/initController.ts:481"
     ]
   },
   {

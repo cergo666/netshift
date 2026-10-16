@@ -1,3 +1,4 @@
+import { tokenizeInline } from './changelog';
 import { onMount, preserveScrollForPage } from '../../../helpers';
 import { normalizeCompiledVersion } from '../../../helpers/normalizeCompiledVersion';
 import { showToast } from '../../../helpers/showToast';
@@ -486,8 +487,30 @@ function renderComponentCard(card: ManagerCardDescriptor) {
   return E('div', { class: 'card pdk_manager-page__component' }, children);
 }
 
-// Release notes (Markdown from GitHub) as plain DOM: headings, list items and paragraphs;
-// everything goes in as text, nothing is interpreted as HTML.
+// Release notes (Markdown from GitHub) as plain DOM: headings, list items, paragraphs, links,
+// bold and code; everything goes in as text, nothing is interpreted as HTML.
+function renderInline(text: string): Array<string | HTMLElement> {
+  return tokenizeInline(text).map((token) => {
+    if (token.kind === 'link') {
+      return E(
+        'a',
+        { href: token.href, target: '_blank', rel: 'noopener noreferrer' },
+        token.text,
+      );
+    }
+
+    if (token.kind === 'bold') {
+      return E('strong', {}, token.text);
+    }
+
+    if (token.kind === 'code') {
+      return E('code', {}, token.text);
+    }
+
+    return token.text;
+  });
+}
+
 function renderChangelog(notes: string): HTMLElement[] {
   return notes
     .split('\n')
@@ -502,21 +525,20 @@ function renderChangelog(notes: string): HTMLElement[] {
           {
             class: `pdk_manager-page__changelog-h${Math.min(heading[1].length, 3)}`,
           },
-          heading[2].replace(/[*`]/g, ''),
+          renderInline(heading[2]),
         );
       }
 
       const item = /^\s*[-*]\s+(.*)$/.exec(line);
 
       if (item) {
-        return E(
-          'div',
-          { class: 'pdk_manager-page__changelog-item' },
-          `• ${item[1].replace(/[*`]/g, '')}`,
-        );
+        return E('div', { class: 'pdk_manager-page__changelog-item' }, [
+          '• ',
+          ...renderInline(item[1]),
+        ]);
       }
 
-      return E('div', {}, line.replace(/[*`]/g, ''));
+      return E('div', {}, renderInline(line));
     });
 }
 

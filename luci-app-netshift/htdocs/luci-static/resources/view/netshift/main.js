@@ -7373,6 +7373,31 @@ function render3() {
   ]);
 }
 
+// src/netshift/tabs/manager/changelog.ts
+var INLINE = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|\*\*([^*]+)\*\*|`([^`]+)`/g;
+function tokenizeInline(line) {
+  const tokens = [];
+  let last = 0;
+  for (const match of line.matchAll(INLINE)) {
+    const index = match.index ?? 0;
+    if (index > last) {
+      tokens.push({ kind: "text", text: line.slice(last, index) });
+    }
+    if (match[1] !== void 0) {
+      tokens.push({ kind: "link", text: match[1], href: match[2] });
+    } else if (match[3] !== void 0) {
+      tokens.push({ kind: "bold", text: match[3] });
+    } else {
+      tokens.push({ kind: "code", text: match[4] });
+    }
+    last = index + match[0].length;
+  }
+  if (last < line.length) {
+    tokens.push({ kind: "text", text: line.slice(last) });
+  }
+  return tokens;
+}
+
 // src/netshift/tabs/manager/cards.ts
 var NOT_INSTALLED = "not installed";
 function isSingBoxInstalled(systemInfo) {
@@ -7970,6 +7995,24 @@ function renderComponentCard(card) {
   }
   return E("div", { class: "card pdk_manager-page__component" }, children);
 }
+function renderInline(text2) {
+  return tokenizeInline(text2).map((token) => {
+    if (token.kind === "link") {
+      return E(
+        "a",
+        { href: token.href, target: "_blank", rel: "noopener noreferrer" },
+        token.text
+      );
+    }
+    if (token.kind === "bold") {
+      return E("strong", {}, token.text);
+    }
+    if (token.kind === "code") {
+      return E("code", {}, token.text);
+    }
+    return token.text;
+  });
+}
 function renderChangelog(notes) {
   return notes.split("\n").map((raw) => raw.replace(/\r$/, "")).filter((line) => line.trim() !== "").map((line) => {
     const heading = /^(#{1,6})\s+(.*)$/.exec(line);
@@ -7979,18 +8022,17 @@ function renderChangelog(notes) {
         {
           class: `pdk_manager-page__changelog-h${Math.min(heading[1].length, 3)}`
         },
-        heading[2].replace(/[*`]/g, "")
+        renderInline(heading[2])
       );
     }
     const item = /^\s*[-*]\s+(.*)$/.exec(line);
     if (item) {
-      return E(
-        "div",
-        { class: "pdk_manager-page__changelog-item" },
-        `\u2022 ${item[1].replace(/[*`]/g, "")}`
-      );
+      return E("div", { class: "pdk_manager-page__changelog-item" }, [
+        "\u2022 ",
+        ...renderInline(item[1])
+      ]);
     }
-    return E("div", {}, line.replace(/[*`]/g, ""));
+    return E("div", {}, renderInline(line));
   });
 }
 function renderManagerComponents() {
