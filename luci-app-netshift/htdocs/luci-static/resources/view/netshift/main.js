@@ -5072,7 +5072,7 @@ var styles3 = `
     }
 }
 
-.pdk_dashboard-page__update-notice {
+.pdk_dashboard-page__update-notice,
 .pdk_dashboard-page__pin-guard {
     margin-top: 10px;
     display: grid;
@@ -6961,7 +6961,6 @@ var styles4 = `
 }
 
 .pdk_diagnostic-page__route-check {
-.pdk_diagnostic-page__snapshots {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-row-gap: 8px;
@@ -6973,7 +6972,6 @@ var styles4 = `
 }
 
 .pdk_diagnostic-page__route-check__hint {
-.pdk_diagnostic-page__snapshots__hint {
     opacity: 0.75;
     font-size: 0.9em;
 }
@@ -6982,7 +6980,21 @@ var styles4 = `
     display: grid;
     grid-row-gap: 4px;
     overflow-wrap: anywhere;
+}
+
+.pdk_diagnostic-page__snapshots {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-row-gap: 8px;
+}
+
+.pdk_diagnostic-page__snapshots__hint {
+    opacity: 0.75;
+    font-size: 0.9em;
+}
+
 .pdk_diagnostic-page__snapshots__list {
+    display: grid;
     grid-row-gap: 6px;
 }
 
