@@ -2151,13 +2151,29 @@ nft_add_dns_hijack() {
 # (a route rule that sends the traffic out directly), because a connection to a
 # FakeIP address has no other way out; nft_add_port_rules keeps the traffic that is
 # not FakeIP away from sing-box altogether.
+# The value of one port-list option. Wi-Fi Calling (wifi_calling_direct) adds the IKE and NAT-T
+# ports of the ePDG tunnel to the UDP list that goes out directly: a phone's call over Wi-Fi
+# must not be tunnelled to a foreign exit, where the operator does not accept it.
+port_rules_value() {
+    local list_kind="$1"
+    local network="$2"
+    local value wifi_calling
+
+    config_get value "settings" "${list_kind}_${network}_ports"
+    if [ "$list_kind" = "direct" ] && [ "$network" = "udp" ]; then
+        config_get_bool wifi_calling "settings" "wifi_calling_direct" 0
+        [ "$wifi_calling" -ne 1 ] || value="${value:+$value,}500,4500"
+    fi
+    printf '%s' "$value"
+}
+
 sing_box_configure_port_rules() {
     local network list_kind option value tag invert
 
     for network in tcp udp; do
         for list_kind in direct proxy_only; do
             option="${list_kind}_${network}_ports"
-            config_get value "settings" "$option"
+            value="$(port_rules_value "$list_kind" "$network")"
             [ -n "$value" ] || continue
 
             if ! parse_port_list "$value"; then
@@ -2198,7 +2214,7 @@ nft_add_port_rules() {
     for network in tcp udp; do
         for list_kind in direct proxy_only; do
             option="${list_kind}_${network}_ports"
-            config_get value "settings" "$option"
+            value="$(port_rules_value "$list_kind" "$network")"
             [ -n "$value" ] || continue
             parse_port_list "$value" || continue
 
