@@ -20829,6 +20829,90 @@ test_ipv6_dns_policy() {
     fi
     rm -rf "$work"
 }
+test_hy2_hop() {
+    header "Hysteria2 links: port hopping (mport, hop-interval)"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not available"
+        return
+    fi
+    mkdir -p /usr/lib/netshift
+    ln -sf "$lib/helpers.jq" /usr/lib/netshift/helpers.jq
+    ln -sf "$lib/helpers.sh" /usr/lib/netshift/helpers.sh
+    ln -sf "$lib/sing_box_config_manager.sh" /usr/lib/netshift/sing_box_config_manager.sh
+
+    local work="/tmp/netshift-hy2hop-test-$$"
+    rm -rf "$work"
+    mkdir -p "$work"
+
+    local out
+    out="$(
+        . "$lib/constants.sh"
+        . "$lib/helpers.sh"
+        HH_LOG="$work/log"; : > "$HH_LOG"
+        log() { printf '[%s] %s\n' "${2:-info}" "$1" >> "$HH_LOG"; }
+        . "$lib/sing_box_config_manager.sh"
+        . "$lib/sing_box_config_facade.sh"
+        get_outbound_tag_by_section() { echo "$1-out"; }
+        core_has_tag() { return 0; }
+        ob() { sing_box_cf_add_proxy_outbound '{"outbounds":[]}' t "$1" 0 | jq -c '.outbounds[0] | [.server_port, .server_ports, .hop_interval]'; }
+        B="hy2://pw@h.example:443/?sni=h.example"
+
+        echo "plain=$(ob "$B#x")"
+        echo "mport-range=$(ob "$B&mport=20000-30000#x")"
+        echo "mport-list=$(ob "$B&mport=20000-30000,40000#x")"
+        echo "ports-alias=$(ob "$B&ports=20000-30000#x")"
+        echo "interval=$(ob "$B&mport=20000-30000&hop-interval=10#x")"
+        echo "interval-underscore=$(ob "$B&mport=20000-30000&hop_interval=45#x")"
+        echo "interval-too-short=$(ob "$B&mport=20000-30000&hop-interval=2#x")"
+        echo "interval-not-number=$(ob "$B&mport=20000-30000&hop-interval=fast#x")"
+        echo "interval-without-ports=$(ob "$B&hop-interval=10#x")"
+        for bad in "abc" "0" "70000" "30000-20000" "1-2-3" "20000-" "-5" "443,,5" "99999"; do
+            echo "bad[$bad]=$(ob "$B&mport=$bad#x")"
+        done
+        : > "$HH_LOG"; ob "$B&mport=abc#x" > /dev/null
+        echo "bad-warned=$(grep -c 'not valid' "$HH_LOG")"
+        # the link already has a range as its port: mport is not mixed in
+        echo "own-range=$(ob "hy2://pw@h.example:20000-30000/?sni=h.example&mport=40000-50000#x")"
+
+        SB=/usr/local/bin/sing-box-1.14
+        if [ -x "$SB" ]; then
+            sing_box_cf_add_proxy_outbound '{"outbounds":[]}' t "$B&mport=20000-30000,40000&hop-interval=15#x" 0 \
+                | jq '{outbounds: (.outbounds + [{type: "direct", tag: "direct-out"}]), route: {final: "direct-out"}}' > "$work/c.json"
+            "$SB" check -c "$work/c.json" > "$work/c.out" 2>&1 && echo "core-check=ok" || echo "core-check=FAIL $(sed 's/\x1b\[[0-9;]*m//g' "$work/c.out" | head -c 200)"
+        fi
+    )"
+
+    _hh() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+    _hh "a link without mport is as before: one port" 'plain=[443,null,null]'
+    _hh "mport turns it into a list of ports, the link's own port included" 'mport-range=[null,["443:443","20000:30000"],null]'
+    _hh "a list of ranges and ports" 'mport-list=[null,["443:443","20000:30000","40000:40000"],null]'
+    _hh "ports works as mport" 'ports-alias=[null,["443:443","20000:30000"],null]'
+    _hh "hop-interval is the pause in seconds" 'interval=[null,["443:443","20000:30000"],"10s"]'
+    _hh "hop_interval too" 'interval-underscore=[null,["443:443","20000:30000"],"45s"]'
+    _hh "an interval under 5 seconds is left to the default" 'interval-too-short=[null,["443:443","20000:30000"],null]'
+    _hh "an interval that is not a number as well" 'interval-not-number=[null,["443:443","20000:30000"],null]'
+    _hh "an interval without ports has nothing to hop among" 'interval-without-ports=[443,null,null]'
+    local bad
+    for bad in abc 0 70000 30000-20000 1-2-3 20000- -5 443,,5 99999; do
+        _hh "a port list that is not valid ($bad) is ignored: the link's own port" "bad[$bad]=[443,null,null]"
+    done
+    _hh "...and it is said in the log" "bad-warned=1"
+    _hh "a link whose port is already a range keeps it" 'own-range=[null,["20000:30000"],null]'
+    if [ -x /usr/local/bin/sing-box-1.14 ]; then
+        _hh "sing-box 1.14 accepts the hopping outbound" "core-check=ok"
+    else
+        skip "sing-box 1.14 not in the image: the core check of the hopping outbound"
+    fi
+    rm -rf "$work"
+}
 test_quic_mode() {
     header "disable_quic: off, tunneled (the old flag) and all"
 
@@ -22672,6 +22756,7 @@ main() {
             test_xhttp_extra
             test_update_repo
             test_quic_mode
+            test_hy2_hop
             test_naive
             test_dns_server_route
             test_core_caps
@@ -22768,6 +22853,7 @@ main() {
         xhttpextra)  test_xhttp_extra ;;
         updaterepo)  test_update_repo ;;
         quicmode)    test_quic_mode ;;
+        hy2hop)      test_hy2_hop ;;
         naive)       test_naive ;;
         dnsroute)    test_dns_server_route ;;
         corecaps)    test_core_caps ;;
