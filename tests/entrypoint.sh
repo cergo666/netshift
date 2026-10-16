@@ -21117,6 +21117,138 @@ FJ
     _fp "no temporary directory is left" 'tmp-left=0'
     rm -rf "$work"
 }
+test_failover_direct() {
+    header "Failover to direct: the wrapping selector and the monitor"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    if ! command -v jq > /dev/null 2>&1 || [ ! -r "$bin" ] || [ ! -r "$lib/failover.sh" ]; then
+        skip "jq, the netshift bin or failover.sh not available"
+        return
+    fi
+    mkdir -p /usr/lib/netshift
+    local f
+    for f in "$lib"/*.sh "$lib"/*.jq; do
+        ln -sf "$f" "/usr/lib/netshift/$(basename "$f")"
+    done
+
+    local work="/tmp/netshift-failover-$$"
+    rm -rf "$work"
+    mkdir -p "$work/uci"
+    awk '/^[a-zA-Z_][a-zA-Z0-9_]*\(\) \{/{p=1} p{print} p&&/^\}/{p=0}' "$bin" > "$work/funcs.sh"
+    cat > "$work/uci/netshift" << 'CF'
+config settings 'settings'
+	option dns_type 'doh'
+
+config section 'main'
+	option connection_type 'proxy'
+	option failover_direct '1'
+
+config section 'plain'
+	option connection_type 'proxy'
+
+config section 'vpnsec'
+	option connection_type 'vpn'
+	option failover_direct '1'
+
+config section 'gone'
+	option connection_type 'proxy'
+	option failover_direct '1'
+
+config section 'off'
+	option connection_type 'proxy'
+	option failover_direct '1'
+	option enabled '0'
+CF
+
+    local out
+    out="$(
+        . "$lib/constants.sh"
+        . "$lib/logging.sh"
+        . "$lib/helpers.sh"
+        . /lib/functions.sh
+        . "$work/funcs.sh"
+        . "$lib/failover.sh"
+        FO_LOG="$work/log"; : > "$FO_LOG"
+        log() { printf '[%s] %s\n' "${2:-info}" "$1" >> "$FO_LOG"; }
+        UCI_CONFIG_DIR="$work/uci" config_load netshift
+
+        config='{"outbounds":[{"type":"urltest","tag":"main-out","outbounds":["main-1-out"]},{"type":"vless","tag":"main-1-out"},{"type":"vless","tag":"plain-out"},{"type":"direct","tag":"direct-out"},{"type":"vless","tag":"x","detour":"main-out"}],
+          "route":{"final":"main-out","rules":[{"inbound":["tproxy-in"],"outbound":"main-out"},{"inbound":["tproxy-in"],"outbound":"plain-out"},{"action":"reject"}],"rule_set":[{"tag":"r","download_detour":"main-out"}]},
+          "dns":{"servers":[{"tag":"d","detour":"main-out"}]}}'
+        failover_configure
+        echo "selector=$(printf '%s' "$config" | jq -c '.outbounds[] | select(.tag == "main-out-failover") | [.type, .outbounds, .default]')"
+        echo "rules=$(printf '%s' "$config" | jq -c '[.route.rules[].outbound]')"
+        echo "final=$(printf '%s' "$config" | jq -c '.route.final')"
+        echo "detours=$(printf '%s' "$config" | jq -c '[.outbounds[] | select(.tag == "x") | .detour][0], .route.rule_set[0].download_detour, .dns.servers[0].detour' | tr '\n' ' ')"
+        echo "group-kept=$(printf '%s' "$config" | jq -c '[.outbounds[] | select(.tag == "main-out")] | length')"
+        echo "plain-untouched=$(printf '%s' "$config" | jq -c '[.outbounds[] | select(.tag == "plain-out-failover")] | length')"
+        echo "selectors=$(printf '%s' "$config" | jq -c '[.outbounds[] | select(.type == "selector")] | length')"
+        echo "vpn-warned=$(grep -c "section 'vpnsec'" "$FO_LOG")"
+        echo "gone-warned=$(grep -c "section 'gone'" "$FO_LOG")"
+
+        # the monitor
+        FO_SWITCHES="$work/switches"; : > "$FO_SWITCHES"
+        FO_ALIVE=1
+        priority_probe_delay() { [ "$FO_ALIVE" = 1 ] && echo 100 || echo 0; }
+        clash_api() { echo "$2 $3" >> "$FO_SWITCHES"; }
+        FAILOVER_DEADLINE=$(($(date +%s) + 60))
+        proxies() {
+            printf '{"proxies":{"main-out":{"type":"URLTest","now":"main-1-out","all":["main-1-out"]},"main-1-out":{"type":"VLESS"},"main-out-failover":{"type":"Selector","now":"%s","all":["main-out","direct-out"]}}}' "$1"
+        }
+        cycle() { FAILOVER_PROXIES_JSON="$(proxies "$1")"; failover_check_section main; }
+        switches() { tr '\n' ',' < "$FO_SWITCHES"; }
+
+        FO_ALIVE=1; cycle main-out
+        echo "alive-no-switch=[$(switches)]"
+        FO_ALIVE=0; cycle main-out; cycle main-out
+        echo "two-failures-no-switch=[$(switches)]"
+        cycle main-out
+        echo "third-failure-goes-direct=[$(switches)]"
+        : > "$FO_SWITCHES"
+        cycle direct-out
+        echo "still-dead-stays=[$(switches)]"
+        FO_ALIVE=1; cycle direct-out
+        echo "recovers-back=[$(switches)]"
+        : > "$FO_SWITCHES"
+        # a restart of sing-box: the selector is on the group again, the flag is dropped
+        cycle main-out
+        FO_ALIVE=0; cycle direct-out
+        echo "restart-then-direct-is-manual=[$(switches)]"
+        # the failures of an alive cycle in between start the count again
+        FO_ALIVE=0; cycle main-out; cycle main-out; FO_ALIVE=1; cycle main-out; FO_ALIVE=0; cycle main-out; cycle main-out
+        echo "failures-reset-by-answer=[$(switches)]"
+        # not in the running sing-box
+        FAILOVER_PROXIES_JSON='{"proxies":{}}'; failover_check_section main
+        echo "not-running-nothing=[$(switches)]"
+    )"
+
+    _fo() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+    _fo "the group is wrapped in a selector with direct-out" 'selector=["selector",["main-out","direct-out"],"main-out"]'
+    _fo "route rules point to the selector, the others stay" 'rules=["main-out-failover","plain-out",null]'
+    _fo "the final route points to the selector" 'final="main-out-failover"'
+    _fo "detours point to the selector" 'detours="main-out-failover" "main-out-failover" "main-out-failover" '
+    _fo "the group itself stays" 'group-kept=1'
+    _fo "a section without the option is not wrapped" 'plain-untouched=0'
+    _fo "only one selector (disabled, vpn and empty sections are skipped)" 'selectors=1'
+    _fo "a vpn section is told it is ignored" 'vpn-warned=1'
+    _fo "a section without an outbound is told so" 'gone-warned=1'
+    _fo "an answering server: nothing is switched" 'alive-no-switch=[]'
+    _fo "two failed cycles: not yet" 'two-failures-no-switch=[]'
+    _fo "the third failed cycle goes direct" 'third-failure-goes-direct=[main-out-failover direct-out,]'
+    _fo "while it stays dead, nothing more happens" 'still-dead-stays=[]'
+    _fo "the first answer brings it back" 'recovers-back=[main-out-failover main-out,]'
+    _fo "a direct chosen by hand is left alone" 'restart-then-direct-is-manual=[]'
+    _fo "an answer between the failures starts the count again" 'failures-reset-by-answer=[]'
+    _fo "a selector not in the running sing-box is skipped" 'not-running-nothing=[]'
+    rm -rf "$work"
+}
 test_hy2_hop() {
     header "Hysteria2 links: port hopping (mport, hop-interval)"
 
@@ -23048,6 +23180,7 @@ main() {
             test_telegram_fallback
             test_support_report
             test_filter_preview
+            test_failover_direct
             test_naive
             test_dns_server_route
             test_core_caps
@@ -23148,6 +23281,7 @@ main() {
         tgfallback)  test_telegram_fallback ;;
         supportreport) test_support_report ;;
         filterpreview) test_filter_preview ;;
+        failover)    test_failover_direct ;;
         naive)       test_naive ;;
         dnsroute)    test_dns_server_route ;;
         corecaps)    test_core_caps ;;
@@ -23157,7 +23291,7 @@ main() {
         bulk)        test_bulk_links ;;
         *)
             echo "Unknown test: $target"
-echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink updatepkg environment dnsbench blockleaks connections dnsforward dnshijack dnsservers domrules ecsauto lan mixedauth paramfilters pinguard routecheck snapshots updatenotice urlint subinfo portrules configlint naive dnsroute ipv6dnspolicy dnssectionpool sectiondns xhttpextra corecaps tuicanytls naivecomp collected bulk updaterepo quicmode hy2hop tgfallback supportreport filterpreview"
+echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink updatepkg environment dnsbench blockleaks connections dnsforward dnshijack dnsservers domrules ecsauto lan mixedauth paramfilters pinguard routecheck snapshots updatenotice urlint subinfo portrules configlint naive dnsroute ipv6dnspolicy dnssectionpool sectiondns xhttpextra corecaps tuicanytls naivecomp collected bulk updaterepo quicmode hy2hop tgfallback supportreport filterpreview failover"
             exit 1
             ;;
     esac
