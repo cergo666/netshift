@@ -119,6 +119,13 @@ export const NetShiftShellMethods = {
       undefined,
       { nobatch: true, timeout: 60000 },
     ),
+  previewSubscriptionFilter: async (section: string, overrides: string) =>
+    callBaseMethod<string>(
+      NetShift.AvailableMethods.PREVIEW_SUBSCRIPTION_FILTER,
+      [section, overrides],
+      undefined,
+      { nobatch: true, timeout: 30000 },
+    ),
   getConnections: async () =>
     callBaseMethod<unknown>(
       NetShift.AvailableMethods.CLASH_API,

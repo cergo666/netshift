@@ -21020,6 +21020,103 @@ test_telegram_fallback() {
     _tg "another service whose list cannot be downloaded still fails" "twitter-failure-rc=1 populated=no logged=1"
     rm -rf "$work"
 }
+test_filter_preview() {
+    header "Subscription filter preview: what the filters in the form keep"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    if ! command -v jq > /dev/null 2>&1 || ! command -v uci > /dev/null 2>&1 || [ ! -r "$bin" ]; then
+        skip "jq, uci or the netshift bin not available"
+        return
+    fi
+    if [ ! -r "$lib/filterpreview.sh" ]; then
+        fail "filterpreview.sh not found"
+        return
+    fi
+
+    mkdir -p /usr/lib/netshift
+    local f
+    for f in "$lib"/*.sh "$lib"/*.jq; do
+        ln -sf "$f" "/usr/lib/netshift/$(basename "$f")"
+    done
+
+    local work="/tmp/netshift-fprev-$$"
+    rm -rf "$work"
+    mkdir -p "$work/cache"
+    # every function of the bin, without the code that runs at the top level
+    awk '/^[a-zA-Z_][a-zA-Z0-9_]*\(\) \{/{p=1} p{print} p&&/^\}/{p=0}' "$bin" > "$work/funcs.sh"
+
+    cat > "$work/netshift" << 'CF'
+config settings 'settings'
+	option dns_type 'doh'
+
+config section 'main'
+	option connection_type 'proxy'
+	option proxy_config_type 'subscription'
+	list subscription_url 'https://feed.example.com/sub'
+	list subscription_filter_include_keywords 'Germany'
+CF
+    cat > "$work/feed.json" << 'FJ'
+{"outbounds":[
+ {"type":"shadowsocks","tag":"Germany-1","server":"a.example.com","server_port":443,"method":"aes-256-gcm","password":"p"},
+ {"type":"shadowsocks","tag":"Germany-2","server":"b.example.com","server_port":443,"method":"aes-256-gcm","password":"p"},
+ {"type":"shadowsocks","tag":"Finland-1","server":"c.example.com","server_port":443,"method":"aes-256-gcm","password":"p"},
+ {"type":"trojan","tag":"Sweden-1","server":"d.example.com","server_port":443,"password":"p"}
+]}
+FJ
+
+    local out
+    out="$(
+        . "$lib/constants.sh"
+        . "$lib/logging.sh"
+        . "$lib/helpers.sh"
+        . "$lib/sing_box_config_manager.sh"
+        . "$lib/sing_box_config_facade.sh"
+        . /lib/functions.sh
+        . "$work/funcs.sh"
+        . "$lib/filterpreview.sh"
+        log() { :; }
+        redact_url_for_log() { printf 'redacted'; }
+        NETSHIFT_CONFIG="$work/netshift"
+        SUBSCRIPTION_CACHE_FOLDER="$work/cache"
+        is_sing_box_extended() { return 1; }
+
+        echo "no-cache=$(preview_subscription_filter main '{}' | jq -c '.error')"
+
+        h="$(get_subscription_url_hash 'https://feed.example.com/sub')"
+        cp "$work/feed.json" "$(get_subscription_json_path main "$h")"
+        printf '%s' 'https://feed.example.com/sub' > "$(get_subscription_url_cache_path main "$h")"
+
+        echo "saved-filter=$(preview_subscription_filter main '{}' | jq -c '[.total, .kept, .names]')"
+        echo "form-filter=$(preview_subscription_filter main '{"subscription_filter_include_keywords":["Finland","Sweden"]}' | jq -c '[.total, .kept, .names]')"
+        echo "form-empties=$(preview_subscription_filter main '{"subscription_filter_include_keywords":[]}' | jq -c '[.total, .kept]')"
+        echo "form-exclude=$(preview_subscription_filter main '{"subscription_filter_include_keywords":[],"subscription_filter_exclude_keywords":["Germany"]}' | jq -c '.kept')"
+        echo "form-protocol=$(preview_subscription_filter main '{"subscription_filter_include_keywords":[],"subscription_filter_include_protocols":["trojan"]}' | jq -c '.names')"
+        echo "other-option-ignored=$(preview_subscription_filter main '{"subscription_filter_include_keywords":[],"connection_type":"block"}' | jq -c '.kept')"
+        echo "bad-input=$(preview_subscription_filter main 'nope' | jq -c '.error')"
+        echo "config-untouched=$(grep -c "Germany" "$work/netshift")"
+        echo "tmp-left=$(ls -d "${TMPDIR:-/tmp}"/netshift-preview.* 2> /dev/null | wc -l | tr -d ' ')"
+    )"
+
+    _fp() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+    _fp "without a downloaded subscription: no_cache" 'no-cache="no_cache"'
+    _fp "the saved filter is applied" 'saved-filter=[4,2,["Germany-1","Germany-2"]]'
+    _fp "the filter of the form wins over the saved one" 'form-filter=[4,2,["Finland-1","Sweden-1"]]'
+    _fp "an emptied filter keeps everything" 'form-empties=[4,4]'
+    _fp "the exclude filter works" 'form-exclude=2'
+    _fp "the parameter filter works" 'form-protocol=["Sweden-1"]'
+    _fp "only the filter options can be overridden" 'other-option-ignored=4'
+    _fp "bad input is reported" 'bad-input="bad_input"'
+    _fp "the real configuration is not touched" 'config-untouched=1'
+    _fp "no temporary directory is left" 'tmp-left=0'
+    rm -rf "$work"
+}
 test_hy2_hop() {
     header "Hysteria2 links: port hopping (mport, hop-interval)"
 
@@ -22950,6 +23047,7 @@ main() {
             test_hy2_hop
             test_telegram_fallback
             test_support_report
+            test_filter_preview
             test_naive
             test_dns_server_route
             test_core_caps
@@ -23049,6 +23147,7 @@ main() {
         hy2hop)      test_hy2_hop ;;
         tgfallback)  test_telegram_fallback ;;
         supportreport) test_support_report ;;
+        filterpreview) test_filter_preview ;;
         naive)       test_naive ;;
         dnsroute)    test_dns_server_route ;;
         corecaps)    test_core_caps ;;
@@ -23058,7 +23157,7 @@ main() {
         bulk)        test_bulk_links ;;
         *)
             echo "Unknown test: $target"
-echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink updatepkg environment dnsbench blockleaks connections dnsforward dnshijack dnsservers domrules ecsauto lan mixedauth paramfilters pinguard routecheck snapshots updatenotice urlint subinfo portrules configlint naive dnsroute ipv6dnspolicy dnssectionpool sectiondns xhttpextra corecaps tuicanytls naivecomp collected bulk"
+echo "Available: all deps syntax config helpers jq cm sb nft nftv6 selmark isolation monfd unsupported extgate vlessenc textlist chunkcheck domsep domcase proxylink diagnostics subscription fastest feedgroups insecure rejected jobstate selfheal dnsdetour ecssubnet suburlopt subcron globalproxy sectiondisabled bittorrent stablecheck extcheck sbextarch sbextlite netshiftcheck latesttag ghredirect selfupdate backupguard hotreload cachepersist bypass dnssection utfilters priority geoip latencyurl cascade dnspool ipv6routing realitymlkem cachebust compproxy httpupgrade scalaropt emptylink updatepkg environment dnsbench blockleaks connections dnsforward dnshijack dnsservers domrules ecsauto lan mixedauth paramfilters pinguard routecheck snapshots updatenotice urlint subinfo portrules configlint naive dnsroute ipv6dnspolicy dnssectionpool sectiondns xhttpextra corecaps tuicanytls naivecomp collected bulk updaterepo quicmode hy2hop tgfallback supportreport filterpreview"
             exit 1
             ;;
     esac

@@ -80,11 +80,23 @@ msgstr "Дополнительные DNS-серверы"
 msgid "Additional marking rules found"
 msgstr "Найдены дополнительные правила маркировки"
 
+msgid "Adds UDP ports 500 and 4500 (the IKE and NAT-T tunnel of the operator's ePDG) to the ports that go out directly. A call over Wi-Fi is not accepted by the operator from a foreign exit address of a tunnel. Added to the list above; nothing else changes."
+msgstr "Добавляет UDP-порты 500 и 4500 (туннель IKE и NAT-T к ePDG оператора) к портам, которые идут напрямую. Звонок по Wi-Fi оператор не принимает с чужого адреса выхода туннеля. Добавляется к списку выше, больше ничего не меняется."
+
+msgid "Ads (sing-geosite category-ads, for a Block section)"
+msgstr "Реклама (sing-geosite category-ads, для секции блокировки)"
+
+msgid "Ads and trackers (sing-geosite category-ads-all, for a Block section)"
+msgstr "Реклама и трекеры (sing-geosite category-ads-all, для секции блокировки)"
+
 msgid "Advanced"
 msgstr "Дополнительно"
 
 msgid "Age"
 msgstr "Возраст"
+
+msgid "All QUIC (UDP/443)"
+msgstr "Весь QUIC (UDP/443)"
 
 msgid "All subscriptions updated"
 msgstr "Все подписки обновлены"
@@ -124,6 +136,9 @@ msgstr "Автоматически (первый рабочий)"
 
 msgid "Available actions"
 msgstr "Доступные действия"
+
+msgid "BitTorrent public trackers (sing-geosite, for a Block section)"
+msgstr "Публичные BitTorrent-трекеры (sing-geosite, для секции блокировки)"
 
 msgid "Block direct connections to known public DoH servers (Cloudflare, Google, Quad9, OpenDNS, AdGuard, Yandex) so apps cannot bypass router DNS filtering."
 msgstr "Блокировать прямые подключения к известным публичным DoH-серверам (Cloudflare, Google, Quad9, OpenDNS, AdGuard, Yandex), чтобы приложения не могли обойти DNS-фильтрацию роутера."
@@ -179,6 +194,9 @@ msgstr "Отмена"
 msgid "Cannot receive checks result"
 msgstr "Не удалось получить результаты проверки"
 
+msgid "cergo666/netshift (test builds)"
+msgstr "cergo666/netshift (тестовые сборки)"
+
 msgid "Chain the connection (double hop): this section's servers are reached through the outbound of the selected section. If the chain cannot be built, this section's traffic is rejected rather than sent directly."
 msgstr "Соединить цепочкой (двойной хоп): серверы этой секции достигаются через выход выбранной секции. Если цепочку построить нельзя, трафик этой секции отклоняется, а не отправляется напрямую."
 
@@ -187,6 +205,9 @@ msgstr "Изменить статическую аренду"
 
 msgid "Check"
 msgstr "Проверить"
+
+msgid "Check the filters"
+msgstr "Проверить фильтры"
 
 msgid "Check update"
 msgstr "Проверить обновление"
@@ -232,6 +253,9 @@ msgstr "Закрыть все соединения? Идущие загрузк�
 
 msgid "cloudflare-dns.com/dns-query (Cloudflare DoH)"
 msgstr "cloudflare-dns.com/dns-query (Cloudflare DoH)"
+
+msgid "Collects the versions, settings, configuration, state and logs in one text, with passwords, keys, links and server addresses hidden. Send it when you ask for help."
+msgstr "Собирает версии, настройки, конфигурацию, состояние и журналы в один текст, скрывая пароли, ключи, ссылки и адреса серверов. Отправьте его, когда просите о помощи."
 
 msgid "Combined with the other filters: a server has to pass all of them."
 msgstr "Сочетается с остальными фильтрами: сервер должен пройти все."
@@ -280,6 +304,9 @@ msgstr "URL подключения"
 
 msgid "Connections"
 msgstr "Соединения"
+
+msgid "Copied"
+msgstr "Скопировано"
 
 msgid "Copy"
 msgstr "Копировать"
@@ -374,8 +401,8 @@ msgstr "Отключить QUIC"
 msgid "Disable section"
 msgstr "Отключить секцию"
 
-msgid "Disable the QUIC protocol to improve compatibility or fix issues with video streaming"
-msgstr "Отключить QUIC протокол для улучшения совместимости или исправления видео стриминга"
+msgid "Disable the QUIC protocol to improve compatibility or fix issues with video streaming. Only the QUIC that goes through the tunnel: the app falls back to TCP, traffic that goes out directly is not touched. All QUIC: also the QUIC that goes out directly, every UDP/443 packet from the network is refused."
+msgstr "Отключает протокол QUIC для совместимости или при проблемах с видео. Только QUIC через туннель: приложение переходит на TCP, трафик, который идёт напрямую, не затрагивается. Весь QUIC: также и тот, что идёт напрямую, любой пакет UDP/443 из сети отклоняется."
 
 msgid "Disabled"
 msgstr "Отключено"
@@ -677,6 +704,9 @@ msgstr "FakeIP: IPv6 идёт через sing-box так же, как IPv4 эт�
 msgid "Fastest"
 msgstr "Самый быстрый"
 
+msgid "Filter preview"
+msgstr "Предпросмотр фильтров"
+
 msgid "First server only"
 msgstr "Только первый сервер"
 
@@ -703,6 +733,9 @@ msgstr "Полностью маршрутизированные IP-адреса"
 
 msgid "Get global check"
 msgstr "Получить глобальную проверку"
+
+msgid "GitHub mirrors for downloads"
+msgstr "Зеркала GitHub для загрузок"
 
 msgid "Global check"
 msgstr "Глобальная проверка"
@@ -1007,6 +1040,9 @@ msgstr "Оставить только серверы, в названии кот
 msgid "Keep only subscription servers whose name contains at least one of these keywords (case-insensitive). Leave empty to keep all."
 msgstr "Оставлять только серверы подписки, имя которых содержит хотя бы одно из этих ключевых слов (без учёта регистра). Оставьте пустым, чтобы оставить все."
 
+msgid "Kept"
+msgstr "Остаётся"
+
 msgid "Kept before a restore"
 msgstr "Сохранён перед восстановлением"
 
@@ -1127,6 +1163,9 @@ msgstr "NetShift"
 msgid "NetShift Settings"
 msgstr "Настройки NetShift"
 
+msgid "NetShift update source"
+msgstr "Источник обновлений NetShift"
+
 msgid "NetShift updated, version:"
 msgstr "NetShift обновлён, версия:"
 
@@ -1153,6 +1192,9 @@ msgstr "Без слоя шифрования"
 
 msgid "No other marking rules found"
 msgstr "Другие правила маркировки не найдены"
+
+msgid "No server is left: the section would have no connection."
+msgstr "Не остаётся ни одного сервера: у секции не будет соединения."
 
 msgid "No snapshots yet"
 msgstr "Снимков пока нет"
@@ -1199,6 +1241,9 @@ msgstr "Только при запуске, потом не проверять"
 msgid "Only one section can be global at a time."
 msgstr "Только одна секция может быть глобальной одновременно."
 
+msgid "Only QUIC through the tunnel"
+msgstr "Только QUIC через туннель"
+
 msgid "Only these TCP ports take the tunnel"
 msgstr "Только эти TCP-порты идут в туннель"
 
@@ -1213,6 +1258,9 @@ msgstr "Необязательно"
 
 msgid "Optional: DNS servers for this section only, instead of the global ones: scheme://host[:port][/path], where scheme is udp, tcp, dot, doh, doh3 or doq. A VPN or exclusion section resolves its direct connections through the first server; with real IPv6 addresses (above) all the servers answer the AAAA queries of its domains. A proxy section is resolved by its proxy server. Empty: the global DNS."
 msgstr "Необязательно: DNS-серверы только для этой секции вместо глобальных: scheme://host[:port][/path], где scheme - udp, tcp, dot, doh, doh3 или doq. Секция VPN или исключений разрешает свои прямые соединения через первый сервер; при настоящих IPv6-адресах (выше) на AAAA-запросы её доменов отвечают все серверы. Прокси-секцию разрешает сам прокси-сервер. Пусто: глобальный DNS."
+
+msgid "Optional: https:// addresses of GitHub mirrors, for when GitHub is hard to reach. A mirror is tried only after the direct download failed, and is put in front of the full GitHub address (for example https://gh-proxy.com/). What a mirror returns is not signed, so list only a mirror you trust. Empty: no mirror."
+msgstr "Необязательно: https://-адреса зеркал GitHub на случай, когда GitHub плохо доступен. Зеркало пробуется только после неудачной прямой загрузки и подставляется перед полным адресом GitHub (например, https://gh-proxy.com/). Ответ зеркала не подписан, поэтому указывайте только то зеркало, которому доверяете. Пусто: зеркал нет."
 
 msgid "Optional: query this DNS server through the outbound of another section. If that outbound is not usable the queries go out directly."
 msgstr "Необязательно: опрашивать этот DNS-сервер через outbound другой секции. Если этот outbound недоступен, запросы уходят напрямую."
@@ -1262,6 +1310,12 @@ msgstr "Предпочитать серверы в порядке списка"
 msgid "Prefix length"
 msgstr "Длина префикса"
 
+msgid "Prepare the report"
+msgstr "Подготовить отчёт"
+
+msgid "Preparing the report..."
+msgstr "Готовлю отчёт..."
+
 msgid "Priority: next server if the previous one fails"
 msgstr "Приоритет: следующий сервер, если предыдущий не отвечает"
 
@@ -1282,6 +1336,9 @@ msgstr "Прокси-трафик не маршрутизируется чере
 
 msgid "Proxy traffic is routed via FakeIP"
 msgstr "Прокси-трафик направляется через FakeIP"
+
+msgid "Read it before you send it: servers are shown as host-N and links, passwords and lists are hidden, but check that nothing of yours is left."
+msgstr "Прочитайте перед отправкой: серверы показаны как host-N, ссылки, пароли и списки скрыты, но проверьте, не осталось ли что-то ваше."
 
 msgid "Real addresses (IPv6 goes out directly)"
 msgstr "Настоящие адреса (IPv6 идёт напрямую)"
@@ -1321,6 +1378,9 @@ msgstr "Удалить"
 
 msgid "Removing the NaiveProxy client…"
 msgstr "Удаляем клиент NaiveProxy…"
+
+msgid "Report for support"
+msgstr "Отчёт для поддержки"
 
 msgid "Require a login for the Mixed Proxy"
 msgstr "Требовать логин для Mixed Proxy"
@@ -1460,6 +1520,9 @@ msgstr "Выберите сетевой интерфейс, с которого 
 msgid "Select the network interface to which the traffic will originate"
 msgstr "Выберите сетевой интерфейс, на который будет поступать трафик."
 
+msgid "Select the text and copy it"
+msgstr "Выделите текст и скопируйте его"
+
 msgid "Select the WAN interfaces to be monitored"
 msgstr "Выберите WAN интерфейсы для мониторинга"
 
@@ -1510,6 +1573,9 @@ msgstr "Показать sing-box конфигурацию"
 
 msgid "Show the tiles on the dashboard"
 msgstr "Показывать плитки на дашборде"
+
+msgid "Shows how many servers of the downloaded subscription the filters above keep, and which. Nothing is saved or changed."
+msgstr "Показывает, сколько серверов скачанной подписки оставляют фильтры выше и какие именно. Ничего не сохраняется и не меняется."
 
 msgid "Sing-box"
 msgstr "Sing-box"
@@ -1667,6 +1733,9 @@ msgstr "Адрес опубликованного списка подписок:
 msgid "The check could not be completed"
 msgstr "Проверку выполнить не удалось"
 
+msgid "The check could not be run"
+msgstr "Не удалось выполнить проверку"
+
 msgid "The connection list is not available: is the service running?"
 msgstr "Список соединений недоступен: запущена ли служба?"
 
@@ -1699,6 +1768,9 @@ msgstr "Максимально допустимая разница во врем
 
 msgid "The name is already used by another device"
 msgstr "Имя уже занято другим устройством"
+
+msgid "The report could not be prepared"
+msgstr "Не удалось подготовить отчёт"
 
 msgid "The router clock is not set"
 msgstr "Часы роутера не установлены"
@@ -1750,6 +1822,9 @@ msgstr "URL, который дашборд использует для изме�
 
 msgid "The URL used to test server connectivity"
 msgstr "URL-адрес, используемый для проверки подключения к серверу"
+
+msgid "There is no downloaded subscription yet: save the settings and restart the service first."
+msgstr "Подписка ещё не скачана: сначала сохраните настройки и перезапустите сервис."
 
 msgid "This core is built without QUIC: DoH3 and DoQ servers are replaced by DoH and DoT."
 msgstr "Это ядро собрано без QUIC: серверы DoH3 и DoQ заменяются на DoH и DoT."
@@ -1898,6 +1973,9 @@ msgstr "Формат «зона сервер», например: ru 77.88.8.8"
 msgid "Use a two-letter country code, for example NL"
 msgstr "Укажите двухбуквенный код страны, например NL"
 
+msgid "Use an https:// address, for example https://gh-proxy.com/"
+msgstr "Укажите адрес https://, например https://gh-proxy.com/"
+
 msgid "Use only for IP-host panels that serve an invalid or self-signed certificate."
 msgstr "Используйте только для панелей с IP-адресом, у которых недействительный или самоподписанный сертификат."
 
@@ -1973,6 +2051,9 @@ msgstr "Если задано, TCP-трафик на все остальные �
 msgid "When set, UDP traffic to every other port goes directly. For example 443 leaves only QUIC to the tunnel. A port in the list above still goes directly."
 msgstr "Если задано, UDP-трафик на все остальные порты идёт напрямую. Например, 443 оставляет в туннеле только QUIC. Порт из списка выше всё равно идёт напрямую."
 
+msgid "Where the NetShift updates (the Components manager and the notice on the dashboard) come from. The developer's repository has the stable releases. The fork's test builds are pre-releases that appear sooner and may have bugs; the newest one is offered. Switching back to the developer's repository does not downgrade by itself: install the version you want."
+msgstr "Откуда берутся обновления NetShift («Менеджер компонентов» и уведомление на дашборде). В репозитории разработчика выходят стабильные релизы. Тестовые сборки форка - это пред-релизы: они появляются раньше и могут содержать ошибки, предлагается самая новая. Возврат к репозиторию разработчика сам версию не понижает: установите нужную версию."
+
 msgid "Where will a request go"
 msgstr "Куда пойдёт запрос"
 
@@ -1982,6 +2063,9 @@ msgstr "Какой формат подписки (клиент) запрашив
 msgid "While sing-box is down, DNS (and therefore name resolution) is unavailable until it recovers. Direct non-proxied traffic is unaffected while sing-box is up."
 msgstr "Пока sing-box не работает, DNS (а значит, и разрешение имён) недоступен до его восстановления. Прямой непроксируемый трафик не затрагивается, пока sing-box запущен."
 
+msgid "Wi-Fi Calling directly"
+msgstr "Звонки по Wi-Fi напрямую"
+
 msgid "With several WAN interfaces choose the one whose address represents you. Automatic uses the first working one."
 msgstr "Если WAN-интерфейсов несколько, выберите тот, чей адрес вас представляет. Автоматически берётся первый рабочий."
 
@@ -1990,6 +2074,9 @@ msgstr "Xray JSON (Happ)"
 
 msgid "YACD Secret Key"
 msgstr "Секретный ключ YACD"
+
+msgid "yandexru45/netshift (developer, stable releases)"
+msgstr "yandexru45/netshift (разработчик, стабильные релизы)"
 
 msgid "You can select Output Network Interface, by default autodetect"
 msgstr "Вы можете выбрать выходной сетевой интерфейс, по умолчанию он определяется автоматически."
