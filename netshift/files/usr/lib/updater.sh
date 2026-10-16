@@ -929,7 +929,55 @@ updates_download_to_file() {
         wget -q -O "$dest" "$url" && [ -s "$dest" ] && return 0
     fi
 
-    return 1
+    updates_download_via_mirrors "$url" "$dest"
+}
+
+# After a failed direct download of a GitHub file: the mirrors the user listed
+# (list update_mirror 'https://host/'), each put in front of the full URL. Nothing is tried
+# for other hosts, or when no mirror is set (the default).
+updates_download_via_mirrors() {
+    local url="$1"
+    local dest="$2"
+
+    case "$url" in
+    https://github.com/* | https://raw.githubusercontent.com/*) ;;
+    *) return 1 ;;
+    esac
+    command -v config_list_foreach > /dev/null 2>&1 || return 1
+
+    UPDATES_MIRROR_URL="$url"
+    UPDATES_MIRROR_DEST="$dest"
+    UPDATES_MIRROR_DONE=0
+    config_list_foreach "settings" "update_mirror" _updates_try_mirror
+    [ "$UPDATES_MIRROR_DONE" -eq 1 ]
+}
+
+_updates_try_mirror() {
+    local mirror="$1"
+
+    [ "$UPDATES_MIRROR_DONE" -eq 0 ] || return 0
+    case "$mirror" in
+    https://*/) ;;
+    https://*) mirror="$mirror/" ;;
+    *)
+        updates_log "Ignoring update_mirror '$mirror': it must be an https:// address" "warn"
+        return 0
+        ;;
+    esac
+
+    updates_log "Direct download failed; trying the mirror $mirror" "warn"
+    if command -v curl >/dev/null 2>&1 &&
+        curl -m 120 -fsSL "$mirror$UPDATES_MIRROR_URL" -o "$UPDATES_MIRROR_DEST" && [ -s "$UPDATES_MIRROR_DEST" ]; then
+        UPDATES_MIRROR_DONE=1
+        return 0
+    fi
+    if command -v wget >/dev/null 2>&1 &&
+        wget -q -O "$UPDATES_MIRROR_DEST" "$mirror$UPDATES_MIRROR_URL" && [ -s "$UPDATES_MIRROR_DEST" ]; then
+        UPDATES_MIRROR_DONE=1
+        return 0
+    fi
+    rm -f "$UPDATES_MIRROR_DEST" 2> /dev/null
+    return 0
 }
 
 # Restarts netshift if its init script is present (best-effort).
@@ -2835,8 +2883,40 @@ updates_github_resolve_redirect() {
 # grabbed the wrong key on minified JSON, causing a false "outdated".
 # Bare tag on success / non-zero otherwise (contract consumed by
 # updates_check_netshift and the self-update worker).
+updates_select_netshift_repo() {
+    local choice=""
+
+    UPDATES_NETSHIFT_REPO_KIND="upstream"
+    command -v config_get > /dev/null 2>&1 && config_get choice "settings" "update_repo" "upstream"
+    [ "$choice" = "fork" ] || return 0
+
+    UPDATES_NETSHIFT_REPO_KIND="fork"
+    NETSHIFT_REPO_RELEASES_LATEST_URL="https://github.com/$NETSHIFT_REPO_FORK/releases/latest"
+    NETSHIFT_REPO_RELEASES_DOWNLOAD_BASE="https://github.com/$NETSHIFT_REPO_FORK/releases/download"
+    NETSHIFT_RELEASE_API_URL="https://api.github.com/repos/$NETSHIFT_REPO_FORK/releases?per_page=1"
+    NETSHIFT_REPO_FEED_URL="https://github.com/$NETSHIFT_REPO_FORK/releases.atom"
+}
+
 updates_netshift_latest_tag() {
-    local response tag redirect
+    local response tag redirect feed
+
+    updates_select_netshift_repo
+
+    # The fork's builds are pre-releases: /releases/latest does not see them. Its release feed
+    # (github.com, not the rate-limited API) lists the newest first; the tag is in the link.
+    if [ "$UPDATES_NETSHIFT_REPO_KIND" = "fork" ]; then
+        feed="$(updates_http_get "$NETSHIFT_REPO_FEED_URL")"
+        tag="$(printf '%s' "$feed" | grep -o '/releases/tag/[^"<]*' | sed -n '1p' | sed 's#.*/##')"
+        if [ -n "$tag" ]; then
+            printf '%s' "$tag"
+            return 0
+        fi
+        response="$(updates_http_get "$NETSHIFT_RELEASE_API_URL")"
+        tag="$(printf '%s' "$response" | jq -r 'if type == "array" then .[0].tag_name else .tag_name end // empty' 2> /dev/null)"
+        [ -n "$tag" ] || return 1
+        printf '%s' "$tag"
+        return 0
+    fi
 
     # PRIMARY: github.com/<repo>/releases/latest 302-redirects to
     # /releases/tag/<tag>. Parse with case/param-expansion (no Oniguruma).
@@ -2894,6 +2974,8 @@ _updates_self_update_download_assets() {
     local dir="$1"
     local response ext pattern url filename dest attempt got_core=0
     local tag pkg
+
+    updates_select_netshift_repo
 
     if updates_pkg_is_apk; then
         ext="apk"

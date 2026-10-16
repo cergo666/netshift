@@ -20829,6 +20829,138 @@ test_ipv6_dns_policy() {
     fi
     rm -rf "$work"
 }
+test_update_repo() {
+    header "NetShift update source (update_repo) and GitHub mirrors (update_mirror)"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    local updater="$lib/updater.sh"
+    if [ ! -r "$updater" ]; then
+        fail "updater.sh not found"
+        return
+    fi
+
+    local work="/tmp/netshift-updaterepo-$$"
+    rm -rf "$work"
+    mkdir -p "$work/bin"
+
+    local drv="$work/driver.sh"
+    cat > "$drv" << 'DRVEOF'
+log() { :; }
+echolog() { :; }
+nolog() { :; }
+. "DRV_HELPERS"
+. "DRV_UPDATER"
+. "DRV_CONSTANTS"
+updates_log() { printf '%s\n' "$1" >> "$WORK/log"; }
+NETSHIFT_VERSION="0.9.0"
+UR_CHOICE=""; UR_MIRRORS=""
+config_get() { eval "$1=\"\${UR_CHOICE:-\$3}\""; }
+config_list_foreach() { local _m; for _m in $UR_MIRRORS; do "$3" "$_m"; done; }
+updates_components_proxy_address() { :; }
+updates_github_resolve_redirect() { printf '%s' "$UR_REDIRECT"; }
+updates_http_get() { printf '%s\n' "$1" >> "$WORK/gets"; case "$1" in *releases.atom) printf '%s' "$UR_FEED" ;; *) printf '%s' "$UR_API" ;; esac; }
+
+ATOM='<feed><entry><id>tag:github.com,2008:Repository/1/0.9.11.4</id><link rel="alternate" type="text/html" href="https://github.com/cergo666/netshift/releases/tag/0.9.11.4"/><title>0.9.11.4</title></entry><entry><link rel="alternate" type="text/html" href="https://github.com/cergo666/netshift/releases/tag/0.9.11.3"/></entry></feed>'
+UR_REDIRECT="https://github.com/yandexru45/netshift/releases/tag/0.9.10"
+UR_FEED="$ATOM"
+UR_API='[{"tag_name":"0.9.11.2"},{"tag_name":"0.9.11.1"}]'
+
+# the developer's repository (default): the redirect of /releases/latest, nothing else touched
+UR_CHOICE=upstream; : > "$WORK/gets"
+echo "upstream-tag=$(updates_netshift_latest_tag)"
+echo "upstream-no-feed=$(grep -c 'releases.atom' "$WORK/gets")"
+UR_CHOICE=""
+echo "unset-is-upstream=$(updates_netshift_latest_tag)"
+
+# the fork: its pre-releases come from the release feed, the newest first
+UR_CHOICE=fork; : > "$WORK/gets"
+updates_select_netshift_repo
+echo "fork-tag=$(updates_netshift_latest_tag)"
+echo "fork-feed-used=$(grep -c 'github.com/cergo666/netshift/releases.atom' "$WORK/gets")"
+echo "fork-base=$NETSHIFT_REPO_RELEASES_DOWNLOAD_BASE"
+# no feed: the API list, first item
+UR_FEED=""
+echo "fork-api-fallback=$(updates_netshift_latest_tag)"
+UR_API='{"tag_name":"0.9.11.2"}'
+echo "fork-api-object=$(updates_netshift_latest_tag)"
+UR_API=""
+updates_netshift_latest_tag > /dev/null && echo "fork-none=ok" || echo "fork-none=fail"
+UR_CHOICE=""
+
+# a newer fork build is "outdated" for the installed one
+NETSHIFT_VERSION="0.9.11.3"; UR_CHOICE=fork; UR_FEED="$ATOM"
+echo "fork-status=$(updates_check_netshift 2> /dev/null | jq -r '.status')"
+NETSHIFT_VERSION="0.9.11.4"
+echo "fork-current=$(updates_check_netshift 2> /dev/null | jq -r '.status')"
+UR_CHOICE=""
+
+# mirrors: used only after the direct download failed, only for GitHub files, only https://
+cat > "$WORK/bin/curl" << 'CEOF'
+#!/bin/sh
+# fails for a direct GitHub URL, works for a URL behind a mirror prefix
+url=""; out=""; prev=""
+for a in "$@"; do
+    case "$a" in http*) url="$a" ;; esac
+    [ "$prev" = "-o" ] && out="$a"
+    prev="$a"
+done
+printf '%s\n' "$url" >> "$WORK/curl.calls"
+case "$url" in
+https://mirror.example/https://github.com/*) printf 'PKG' > "$out"; exit 0 ;;
+*) exit 22 ;;
+esac
+CEOF
+chmod +x "$WORK/bin/curl"
+printf '#!/bin/sh\nexit 1\n' > "$WORK/bin/wget"; chmod +x "$WORK/bin/wget"
+PATH="$WORK/bin:$PATH"; export WORK PATH
+
+UR_MIRRORS="http://insecure.example/ https://mirror.example"
+: > "$WORK/curl.calls"; : > "$WORK/log"; rm -f "$WORK/pkg"
+updates_download_to_file "https://github.com/cergo666/netshift/releases/download/0.9.11.4/netshift.ipk" "$WORK/pkg" && echo "mirror-download=ok size=$(wc -c < "$WORK/pkg" | tr -d ' ')" || echo "mirror-download=fail"
+echo "mirror-tried-after-direct=$(sed -n '1p' "$WORK/curl.calls" | grep -c '^https://github.com/')"
+echo "mirror-url=$(tail -n1 "$WORK/curl.calls")"
+echo "http-mirror-rejected=$(grep -c 'must be an https' "$WORK/log")"
+
+UR_MIRRORS="https://mirror.example/"; : > "$WORK/curl.calls"
+updates_download_to_file "https://example.org/file.bin" "$WORK/pkg2" && echo "other-host=ok" || echo "other-host=fail"
+echo "other-host-calls=$(wc -l < "$WORK/curl.calls" | tr -d ' ')"
+UR_MIRRORS=""; : > "$WORK/curl.calls"
+updates_download_to_file "https://github.com/x/y/releases/download/1/a.ipk" "$WORK/pkg3" && echo "no-mirror=ok" || echo "no-mirror=fail"
+echo "no-mirror-calls=$(wc -l < "$WORK/curl.calls" | tr -d ' ')"
+DRVEOF
+    sed -i "s|DRV_UPDATER|$updater|g;s|DRV_HELPERS|${lib}/helpers.sh|g;s|DRV_CONSTANTS|${lib}/constants.sh|g" "$drv"
+
+    local out
+    out="$(WORK="$work" ash "$drv" 2>&1)"
+
+    _ur() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+    _ur "the developer's repository: the redirect of /releases/latest gives the tag" "upstream-tag=0.9.10"
+    _ur "...and the feed of the fork is not asked" "upstream-no-feed=0"
+    _ur "no setting is the developer's repository" "unset-is-upstream=0.9.10"
+    _ur "the fork: the newest release of its feed, pre-releases included" "fork-tag=0.9.11.4"
+    _ur "...read from the feed of the fork" "fork-feed-used=1"
+    _ur "...and its packages are downloaded from the fork" "fork-base=https://github.com/cergo666/netshift/releases/download"
+    _ur "without the feed the API list gives the first (newest) tag" "fork-api-fallback=0.9.11.2"
+    _ur "an API answer that is a single object works too" "fork-api-object=0.9.11.2"
+    _ur "nothing reachable: no tag, a failure" "fork-none=fail"
+    _ur "a newer build of the fork is offered as an update" "fork-status=outdated"
+    _ur "the build that is installed is the latest" "fork-current=latest"
+    _ur "a failed direct download falls back to the mirror, with the file written" "mirror-download=ok size=3"
+    _ur "the direct download is tried first" "mirror-tried-after-direct=1"
+    _ur "the mirror address is put in front of the full GitHub address" "mirror-url=https://mirror.example/https://github.com/cergo666/netshift/releases/download/0.9.11.4/netshift.ipk"
+    _ur "a mirror that is not https:// is ignored with a warning" "http-mirror-rejected=1"
+    _ur "a file that is not from GitHub never goes through a mirror" "other-host=fail"
+    _ur "...so only the direct attempt is made" "other-host-calls=1"
+    _ur "no mirror set: a failed download just fails" "no-mirror=fail"
+    _ur "...after the direct attempt only" "no-mirror-calls=1"
+    rm -rf "$work"
+}
 test_xhttp_extra() {
     header "XHTTP links: the extra (padding, post sizes, xmux) of the link"
 
@@ -22449,6 +22581,7 @@ main() {
             test_section_own_dns
             test_dns_section_pool
             test_xhttp_extra
+            test_update_repo
             test_naive
             test_dns_server_route
             test_core_caps
@@ -22543,6 +22676,7 @@ main() {
         sectiondns) test_section_own_dns ;;
         dnssectionpool) test_dns_section_pool ;;
         xhttpextra)  test_xhttp_extra ;;
+        updaterepo)  test_update_repo ;;
         naive)       test_naive ;;
         dnsroute)    test_dns_server_route ;;
         corecaps)    test_core_caps ;;

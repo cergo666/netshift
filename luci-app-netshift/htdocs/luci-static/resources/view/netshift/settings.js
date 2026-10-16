@@ -991,6 +991,42 @@ function createSettingsContent(section) {
   o.rmempty = false;
 
   // --- Lists & Updates tab ---
+  // Where NetShift itself is updated from: the developer's repository or the test builds
+  // of the fork (pre-releases, shipped more often).
+  o = section.taboption(
+    "lists",
+    form.ListValue,
+    "update_repo",
+    _("NetShift update source"),
+    _(
+      "Where the NetShift updates (the Components manager and the notice on the dashboard) come from. The developer's repository has the stable releases. The fork's test builds are pre-releases that appear sooner and may have bugs; the newest one is offered. Switching back to the developer's repository does not downgrade by itself: install the version you want.",
+    ),
+  );
+  o.value("upstream", _("yandexru45/netshift (developer, stable releases)"));
+  o.value("fork", _("cergo666/netshift (test builds)"));
+  o.default = "upstream";
+  o.rmempty = false;
+
+  o = section.taboption(
+    "lists",
+    form.DynamicList,
+    "update_mirror",
+    _("GitHub mirrors for downloads"),
+    _(
+      "Optional: https:// addresses of GitHub mirrors, for when GitHub is hard to reach. A mirror is tried only after the direct download failed, and is put in front of the full GitHub address (for example https://gh-proxy.com/). What a mirror returns is not signed, so list only a mirror you trust. Empty: no mirror.",
+    ),
+  );
+  o.rmempty = true;
+  o.validate = function (section_id, value) {
+    if (!value) {
+      return true;
+    }
+
+    return /^https:\/\/[^\s/]+(\/[^\s]*)?$/.test(value)
+      ? true
+      : _("Use an https:// address, for example https://gh-proxy.com/");
+  };
+
   o = section.taboption(
     "lists",
     form.Flag,
