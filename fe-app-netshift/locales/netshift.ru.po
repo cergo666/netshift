@@ -53,6 +53,9 @@ msgstr "Активный"
 msgid "Active Connections"
 msgstr "Активные соединения"
 
+msgid "Add a DNS server above first"
+msgstr "Сначала добавьте DNS-сервер выше"
+
 msgid "Add one or more subscription URLs to fetch proxy configurations from. All feeds are downloaded and merged."
 msgstr "Добавьте один или несколько URL подписок для получения конфигураций прокси. Все источники загружаются и объединяются."
 
@@ -91,6 +94,9 @@ msgstr "Применимо для SOCKS и Shadowsocks прокси"
 
 msgid "Ask for a user name and a password. Without a login anyone in your network can use this proxy. If the login is not complete the proxy is not created at all."
 msgstr "Запрашивать имя пользователя и пароль. Без логина этим прокси может пользоваться любой в вашей сети. Если логин задан не полностью, прокси не создаётся вовсе."
+
+msgid "Ask these DNS servers through this section"
+msgstr "Опрашивать эти DNS-серверы через эту секцию"
 
 msgid "At least one proxy link must be specified."
 msgstr "Необходимо указать хотя бы одну прокси-ссылку."
@@ -412,6 +418,9 @@ msgstr "Таймаут DNS-сервера"
 
 msgid "DNS servers"
 msgstr "DNS-серверы"
+
+msgid "DNS servers of this section"
+msgstr "DNS-серверы этой секции"
 
 msgid "DNS speed test"
 msgstr "Тест скорости DNS"
@@ -1157,6 +1166,9 @@ msgstr "Время ожидания истекло"
 msgid "Optional"
 msgstr "Необязательно"
 
+msgid "Optional: DNS servers for this section only, instead of the global ones: scheme://host[:port][/path], where scheme is udp, tcp, dot, doh, doh3 or doq. A VPN or exclusion section resolves its direct connections through the first server; with real IPv6 addresses (above) all the servers answer the AAAA queries of its domains. A proxy section is resolved by its proxy server. Empty: the global DNS."
+msgstr "Необязательно: DNS-серверы только для этой секции вместо глобальных: scheme://host[:port][/path], где scheme - udp, tcp, dot, doh, doh3 или doq. Секция VPN или исключений разрешает свои прямые соединения через первый сервер; при настоящих IPv6-адресах (выше) на AAAA-запросы её доменов отвечают все серверы. Прокси-секцию разрешает сам прокси-сервер. Пусто: глобальный DNS."
+
 msgid "Optional: query this DNS server through the outbound of another section. If that outbound is not usable the queries go out directly."
 msgstr "Необязательно: опрашивать этот DNS-сервер через outbound другой секции. Если этот outbound недоступен, запросы уходят напрямую."
 
@@ -1640,6 +1652,9 @@ msgstr "Секция полностью игнорируется (маршрут
 msgid "The server must be an IP address, optionally with #port"
 msgstr "Сервер должен быть IP-адресом, при необходимости с #портом"
 
+msgid "The servers above are reached through the outbound of this section (a resolver that exists only inside the VPN or tunnel). If the outbound is not usable they are asked directly."
+msgstr "Серверы выше опрашиваются через исходящее соединение этой секции (резолвер, который существует только внутри VPN или туннеля). Если соединение недоступно, серверы опрашиваются напрямую."
+
 msgid "The service will restart."
 msgstr "Служба перезапустится."
 
@@ -1681,6 +1696,9 @@ msgstr "Время ежедневного обновления, ЧЧ:ММ (00:00
 
 msgid "Times every configured DNS server (UDP, TCP, DoT and DoH; DoH3 and DoQ cannot be timed). With \"Route main DNS through proxy/VPN\" the servers are reached through the tunnel, so a resolver inside it can be timed too. Nothing is changed: use it to decide the order of the servers."
 msgstr "Замеряет каждый настроенный DNS-сервер (UDP, TCP, DoT и DoH; DoH3 и DoQ замерить нельзя). При включённом «Route main DNS through proxy/VPN» серверы опрашиваются через туннель, поэтому можно замерить и резолвер внутри него. Ничего не меняется: результат помогает выбрать порядок серверов."
+
+msgid "Times every DNS server of the list (UDP, TCP, DoT and DoH; DoH3 and DoQ cannot be timed). Nothing is changed: use it to decide the order of the servers."
+msgstr "Замеряет каждый DNS-сервер списка (UDP, TCP, DoT и DoH; DoH3 и DoQ замерить нельзя). Ничего не меняется: используйте, чтобы выбрать порядок серверов."
 
 msgid "TLS and Reality fail with a wrong time: check NTP"
 msgstr "С неверным временем не работают TLS и Reality: проверьте NTP"
