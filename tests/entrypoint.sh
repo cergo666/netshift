@@ -20829,6 +20829,73 @@ test_ipv6_dns_policy() {
     fi
     rm -rf "$work"
 }
+test_quic_mode() {
+    header "disable_quic: off, tunneled (the old flag) and all"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    if [ ! -r "$bin" ]; then
+        fail "netshift bin not found"
+        return
+    fi
+
+    local out
+    out="$(
+        . "$lib/constants.sh"
+        QM_LOG=/dev/null
+        log() { printf '[%s] %s\n' "${2:-info}" "$1" >> "${QM_LOG:-/dev/null}"; }
+        for fn in disable_quic_mode nft_add_quic_block; do
+            eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$bin")"
+        done
+        config_get() { eval "$1=\"\${QM_${3}:-$4}\""; }
+
+        for v in "" 0 false no off 1 true yes on tunneled all bogus; do
+            QM_disable_quic="$v"
+            echo "mode[$v]=$(disable_quic_mode)"
+        done
+        QM_disable_quic=""; unset QM_disable_quic
+        echo "mode-unset=$(disable_quic_mode)"
+
+        # the rule on the nft side, in the real nft: only the "all" mode writes it
+        if command -v nft > /dev/null 2>&1; then
+            NFT_TABLE_NAME="NetShiftQuicTest$$"
+            NFT_INTERFACE_SET_NAME="interfaces"
+            nft add table inet "$NFT_TABLE_NAME" 2> /dev/null &&
+                nft add set inet "$NFT_TABLE_NAME" "$NFT_INTERFACE_SET_NAME" '{ type ifname; }' &&
+                nft add chain inet "$NFT_TABLE_NAME" mangle '{ type filter hook prerouting priority mangle; }' &&
+                nft add rule inet "$NFT_TABLE_NAME" mangle counter accept
+            QM_disable_quic=1; nft_add_quic_block
+            echo "nft-tunneled-rules=$(nft list chain inet "$NFT_TABLE_NAME" mangle 2> /dev/null | grep -c 'dport 443')"
+            QM_disable_quic=all; nft_add_quic_block
+            echo "nft-all-rule=$(nft list chain inet "$NFT_TABLE_NAME" mangle 2> /dev/null | grep -c 'udp dport 443.*reject')"
+            echo "nft-all-first=$(nft list chain inet "$NFT_TABLE_NAME" mangle 2> /dev/null | grep -n 'dport 443\|counter.*accept' | head -2 | cut -d: -f1 | tr '\n' ' ')"
+            nft delete table inet "$NFT_TABLE_NAME" 2> /dev/null
+        fi
+    )"
+
+    _qm() {
+        if printf '%s\n' "$out" | grep -qxF -- "$2"; then
+            pass "$1"
+        else
+            fail "$1" "wanted [$2] in: $(printf '%s' "$out" | tr '\n' '~')"
+        fi
+    }
+    _qm "an empty or unset option is off" "mode[]=off"
+    _qm "0 is off" "mode[0]=off"
+    _qm "false/no/off are off" "mode[off]=off"
+    _qm "the old flag 1 is tunneled" "mode[1]=tunneled"
+    _qm "true/yes/on are tunneled too" "mode[yes]=tunneled"
+    _qm "tunneled is tunneled" "mode[tunneled]=tunneled"
+    _qm "all is all" "mode[all]=all"
+    _qm "an unknown value blocks nothing" "mode[bogus]=off"
+    _qm "no setting at all is off" "mode-unset=off"
+    if command -v nft > /dev/null 2>&1; then
+        _qm "the tunneled mode adds nothing to nft" "nft-tunneled-rules=0"
+        _qm "the all mode refuses UDP/443 from the network with a port-unreachable" "nft-all-rule=1"
+    else
+        skip "nft not available: the nft rule of the all mode"
+    fi
+}
 test_update_repo() {
     header "NetShift update source (update_repo) and GitHub mirrors (update_mirror)"
 
@@ -22604,6 +22671,7 @@ main() {
             test_dns_section_pool
             test_xhttp_extra
             test_update_repo
+            test_quic_mode
             test_naive
             test_dns_server_route
             test_core_caps
@@ -22699,6 +22767,7 @@ main() {
         dnssectionpool) test_dns_section_pool ;;
         xhttpextra)  test_xhttp_extra ;;
         updaterepo)  test_update_repo ;;
+        quicmode)    test_quic_mode ;;
         naive)       test_naive ;;
         dnsroute)    test_dns_server_route ;;
         corecaps)    test_core_caps ;;
