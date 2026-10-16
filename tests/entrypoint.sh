@@ -587,7 +587,7 @@ for fn in nft_init_interfaces_set populate_netshift_subnets_from_file \
           populate_netshift_subnets_from_string nft_mark_fully_routed_source_ips \
           _nft_mark_fully_routed_ips_for_section _nft_mark_fully_routed_ip_handler \
           foreach_active_section _active_section_dispatch \
-          nft_add_dns_hijack nft_add_port_rules \
+          nft_add_dns_hijack nft_add_port_rules port_rules_value disable_quic_mode nft_add_quic_block \
           create_nft_rules; do
     eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$BIN")"
 done
