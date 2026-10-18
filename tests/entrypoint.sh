@@ -19326,6 +19326,10 @@ test_update_notice() {
         . "$lib/constants.sh"
         . "$lib/update_notice.sh"
         UPDATE_NOTICE_FILE="$work/notice.json"
+        # the versions the router runs; the stored answers are made for them
+        NETSHIFT_VERSION="0.9.10"
+        SB_NOW="1.12.0-extended-1"
+        get_sing_box_version() { echo "$SB_NOW"; }
 
         NOTICE_ENABLED=1
         config_get_bool() { eval "$1=\"$NOTICE_ENABLED\""; }
@@ -19378,6 +19382,16 @@ test_update_notice() {
         echo 'not json' > "$UPDATE_NOTICE_FILE"
         echo "garbage=$(get_update_notice | jq -c '[.stale, .netshift]')"
 
+        # an answer made for another version: after an update the notice must not keep
+        # offering the old step (the answer is kept for a day)
+        printf '%s\n' '{"checked":'"$(date +%s)"',"netshift":{"success":true,"current_version":"0.9.10","latest_version":"0.9.12","status":"outdated"},"sing_box":{"success":true,"current_version":"1.12.0-extended-1","latest_version":"1.12.0-extended-2","status":"outdated"}}' > "$UPDATE_NOTICE_FILE"
+        echo "same-version=$(get_update_notice | jq -c '[.stale, .netshift.latest_version, .sing_box.latest_version]')"
+        NETSHIFT_VERSION="0.9.12"
+        echo "netshift-updated=$(get_update_notice | jq -c '[.stale, .netshift, .sing_box.latest_version]')"
+        NETSHIFT_VERSION="0.9.10"; SB_NOW="1.12.0-extended-2"
+        echo "core-updated=$(get_update_notice | jq -c '[.stale, .netshift.latest_version, .sing_box]')"
+        SB_NOW="1.12.0-extended-1"
+
         # the background refresh: starts once, a second call while it runs does nothing
         rm -f "$UPDATE_NOTICE_FILE" "$UPDATE_NOTICE_FILE.lock"
         updates_check_netshift() { sleep 2; printf '%s\n' "$NS_JSON"; }
@@ -19409,6 +19423,9 @@ test_update_notice() {
     _un "...and does not ask again at once" "offline-not-stale=false"
     _un "nothing known and unreachable gives empty parts" "empty=[null,null]"
     _un "a broken file reads as nothing known" "garbage=[true,null]"
+    _un "an answer for the installed versions is shown" 'same-version=[false,"0.9.12","1.12.0-extended-2"]'
+    _un "after a NetShift update its old answer is dropped and a refresh is due" 'netshift-updated=[true,null,"1.12.0-extended-2"]'
+    _un "after a core update its old answer is dropped and a refresh is due" 'core-updated=[true,"0.9.12",null]'
     _un "the background refresh starts" 'async-first={"started":true}'
     _un "...once at a time" 'async-second={"started":false}'
     _un "...and stores its answer" 'async-done="0.9.12"'

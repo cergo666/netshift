@@ -90,12 +90,27 @@ get_update_notice() {
     '' | *[!0-9]*) checked=0 ;;
     esac
 
+    # The answer is kept for a day, but it names the versions it was made for. After an
+    # update (or a switch of the core) it would keep offering "0.9.10.4 -> 0.9.11.1" on a
+    # router that already runs 0.9.11.3: a part whose "current_version" is not what is
+    # installed now is dropped and the notice is due for a refresh.
+    sing_box_now=""
+    if [ "$(printf '%s' "$data" | jq -r '.sing_box.current_version // empty')" != "" ]; then
+        sing_box_now="$(get_sing_box_version 2> /dev/null)"
+    fi
+
     printf '%s' "$data" | jq -c --argjson enabled "$([ "$enabled" -eq 1 ] && echo true || echo false)" \
-        --argjson stale "$([ $((now - checked)) -ge "$UPDATE_NOTICE_TTL" ] && echo true || echo false)" '{
+        --argjson stale "$([ $((now - checked)) -ge "$UPDATE_NOTICE_TTL" ] && echo true || echo false)" \
+        --arg netshift_now "${NETSHIFT_VERSION:-}" --arg sing_box_now "$sing_box_now" '
+        def outdated($part; $now):
+            ($part != null) and ($now != "") and (($part.current_version // "") != $now);
+        outdated(.netshift; $netshift_now) as $ns_old
+        | outdated(.sing_box; $sing_box_now) as $sb_old
+        | {
             enabled: $enabled,
-            stale: $stale,
+            stale: ($stale or $ns_old or $sb_old),
             checked: (.checked // null),
-            netshift: (.netshift // null),
-            sing_box: (.sing_box // null)
+            netshift: (if $ns_old then null else (.netshift // null) end),
+            sing_box: (if $sb_old then null else (.sing_box // null) end)
         }'
 }
