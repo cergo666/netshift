@@ -60,6 +60,7 @@ export namespace NetShift {
     CHECK_ENVIRONMENT = 'check_environment',
     CHECK_ROUTE = 'check_route',
     SUPPORT_REPORT = 'support_report',
+    PREVIEW_SUBSCRIPTION_FILTER = 'preview_subscription_filter',
     GET_UPDATE_NOTICE = 'get_update_notice',
     REFRESH_UPDATE_NOTICE = 'refresh_update_notice',
     CONFIG_SNAPSHOT = 'config_snapshot',
