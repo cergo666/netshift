@@ -37,6 +37,7 @@ check_required_file "$NETSHIFT_LIB/naive.sh"
 check_required_file "$NETSHIFT_LIB/corecaps.sh"
 check_required_file "$NETSHIFT_LIB/applyconfig.sh"
 check_required_file "$NETSHIFT_LIB/support.sh"
+check_required_file "$NETSHIFT_LIB/filterpreview.sh"
 . /lib/functions.sh
 . /lib/config/uci.sh
 . /lib/functions/network.sh
@@ -62,6 +63,7 @@ check_required_file "$NETSHIFT_LIB/support.sh"
 . "$NETSHIFT_LIB/feedlist.sh"
 . "$NETSHIFT_LIB/applyconfig.sh"
 . "$NETSHIFT_LIB/support.sh"
+. "$NETSHIFT_LIB/filterpreview.sh"
 . "$NETSHIFT_LIB/naive.sh"
 . "$NETSHIFT_LIB/corecaps.sh"
 
@@ -6087,6 +6089,8 @@ geoip_lookup_hosts() {
 
     GEOIP_CACHE="$cache"
     [ -n "$hosts" ] || return 0
+    # GEOIP_CACHE_ONLY=1 (the filter preview): what the cache holds, no lookup and no writes
+    [ "${GEOIP_CACHE_ONLY:-0}" != 1 ] || return 0
 
     # Hosts that still need a lookup: no cache entry, or one past its TTL.
     missing="$(printf '%s\n' "$hosts" | jq -R -s -c \
@@ -6221,7 +6225,7 @@ subscription_geoip_annotate() {
         | ($name | name_country_hint) as $hint
         | select($hint != "" and $cc != "" and $hint != $cc)
         | "\($name) (address \($cc), name \($hint))"' --argjson cache "$cache" "$merged" 2> /dev/null)"
-    if [ -n "$mismatched" ]; then
+    if [ -n "$mismatched" ] && [ "${GEOIP_CACHE_ONLY:-0}" != 1 ]; then
         count="$(printf '%s\n' "$mismatched" | grep -c .)"
         examples="$(printf '%s\n' "$mismatched" | head -n 3 | tr '\n' ';')"
         log "GeoIP: $count server name(s) state a country their address does not match, which is what a shared entry point (mirror) looks like; the name is used: $examples" "warn"
@@ -8921,6 +8925,8 @@ Available commands:
     apply_config            Restart only if the configuration changed in options the service uses
     support_report          A report for support: versions, settings, config, logs (secrets masked)
     get_crash_log           The last crash of sing-box from the system log
+    preview_subscription_filter <section> [overrides_json]
+                            How many servers of the cached subscription pass the filters
     global_check            Run global system check
     component_action        Run component action: <component> <action>
                             (e.g. sing_box install_extended|install_extended_lite|
@@ -9081,6 +9087,9 @@ support_report)
     ;;
 get_crash_log)
     get_sing_box_crash_log | support_mask_text
+    ;;
+preview_subscription_filter)
+    preview_subscription_filter "${2:-}" "${3:-}"
     ;;
 global_check)
     global_check "${2:-}"
