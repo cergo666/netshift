@@ -1170,6 +1170,7 @@ var NetShift;
     AvailableMethods2["CHECK_ENVIRONMENT"] = "check_environment";
     AvailableMethods2["CHECK_ROUTE"] = "check_route";
     AvailableMethods2["SUPPORT_REPORT"] = "support_report";
+    AvailableMethods2["PREVIEW_SUBSCRIPTION_FILTER"] = "preview_subscription_filter";
     AvailableMethods2["GET_UPDATE_NOTICE"] = "get_update_notice";
     AvailableMethods2["REFRESH_UPDATE_NOTICE"] = "refresh_update_notice";
     AvailableMethods2["CONFIG_SNAPSHOT"] = "config_snapshot";
@@ -1356,6 +1357,12 @@ var NetShiftShellMethods = {
   getSupportReport: async () => callBaseMethod(
     NetShift.AvailableMethods.SUPPORT_REPORT,
     [],
+    void 0,
+    { nobatch: true, timeout: 25e3 }
+  ),
+  previewSubscriptionFilter: async (section, overrides) => callBaseMethod(
+    NetShift.AvailableMethods.PREVIEW_SUBSCRIPTION_FILTER,
+    [section, overrides],
     void 0,
     { nobatch: true, timeout: 25e3 }
   ),
