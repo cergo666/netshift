@@ -38,6 +38,7 @@ check_required_file "$NETSHIFT_LIB/corecaps.sh"
 check_required_file "$NETSHIFT_LIB/support.sh"
 check_required_file "$NETSHIFT_LIB/filterpreview.sh"
 check_required_file "$NETSHIFT_LIB/failover.sh"
+check_required_file "$NETSHIFT_LIB/applyconfig.sh"
 . /lib/functions.sh
 . /lib/config/uci.sh
 . /lib/functions/network.sh
@@ -64,6 +65,7 @@ check_required_file "$NETSHIFT_LIB/failover.sh"
 . "$NETSHIFT_LIB/support.sh"
 . "$NETSHIFT_LIB/filterpreview.sh"
 . "$NETSHIFT_LIB/failover.sh"
+. "$NETSHIFT_LIB/applyconfig.sh"
 . "$NETSHIFT_LIB/naive.sh"
 . "$NETSHIFT_LIB/corecaps.sh"
 
@@ -1332,6 +1334,9 @@ stop_main() {
 
 start() {
     local start_rc dont_touch_dhcp
+
+    # until this start has succeeded no configuration is "the one the service runs with"
+    config_applied_hash_clear
     start_main
     start_rc=$?
 
@@ -1353,6 +1358,7 @@ start() {
     uci_set "netshift" "settings" "shutdown_correctly" 0
     uci commit "netshift" && config_load "$NETSHIFT_CONFIG"
 
+    config_applied_hash_save
     start_sing_box_monitor
 }
 
@@ -1490,6 +1496,7 @@ stop() {
     fi
 
     stop_main
+    config_applied_hash_clear
 
     uci_set "netshift" "settings" "shutdown_correctly" 1
     uci commit "netshift" && config_load "$NETSHIFT_CONFIG"
@@ -1710,6 +1717,9 @@ monitor_sing_box() {
             fi
             # Real time, not ticks: a check that takes a while must not stretch the interval.
             now="$(date +%s)"
+            # The options the checks use (interval, priority mode, pin guard) apply without a
+            # restart of the service: the configuration is read anew before every look.
+            config_load "$NETSHIFT_CONFIG"
             if [ $((now - priority_last)) -ge "$(priority_check_interval)" ]; then
                 priority_last="$now"
                 priority_check_sections
@@ -8878,6 +8888,7 @@ Available commands:
     get_crash_log           The last crash of sing-box from the system log
     preview_subscription_filter <section> [overrides_json]
                             How many servers of the cached subscription pass the filters
+    apply_config            Restart only if the configuration changed in options the service uses
     global_check            Run global system check
     component_action        Run component action: <component> <action>
                             (e.g. sing_box install_extended|install_extended_lite|
@@ -8902,6 +8913,9 @@ stop)
     ;;
 reload)
     reload
+    ;;
+apply_config)
+    apply_config_change
     ;;
 restart)
     restart

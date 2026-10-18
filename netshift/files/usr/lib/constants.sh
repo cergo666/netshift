@@ -296,6 +296,13 @@ NETSHIFT_REPO_FORK="cergo666/netshift"
 UPDATES_NETSHIFT_DOWNLOAD_DIR="/tmp/netshift/selfupdate"
 # Release notes shown with the build the update check offers (characters)
 UPDATES_NETSHIFT_NOTES_MAX=24000
+# Options that never reach the running service: changing only these does not restart it
+# (applyconfig.sh). shutdown_correctly is flipped by the service itself.
+# Read only while the service runs: by the monitor (it loads the configuration anew on every
+# check cycle), by the dashboard, or when a component is installed.
+CONFIG_NO_RESTART_OPTIONS="update_notice shutdown_correctly latency_test_url priority_check_interval priority_mode pin_guard wget_ipv4_mode sing_box_extended_arm_build sing_box_lite_build"
+CONFIG_APPLIED_HASH_FILE="/tmp/netshift-applied-config.hash"
+NETSHIFT_INIT="/etc/init.d/netshift"
 # tmpfs backup of /etc/config/netshift taken before the self-update package
 # install (conffiles normally preserve it; this is the defensive belt).
 UPDATES_NETSHIFT_CONFIG_BACKUP="/tmp/netshift/config.bak"
