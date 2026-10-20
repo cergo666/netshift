@@ -36,6 +36,7 @@ check_required_file "$NETSHIFT_LIB/feedlist.sh"
 check_required_file "$NETSHIFT_LIB/naive.sh"
 check_required_file "$NETSHIFT_LIB/corecaps.sh"
 check_required_file "$NETSHIFT_LIB/applyconfig.sh"
+check_required_file "$NETSHIFT_LIB/support.sh"
 . /lib/functions.sh
 . /lib/config/uci.sh
 . /lib/functions/network.sh
@@ -60,6 +61,7 @@ check_required_file "$NETSHIFT_LIB/applyconfig.sh"
 . "$NETSHIFT_LIB/lint.sh"
 . "$NETSHIFT_LIB/feedlist.sh"
 . "$NETSHIFT_LIB/applyconfig.sh"
+. "$NETSHIFT_LIB/support.sh"
 . "$NETSHIFT_LIB/naive.sh"
 . "$NETSHIFT_LIB/corecaps.sh"
 
@@ -8932,6 +8934,8 @@ Available commands:
     get_core_capabilities   What the installed sing-box core can do (JSON)
     fetch_feed_list <url>   The feed addresses of a published list of subscriptions (JSON)
     apply_config            Restart only if the configuration changed in options the service uses
+    support_report          A report for support: versions, settings, config, logs (secrets masked)
+    get_crash_log           The last crash of sing-box from the system log
     global_check            Run global system check
     component_action        Run component action: <component> <action>
                             (e.g. sing_box install_extended|install_extended_lite|
@@ -9086,6 +9090,12 @@ get_core_capabilities)
     ;;
 fetch_feed_list)
     fetch_feed_list "${2:-}"
+    ;;
+support_report)
+    support_report
+    ;;
+get_crash_log)
+    get_sing_box_crash_log | support_mask_text
     ;;
 global_check)
     global_check "${2:-}"
