@@ -39,8 +39,8 @@ RUN apk add --no-cache curl tar gzip && \
 # гоняют стоковый sing-box, а тесты фич extended (VLESS Encryption) вызывают
 # /usr/local/bin/sing-box-extended для настоящего `sing-box check`.
 # Версия закреплена, архив сверяется по sha256.
-ARG SB_EXTENDED_VERSION=1.13.14-extended-2.5.3
-ARG SB_EXTENDED_SHA256=c4b6a7367fc25e7a37289ea917fbf836d385b552a097ea5f643480d7fbe2768f
+ARG SB_EXTENDED_VERSION=1.14.1-extended-2.7.2
+ARG SB_EXTENDED_SHA256=e94b7fab2562b15b6aff61d91b93be6ff3611f8709c63b38db79453bcf2c683a
 RUN curl -sSL -o /tmp/sbx.tar.gz \
         "https://github.com/shtorm-7/sing-box-extended/releases/download/v${SB_EXTENDED_VERSION}/sing-box-${SB_EXTENDED_VERSION}-linux-amd64-musl.tar.gz" && \
     echo "${SB_EXTENDED_SHA256}  /tmp/sbx.tar.gz" | sha256sum -c - && \
@@ -52,8 +52,8 @@ RUN curl -sSL -o /tmp/sbx.tar.gz \
 # Стоковый sing-box 1.14+ рядом со стоковым ядром образа: правила DNS evaluate/respond/race
 # (пул DNS-серверов) есть только в 1.14, и тест dnspool проверяет их настоящим
 # `sing-box check` через /usr/local/bin/sing-box-1.14. Версия закреплена, архив сверяется по sha256.
-ARG SB_STOCK_NEW_VERSION=1.14.1
-ARG SB_STOCK_NEW_SHA256=b907365b154e4a7e3e40be15c2cd83433c0fa65c7dc736bdb1b5face2afe4501
+ARG SB_STOCK_NEW_VERSION=1.14.3
+ARG SB_STOCK_NEW_SHA256=41fc81fd041134d4d7d850a928d7d2cde17a7d6563953f406b22d32a68bfab1f
 RUN curl -sSL -o /tmp/sbn.tar.gz \
         "https://github.com/SagerNet/sing-box/releases/download/v${SB_STOCK_NEW_VERSION}/sing-box-${SB_STOCK_NEW_VERSION}-linux-amd64-musl.tar.gz" && \
     echo "${SB_STOCK_NEW_SHA256}  /tmp/sbn.tar.gz" | sha256sum -c - && \
