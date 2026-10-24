@@ -121,4 +121,37 @@ describe('onMount', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(resolved).toHaveBeenCalledWith(elements.later);
   });
+
+  it('also resolves when the pane grows from nothing, as an opened empty tab does', async () => {
+    install();
+    let resize: (() => void) | null = null;
+    let height = 0;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          resize = callback;
+        }
+
+        observe() {}
+
+        disconnect() {}
+      },
+    );
+    const pane = {
+      getBoundingClientRect: () => ({ width: 999, height }),
+    };
+    elements.x = element(pane);
+    const resolved = vi.fn();
+
+    onMount('x').then(resolved);
+    resize!();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(resolved).not.toHaveBeenCalled();
+
+    height = 1;
+    resize!();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(resolved).toHaveBeenCalledWith(elements.x);
+  });
 });

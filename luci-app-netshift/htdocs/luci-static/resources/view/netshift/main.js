@@ -8726,6 +8726,7 @@ async function onMount(id) {
     let watched = null;
     let intersection = null;
     let mutation = null;
+    let resize = null;
     let done = false;
     const finish = (element) => {
       if (done) {
@@ -8734,6 +8735,7 @@ async function onMount(id) {
       done = true;
       mutation?.disconnect();
       intersection?.disconnect();
+      resize?.disconnect();
       resolve(element);
     };
     const follow = () => {
@@ -8753,6 +8755,7 @@ async function onMount(id) {
         return;
       }
       intersection?.disconnect();
+      resize?.disconnect();
       watched = pane;
       intersection = new IntersectionObserver((entries) => {
         if (isOnScreen(entries)) {
@@ -8760,6 +8763,15 @@ async function onMount(id) {
         }
       });
       intersection.observe(pane);
+      if (typeof ResizeObserver !== "undefined") {
+        resize = new ResizeObserver(() => {
+          const { width, height } = pane.getBoundingClientRect();
+          if (width > 0 && height > 0) {
+            finish(document.getElementById(id) ?? target);
+          }
+        });
+        resize.observe(pane);
+      }
     };
     mutation = new MutationObserver(follow);
     mutation.observe(document.body, { childList: true, subtree: true });

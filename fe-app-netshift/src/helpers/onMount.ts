@@ -15,6 +15,7 @@ export async function onMount(id: string): Promise<HTMLElement> {
     let watched: Element | null = null;
     let intersection: IntersectionObserver | null = null;
     let mutation: MutationObserver | null = null;
+    let resize: ResizeObserver | null = null;
     let done = false;
 
     const finish = (element: HTMLElement) => {
@@ -25,6 +26,7 @@ export async function onMount(id: string): Promise<HTMLElement> {
       done = true;
       mutation?.disconnect();
       intersection?.disconnect();
+      resize?.disconnect();
       resolve(element);
     };
 
@@ -55,6 +57,7 @@ export async function onMount(id: string): Promise<HTMLElement> {
       }
 
       intersection?.disconnect();
+      resize?.disconnect();
       watched = pane;
       intersection = new IntersectionObserver((entries) => {
         if (isOnScreen(entries)) {
@@ -62,6 +65,20 @@ export async function onMount(id: string): Promise<HTMLElement> {
         }
       });
       intersection.observe(pane);
+
+      // An observer of intersection reports a change of the state, and a hidden pane and a
+      // pane of one pixel are both "intersecting": opening a tab that is empty gives no event.
+      // The size of the pane does change.
+      if (typeof ResizeObserver !== 'undefined') {
+        resize = new ResizeObserver(() => {
+          const { width, height } = pane.getBoundingClientRect();
+
+          if (width > 0 && height > 0) {
+            finish(document.getElementById(id) ?? target);
+          }
+        });
+        resize.observe(pane);
+      }
     };
 
     mutation = new MutationObserver(follow);
