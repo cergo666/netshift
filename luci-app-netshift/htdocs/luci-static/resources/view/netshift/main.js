@@ -7733,7 +7733,7 @@ function getComponentCards(systemInfo, checks) {
 
 // src/netshift/tabs/manager/initController.ts
 var managerLifecycleRegistered = false;
-var managerControllerInitialized = false;
+var managerMountedElement = null;
 var managerMounted = false;
 async function fetchSystemInfo2() {
   const systemInfo = await NetShiftShellMethods.getSystemInfo();
@@ -8164,7 +8164,7 @@ function registerLifecycleListeners3() {
     if (diff.tabService && next.tabService.current !== prev.tabService.current) {
       const isManagerVisible = next.tabService.current === "manager";
       if (isManagerVisible) {
-        return onPageMount3();
+        return managerMounted ? void 0 : onPageMount3();
       }
       if (managerMounted) {
         return onPageUnmount3();
@@ -8173,16 +8173,14 @@ function registerLifecycleListeners3() {
   });
 }
 async function initController3() {
-  if (managerControllerInitialized) {
-    return;
-  }
-  managerControllerInitialized = true;
-  onMount("manager-status").then(() => {
+  onMount("manager-status").then((element) => {
+    if (element === managerMountedElement) {
+      return;
+    }
+    managerMountedElement = element;
     logger.debug("[MANAGER]", "initController", "onMount");
     registerLifecycleListeners3();
-    if (store.get().tabService.current === "manager") {
-      onPageMount3();
-    }
+    onPageMount3();
   });
 }
 
@@ -8747,7 +8745,10 @@ async function onMount(id) {
         finish(target);
         return;
       }
-      const pane = target.closest("[data-tab-title]") ?? target;
+      if (!target.style.minHeight) {
+        target.style.minHeight = "1px";
+      }
+      const pane = target.closest("[data-tab-title], [data-tab]") ?? target;
       if (pane === watched) {
         return;
       }
