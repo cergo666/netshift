@@ -40,6 +40,13 @@ export async function onMount(id: string): Promise<HTMLElement> {
         return;
       }
 
+      // A placeholder with nothing in it has no height, and a tab that is open but empty
+      // (the components manager fills its tab only after it has started) would never count as
+      // seen. One pixel makes it visible; a tab that is not open is still clipped to nothing.
+      if (!target.style.minHeight) {
+        target.style.minHeight = '1px';
+      }
+
       const pane = target.closest('[data-tab-title]') ?? target;
 
       if (pane === watched) {

@@ -10,6 +10,7 @@ const elements: Record<string, unknown> = {};
 
 function element(pane: unknown) {
   return { closest: () => pane };
+    style: { minHeight: '' },
 }
 
 function install() {
@@ -75,6 +76,15 @@ describe('onMount', () => {
     intersections[0].callback(on);
     await new Promise((r) => setTimeout(r, 0));
     expect(resolved).toHaveBeenCalledWith(elements.x);
+  });
+
+  it('gives an empty placeholder a pixel of height, so that an open empty tab is seen', async () => {
+    install();
+    const placeholder = element({ name: 'pane' });
+    elements.x = placeholder;
+
+    onMount('x');
+    expect(placeholder.style.minHeight).toBe('1px');
   });
 
   it('follows an element that LuCI drew again with the same id', async () => {
