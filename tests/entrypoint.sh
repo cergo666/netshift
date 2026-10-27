@@ -25337,6 +25337,70 @@ test_fakeip_rule_lists() {
     fi
 }
 
+test_xray_flat_outbound() {
+    header "Xray JSON with flat outbound settings (Xray 26: address, port and id in settings)"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not available"
+        return
+    fi
+    mkdir -p /usr/lib/netshift
+    ln -sf "$lib/helpers.jq" /usr/lib/netshift/helpers.jq
+    ln -sf "$lib/helpers.sh" /usr/lib/netshift/helpers.sh
+
+    local src="/tmp/netshift-xrayflat-$$.json" out
+    # Synthetic placeholder values only.
+    cat > "$src" << 'XRAYJSON'
+[
+  {"remarks": "Flat", "outbounds": [
+    {"protocol": "vless", "tag": "flat-1",
+     "settings": {"address": "203.0.113.10", "port": 8443, "id": "11111111-1111-1111-1111-111111111111",
+                  "encryption": "none", "flow": "xtls-rprx-vision", "level": 8},
+     "streamSettings": {"network": "tcp", "security": "reality",
+       "realitySettings": {"serverName": "front.example.com", "publicKey": "PUBKEY", "shortId": "abcd", "fingerprint": "firefox"}}},
+    {"protocol": "trojan", "tag": "flat-2",
+     "settings": {"address": "203.0.113.11", "port": 443, "password": "secret"},
+     "streamSettings": {"network": "tcp", "security": "tls", "tlsSettings": {"serverName": "t.example.com"}}},
+    {"protocol": "freedom", "tag": "direct"}
+  ]},
+  {"remarks": "Legacy", "outbounds": [
+    {"protocol": "vless", "tag": "legacy-1",
+     "settings": {"vnext": [{"address": "203.0.113.12", "port": 443,
+                  "users": [{"id": "22222222-2222-2222-2222-222222222222", "encryption": "none"}]}]},
+     "streamSettings": {"network": "tcp", "security": "tls", "tlsSettings": {"serverName": "l.example.com"}}}
+  ]}
+]
+XRAYJSON
+    out="$(
+        . "$lib/constants.sh"
+        . "$lib/helpers.sh"
+        xray_json_to_uri_lines "$src" 2> /dev/null
+    )"
+    rm -f "$src"
+
+    if printf '%s\n' "$out" | grep -q '^vless://11111111-1111-1111-1111-111111111111@203.0.113.10:8443?.*flow=xtls-rprx-vision'; then
+        pass "flat-vless-reality-with-flow"
+    else
+        fail "flat vless outbound not converted (got: $out)"
+    fi
+    if printf '%s\n' "$out" | grep -q '^trojan://secret@203.0.113.11:443?'; then
+        pass "flat-trojan"
+    else
+        fail "flat trojan outbound not converted (got: $out)"
+    fi
+    if printf '%s\n' "$out" | grep -q '^vless://22222222-2222-2222-2222-222222222222@203.0.113.12:443?'; then
+        pass "legacy-vnext-still-converted"
+    else
+        fail "vnext outbound no longer converted (got: $out)"
+    fi
+    if [ "$(printf '%s\n' "$out" | grep -c .)" = "3" ]; then
+        pass "no-extra-or-missing-nodes"
+    else
+        fail "expected 3 nodes (got: $out)"
+    fi
+}
+
 test_section_own_dns() {
     header "Own DNS servers of a routing section (own_dns_server)"
 
@@ -25961,6 +26025,7 @@ main() {
         sectiondns) test_section_own_dns ;;
         supportreport) test_support_report ;;
         fakeiplists) test_fakeip_rule_lists ;;
+        xrayflat) test_xray_flat_outbound ;;
         *)
             # a test by its function name, with or without the test_ prefix ("hy2_hop")
             case "$target" in

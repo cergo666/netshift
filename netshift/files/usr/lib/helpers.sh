@@ -1920,11 +1920,14 @@ xray_json_to_uri_lines() {
           | ($ss.tlsSettings // $ss.realitySettings // {}) as $tls
           # Addressing: vnext (vless/vmess) vs servers (trojan/shadowsocks);
           # hysteria carries the peer directly in settings.address/settings.port
-          # (no vnext/servers), so branch the peer derivation on protocol.
+          # (no vnext/servers), so branch the peer derivation on protocol. Xray 26
+          # writes vless/vmess/trojan/shadowsocks the same flat way: address, port and
+          # the credentials (id, flow, encryption, password) sit in settings itself.
           | (if $ob.protocol == "hysteria"
              then {address: $ob.settings.address, port: $ob.settings.port}
-             else ($ob.settings.vnext[0] // $ob.settings.servers[0] // {}) end) as $peer
-          | ($peer.users[0] // {}) as $user
+             else ($ob.settings.vnext[0] // $ob.settings.servers[0]
+                   // (if ($ob.settings.address // "") != "" then $ob.settings else {} end)) end) as $peer
+          | ($peer.users[0] // (if ($peer.id // "") != "" then $peer else {} end)) as $user
           | ($peer.address // "") as $host
           | ($peer.port // "") as $port
           | select($host != "" and ($port | tostring) != "")
