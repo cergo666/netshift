@@ -1,23 +1,38 @@
-import { createCipheriv, randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { decodeIncyLink, decodeIncyLinks, isIncyLink } from '../incy';
 
-const KEY = Buffer.from(
-  'f6d40ea0c8a8899d7c682d09ba0d4165dfe2b3dd45e6bb3e25cb233cf00c2462',
-  'hex',
-);
+const KEY_HEX =
+  'f6d40ea0c8a8899d7c682d09ba0d4165dfe2b3dd45e6bb3e25cb233cf00c2462';
 
 // the cross-platform test vector of the encoder (iv 000102...0b)
 const VECTOR =
   'incy://crypt1/AAECAwQFBgcICQoLNyIQL3rDwRZqnyoD8pGKSLXP6o8NdSXQVSSALNbbUyIr__tWGFUexdIfKvvmDnuDGbmBvuppfNef6aKNZUwOm4c-Sg';
 
-function seal(text: string): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', KEY, iv);
-  const body = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-  const wire = Buffer.concat([iv, body, cipher.getAuthTag()]);
+// a link built with WebCrypto of the runtime, independent of the code under test
+async function seal(text: string): Promise<string> {
+  const raw = new Uint8Array(
+    KEY_HEX.match(/../g)!.map((byte) => parseInt(byte, 16)),
+  );
+  const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, [
+    'encrypt',
+  ]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const body = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      new TextEncoder().encode(text),
+    ),
+  );
+  const wire = new Uint8Array(iv.length + body.length);
+  wire.set(iv);
+  wire.set(body, iv.length);
+  const payload = btoa(String.fromCharCode(...wire))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 
-  return `incy://crypt1/${wire.toString('base64url')}`;
+  return `incy://crypt1/${payload}`;
 }
 
 describe('decodeIncyLink', () => {
@@ -27,10 +42,10 @@ describe('decodeIncyLink', () => {
     });
   });
 
-  it('reads a link with a name and a long address, whatever its length', () => {
+  it('reads a link with a name and a long address, whatever its length', async () => {
     for (const size of [0, 1, 15, 16, 17, 31, 32, 33, 200]) {
       const url = `https://sub.example.com/${'a'.repeat(size)}?x=1&y=ж`;
-      const link = seal(JSON.stringify({ n: 'My VPN', url, v: 1 }));
+      const link = await seal(JSON.stringify({ n: 'My VPN', url, v: 1 }));
 
       expect(decodeIncyLink(link)).toEqual({ url, name: 'My VPN' });
     }
@@ -56,9 +71,9 @@ describe('decodeIncyLink', () => {
     expect(decodeIncyLink('incy://crypt1/!!!')).toBeNull();
   });
 
-  it('rejects a payload that is not the expected JSON', () => {
-    expect(decodeIncyLink(seal('not json'))).toBeNull();
-    expect(decodeIncyLink(seal('{"v":1}'))).toBeNull();
+  it('rejects a payload that is not the expected JSON', async () => {
+    expect(decodeIncyLink(await seal('not json'))).toBeNull();
+    expect(decodeIncyLink(await seal('{"v":1}'))).toBeNull();
   });
 });
 
