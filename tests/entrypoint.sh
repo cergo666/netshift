@@ -24875,6 +24875,57 @@ SBEOF
     rm -rf "$work"
 }
 
+test_fakeip_rule_lists() {
+    header "FakeIP DNS rule: service domains apart from the rule-sets (sing-box 1.14 semantics)"
+
+    local lib="${NETSHIFT_LIB_DIR}"
+    local bin="${NETSHIFT_SRC}/usr/bin/netshift"
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not available"
+        return
+    fi
+    if [ ! -r "$bin" ]; then
+        fail "netshift bin not found"
+        return
+    fi
+
+    mkdir -p /usr/lib/netshift
+    ln -sf "$lib/helpers.jq" /usr/lib/netshift/helpers.jq
+    ln -sf "$lib/helpers.sh" /usr/lib/netshift/helpers.sh
+
+    local out
+    out="$(
+        . "$lib/constants.sh"
+        . "$lib/sing_box_config_manager.sh"
+        eval "$(awk '$0 ~ "^prune_fakeip_dns_rule_without_lists\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "$bin")"
+        mk() { sing_box_cm_add_dns_route_rule '{"dns":{"rules":[]}}' "$SB_FAKEIP_DNS_SERVER_TAG" "$SB_FAKEIP_DNS_RULE_TAG"; }
+        tags() { printf '%s' "$config" | jq -c --arg k "$SERVICE_TAG" '[.dns.rules[] | .[$k]]'; }
+
+        config=$(mk)
+        config=$(sing_box_cm_add_dns_route_rule "$config" "$SB_FAKEIP_DNS_SERVER_TAG" "$SB_FAKEIP_SERVICE_DNS_RULE_TAG")
+        config=$(sing_box_cm_patch_dns_route_rule "$config" "$SB_FAKEIP_SERVICE_DNS_RULE_TAG" "domain" '["a.example"]')
+        prune_fakeip_dns_rule_without_lists
+        echo "nolist:$(tags)"
+
+        config=$(sing_box_cm_patch_dns_route_rule "$(mk)" "$SB_FAKEIP_DNS_RULE_TAG" "rule_set" "discord")
+        config=$(sing_box_cm_add_dns_route_rule "$config" "$SB_FAKEIP_DNS_SERVER_TAG" "$SB_FAKEIP_SERVICE_DNS_RULE_TAG")
+        config=$(sing_box_cm_patch_dns_route_rule "$config" "$SB_FAKEIP_SERVICE_DNS_RULE_TAG" "domain" '["a.example"]')
+        prune_fakeip_dns_rule_without_lists
+        echo "list:$(tags)"
+        echo "listrule-no-domain:$(printf '%s' "$config" | jq -c --arg k "$SERVICE_TAG" --arg t "$SB_FAKEIP_DNS_RULE_TAG" '[.dns.rules[] | select(.[$k] == $t) | has("domain")] | first')"
+    )"
+
+    ok_eq() { if [ "$1" = "$2" ]; then pass "$3"; else fail "$3 (got: $1)"; fi; }
+    ok_eq "$(echo "$out" | sed -n 's/^nolist://p')" '["fakeip-service-dns-rule-tag"]' "fakeip-rule-without-lists-dropped-service-rule-kept"
+    ok_eq "$(echo "$out" | sed -n 's/^list://p')" '["fakeip-dns-rule-tag","fakeip-service-dns-rule-tag"]' "fakeip-rule-with-list-kept"
+    ok_eq "$(echo "$out" | sed -n 's/^listrule-no-domain://p')" 'false' "list-rule-carries-no-domain"
+    if grep -n 'patch_dns_route_rule "$config" "$SB_FAKEIP_DNS_RULE_TAG" "domain"' "$bin" > /dev/null; then
+        fail "the domains of the services are patched into the rule of the lists again"
+    else
+        pass "service-domains-not-in-list-rule"
+    fi
+}
+
 test_section_own_dns() {
     header "Own DNS servers of a routing section (own_dns_server)"
 
@@ -25828,6 +25879,7 @@ main() {
         filterpreview) test_filter_preview ;;
         supportreport) test_support_report ;;
         hy2hop)      test_hy2_hop ;;
+        fakeiplists) test_fakeip_rule_lists ;;
         *)
             # a test by its function name, with or without the test_ prefix ("hy2_hop")
             case "$target" in
