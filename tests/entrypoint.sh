@@ -25917,6 +25917,93 @@ LR
     rm -rf "$work"
 }
 
+test_subscription_fuller_list() {
+    header "Subscription: the Xray list is kept when the sing-box one has fewer nodes"
+
+    if ! command -v jq > /dev/null 2>&1; then
+        skip "jq not available"
+        return
+    fi
+
+    local drv="/tmp/netshift-fuller-$$.sh" out
+    cat > "$drv" << 'FULLERDRV'
+mkdir -p /usr/lib/netshift
+for f in helpers.jq helpers.sh sing_box_config_manager.sh sing_box_config_facade.sh linkfast.jq constants.sh; do
+    ln -sf "LIB_DIR_PLACEHOLDER/$f" "/usr/lib/netshift/$f"
+done
+NETSHIFT_LIB="LIB_DIR_PLACEHOLDER"
+. "LIB_DIR_PLACEHOLDER/constants.sh"
+. "LIB_DIR_PLACEHOLDER/helpers.sh"
+. "LIB_DIR_PLACEHOLDER/sing_box_config_manager.sh"
+. "LIB_DIR_PLACEHOLDER/sing_box_config_facade.sh"
+get_outbound_tag_by_section() { printf '%s-out' "$1"; }
+for fn in download_subscription_into_cache fetch_subscription_candidate ensure_subscription_cache_dir \
+          get_subscription_user_agent_cache_path get_subscription_rejected_cache_path \
+          subscription_url_cache_matches; do
+    eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "BIN_PATH_PLACEHOLDER")"
+done
+log() { :; }
+uci() { return 1; }
+subscription_refresh_info() { :; }
+load_subscription_client_identity() { :; }
+get_sing_box_version() { printf '1.12.0'; }
+SUBSCRIPTION_CACHE_FOLDER="$WORK/cache"
+TMP_SUBSCRIPTION_DOWNLOAD_FOLDER="$WORK/dl"
+# The panel: a sing-box client gets two nodes, an Xray client gets four (a vless pair, two hysteria2).
+download_subscription() {
+    echo "$7" >> "$WORK/asked"
+    case "$7" in
+    singbox/*) cp "$WORK/singbox.json" "$2" ;;
+    Happ/*) cp "$WORK/xray.json" "$2" ;;
+    *) return 1 ;;
+    esac
+}
+run() { download_subscription_into_cache main "https://sub.example.com/x" "$WORK/out.json" "$WORK/out.url" ""; }
+FULLERDRV
+    sed -i "s|LIB_DIR_PLACEHOLDER|${NETSHIFT_LIB_DIR}|g; s|BIN_PATH_PLACEHOLDER|${NETSHIFT_SRC}/usr/bin/netshift|g" "$drv"
+
+    local work="/tmp/netshift-fuller-work-$$"
+    mkdir -p "$work"
+    cat > "$work/singbox.json" << 'SBJSON'
+{"outbounds": [
+  {"type": "vless", "tag": "a", "server": "203.0.113.1", "server_port": 443, "uuid": "11111111-1111-1111-1111-111111111111"},
+  {"type": "vless", "tag": "b", "server": "203.0.113.2", "server_port": 443, "uuid": "11111111-1111-1111-1111-111111111111"},
+  {"type": "direct", "tag": "direct"}
+]}
+SBJSON
+    cat > "$work/xray.json" << 'XRJSON'
+[
+  {"remarks": "One", "outbounds": [
+    {"protocol": "vless", "tag": "proxy", "settings": {"vnext": [{"address": "203.0.113.1", "port": 443, "users": [{"id": "11111111-1111-1111-1111-111111111111", "encryption": "none"}]}]},
+     "streamSettings": {"network": "tcp", "security": "tls", "tlsSettings": {"serverName": "a.example.com"}}},
+    {"protocol": "hysteria", "tag": "HY2", "settings": {"address": "203.0.113.1", "port": 443, "version": 2},
+     "streamSettings": {"network": "hysteria", "hysteriaSettings": {"version": 2, "auth": "secret"}, "security": "tls", "tlsSettings": {"serverName": "a.example.com"}}}]},
+  {"remarks": "Two", "outbounds": [
+    {"protocol": "vless", "tag": "proxy", "settings": {"vnext": [{"address": "203.0.113.2", "port": 443, "users": [{"id": "11111111-1111-1111-1111-111111111111", "encryption": "none"}]}]},
+     "streamSettings": {"network": "tcp", "security": "tls", "tlsSettings": {"serverName": "b.example.com"}}},
+    {"protocol": "hysteria", "tag": "HY2", "settings": {"address": "203.0.113.2", "port": 443, "version": 2},
+     "streamSettings": {"network": "hysteria", "hysteriaSettings": {"version": 2, "auth": "secret"}, "security": "tls", "tlsSettings": {"serverName": "b.example.com"}}}]}
+]
+XRJSON
+
+    out="$(WORK="$work" sh -c '. "'"$drv"'"; run; printf "count=%s asked=%s\n" "$(subscription_proxy_count "$WORK/out.json")" "$(tr "\n" "," < "$WORK/asked")"' 2> /dev/null)"
+    if printf '%s' "$out" | grep -q '^count=4 '; then
+        pass "xray-list-kept-over-shorter-singbox-list"
+    else
+        fail "expected the four-node Xray list (got: $out)"
+    fi
+
+    # Same panel, but the Xray client has nothing more to give: the sing-box list stays.
+    cp "$work/singbox.json" "$work/xray.json"
+    out="$(WORK="$work" sh -c '. "'"$drv"'"; rm -rf "$WORK/cache"; : > "$WORK/asked"; run; printf "count=%s\n" "$(subscription_proxy_count "$WORK/out.json")"' 2> /dev/null)"
+    if [ "$out" = "count=2" ]; then
+        pass "singbox-list-kept-when-not-shorter"
+    else
+        fail "expected the two-node list (got: $out)"
+    fi
+    rm -rf "$work" "$drv"
+}
+
 main() {
     printf "${BOLD}Netshift Evolution — Smoke Test Suite${NC}\n"
     printf "Source: %s\n" "$NETSHIFT_SRC"

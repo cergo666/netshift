@@ -1742,6 +1742,16 @@ _check_subscription_connectivity_once() {
     return 1
 }
 
+# Number of proxy outbounds (not groups or system ones) in a sing-box subscription file.
+subscription_proxy_count() {
+    jq -r '
+        [(.outbounds // [])[] | select(
+            .type != "selector" and .type != "urltest" and .type != "direct" and
+            .type != "dns" and .type != "block"
+        )] | length
+    ' "$1" 2> /dev/null || echo 0
+}
+
 validate_subscription_file() {
     local filepath="$1"
 
