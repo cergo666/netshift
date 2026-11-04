@@ -1479,7 +1479,8 @@ get_subscription_user_agent() {
 #   $1 - configured User-Agent (empty for auto mode)
 #   $2 - preferred User-Agent (e.g. the previously cached winner; tried early)
 #   $3 - format preference: "auto" (default) | "xray" | "singbox". Reorders the
-#        auto-mode candidates so the preferred FORMAT's UA is probed first; the
+#        auto-mode candidates so the preferred FORMAT's UA is probed first.
+#   $4 - set to 1 to put a cached Xray User-Agent before the default in auto mode.
 #        probe loop still keeps the first body that yields valid outbounds.
 # Behavior:
 #   - configured non-empty: emit ONLY that value (respect the user's choice;
@@ -1496,6 +1497,7 @@ build_subscription_user_agent_candidates() {
     local configured_user_agent="${1:-}"
     local preferred_user_agent="${2:-}"
     local format_preference="${3:-}"
+    local prefer_cached_xray="${4:-0}"
     local default_user_agent candidate seen
 
     if [ -n "$configured_user_agent" ]; then
@@ -1509,11 +1511,15 @@ build_subscription_user_agent_candidates() {
     # Order the auto-mode candidate stream by the requested format preference.
     # "xray" front-loads the Xray-JSON-yielding UAs (so they outrank the cached
     # winner and the default); "singbox"/"auto"/empty/unknown keep today's order
-    # (default UA -> cached winner -> whitelist). Any unknown value falls through
+    # (default UA -> cached winner -> whitelist), except when a cached Xray UA
+    # is explicitly promoted by the subscription refresh caller.
     # to the default ordering (forward-compatible).
     if [ "$format_preference" = "xray" ]; then
         # shellcheck disable=SC2086 # word-splitting of the candidate lists is intentional
         set -- $SUBSCRIPTION_USER_AGENT_XRAY_CANDIDATES "$default_user_agent" "$preferred_user_agent" $SUBSCRIPTION_USER_AGENT_CANDIDATES
+    elif [ "$prefer_cached_xray" = "1" ] && [ -n "$preferred_user_agent" ]; then
+        # shellcheck disable=SC2086 # word-splitting of the candidate list is intentional
+        set -- "$preferred_user_agent" "$default_user_agent" $SUBSCRIPTION_USER_AGENT_CANDIDATES
     else
         # shellcheck disable=SC2086 # word-splitting of the candidate list is intentional
         set -- "$default_user_agent" "$preferred_user_agent" $SUBSCRIPTION_USER_AGENT_CANDIDATES
@@ -1590,6 +1596,15 @@ subscription_downloads_clean() {
     fi
     [ -d "$dir" ] && rm -rf "$dir"
     mkdir -p "$dir"
+}
+
+# Subscriptions are fetched over http(s) only: wget would also take ftp://, and curl file://
+# (a local file read as root). The scheme is not case-sensitive.
+subscription_url_is_http() {
+    case "$1" in
+    [Hh][Tt][Tt][Pp]://* | [Hh][Tt][Tt][Pp][Ss]://*) return 0 ;;
+    *) return 1 ;;
+    esac
 }
 
 # Downloads a subscription body from the given URL with client-mimicking headers
@@ -1677,6 +1692,10 @@ download_subscription() {
     # into the request line verbatim (checked on OpenWrt 25.12), where a panel
     # would read it as part of the path/token, so it is cut off here.
     local url="${1%%#*}"
+    if ! subscription_url_is_http "$url"; then
+        log "Refusing non-http(s) subscription URL: $(redact_url_for_log "$url")" "warn"
+        return 1
+    fi
     local filepath="$2"
     local http_proxy_address="$3"
     local retries="${4:-3}"
@@ -1791,6 +1810,10 @@ download_subscription() {
 check_subscription_connectivity() {
     # Same as download_subscription: the #fragment must not reach the server.
     local url="${1%%#*}"
+    if ! subscription_url_is_http "$url"; then
+        log "Refusing connectivity check for non-http(s) subscription URL: $(redact_url_for_log "$url")" "warn"
+        return 1
+    fi
     local http_proxy_address="$2"
     local retries="${3:-3}"
     local wait="${4:-2}"

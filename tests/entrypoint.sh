@@ -25993,9 +25993,15 @@ for fn in download_subscription_into_cache fetch_subscription_candidate ensure_s
     eval "$(awk -v f="$fn" '$0 ~ "^"f"\\(\\) \\{"{p=1} p{print} p&&/^\}/{exit}' "BIN_PATH_PLACEHOLDER")"
 done
 log() { :; }
-uci() { return 1; }
+uci() {
+    case "$*" in
+    *subscription_user_agent) [ -n "${TEST_UA:-}" ] && printf '%s' "$TEST_UA"; return 0 ;;
+    *subscription_format_preference) printf '%s' "${TEST_FORMAT:-auto}"; return 0 ;;
+    *) return 1 ;;
+    esac
+}
 subscription_refresh_info() { :; }
-load_subscription_client_identity() { :; }
+load_subscription_client_identity() { SUBSCRIPTION_USER_AGENT="${TEST_UA:-}"; }
 get_sing_box_version() { printf '1.12.0'; }
 SUBSCRIPTION_CACHE_FOLDER="$WORK/cache"
 TMP_SUBSCRIPTION_DOWNLOAD_FOLDER="$WORK/dl"
@@ -26004,11 +26010,30 @@ download_subscription() {
     echo "$7" >> "$WORK/asked"
     case "$7" in
     singbox/*) cp "$WORK/singbox.json" "$2" ;;
-    Happ/*) cp "$WORK/xray.json" "$2" ;;
+    Happ/*)
+        case "${XRAYFILE:-four}" in
+        four) cp "$WORK/xray.json" "$2" ;;
+        one) cp "$WORK/one.json" "$2" ;;
+        equal) cp "$WORK/equal.json" "$2" ;;
+        object) cp "$WORK/object.json" "$2" ;;
+        refuse) return 1 ;;
+        esac
+        ;;
+    Especial/*) cp "$WORK/singbox.json" "$2" ;;
     *) return 1 ;;
     esac
 }
 run() { download_subscription_into_cache main "https://sub.example.com/x" "$WORK/out.json" "$WORK/out.url" ""; }
+state() {
+    local count asked ua marker left
+    count="$(subscription_proxy_count "$WORK/out.json")"
+    asked="$(tr '\n' ',' < "$WORK/asked")"
+    ua="$(cat "$(get_subscription_user_agent_cache_path main)" 2>/dev/null)"
+    marker=0
+    [ -f "$(get_subscription_user_agent_cache_path main).probed" ] && marker=1
+    left="$(find "$WORK/dl" -type f 2>/dev/null | wc -l | tr -d ' ')"
+    printf 'count=%s asked=%s ua=%s marker=%s left=%s\n' "$count" "$asked" "$ua" "$marker" "$left"
+}
 FULLERDRV
     sed -i "s|LIB_DIR_PLACEHOLDER|${NETSHIFT_LIB_DIR}|g; s|BIN_PATH_PLACEHOLDER|${NETSHIFT_SRC}/usr/bin/netshift|g" "$drv"
 
