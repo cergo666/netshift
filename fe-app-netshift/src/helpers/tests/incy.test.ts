@@ -75,6 +75,37 @@ describe('decodeIncyLink', () => {
     expect(decodeIncyLink(await seal('not json'))).toBeNull();
     expect(decodeIncyLink(await seal('{"v":1}'))).toBeNull();
   });
+
+  // the address goes on to wget and curl: only a single-line http(s) address is let through
+  it('rejects an address that is not http(s) or not a single line', async () => {
+    for (const url of [
+      'file:///etc/passwd',
+      'javascript:alert(1)',
+      'ftp://host.example/x',
+      '--post-file=/etc/shadow',
+      'https://a.example/x\nftp://host.example/y',
+      'https://a.example/x\r',
+      'https://a.example/ x',
+      'https://a.example/\u0000',
+      'https://',
+    ]) {
+      expect(decodeIncyLink(await seal(JSON.stringify({ url })))).toBeNull();
+    }
+
+    expect(
+      decodeIncyLink(await seal(JSON.stringify({ url: 'HTTP://A.example/x' })))
+        ?.url,
+    ).toBe('http://A.example/x');
+  });
+
+  it('does not decrypt a link far longer than any real one', async () => {
+    const long = await seal(
+      JSON.stringify({ url: `https://a.example/${'a'.repeat(5000)}` }),
+    );
+
+    expect(long.length).toBeGreaterThan(4096);
+    expect(decodeIncyLink(long)).toBeNull();
+  });
 });
 
 describe('decodeIncyLinks', () => {

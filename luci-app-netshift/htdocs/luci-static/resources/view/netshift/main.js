@@ -9685,7 +9685,11 @@ function decodeIncyLink(link) {
     if (typeof parsed.url !== "string" || !parsed.url) {
       return null;
     }
-    return typeof parsed.n === "string" && parsed.n ? { url: parsed.url, name: parsed.n } : { url: parsed.url };
+    const url = parsed.url.replace(
+      /^[A-Za-z][A-Za-z0-9+.-]*:/,
+      (scheme) => scheme.toLowerCase()
+    );
+    return typeof parsed.n === "string" && parsed.n ? { url, name: parsed.n } : { url };
   } catch {
     return null;
   }
